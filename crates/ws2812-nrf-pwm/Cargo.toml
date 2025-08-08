@@ -1,0 +1,15 @@
+[package]
+name = "ws2812-nrf-pwm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+embassy-nrf = { workspace = true }
+embassy-time = { workspace = true }
+smart-leds-trait = { workspace = true }
+defmt = { workspace = true, optional = true }
+static_cell = { workspace = true }
+
+[features]
+default = ["defmt"]
+defmt = ["dep:defmt"]

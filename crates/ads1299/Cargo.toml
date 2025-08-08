@@ -1,0 +1,25 @@
+[package]
+name = "ads1299"
+version = "0.1.0"
+edition = "2021"
+
+repository = "https://github.com/iscoe/dc-mini-sw"
+authors = ["Preston Peranich <pperanich@gmail.com>"]
+categories = ["hardware-support", "embedded", "no-std"]
+license = "0BSD"
+
+[lib]
+path = "src/lib.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = []
+defmt = ["dep:defmt", "heapless/defmt-03"]
+
+[dependencies]
+bitflags = "2"
+embedded-hal = "1.0.0"
+embedded-hal-async = "1.0.0"
+defmt = { version = "0.3", optional = true }
+byteorder = { version = "1.5", default-features = false }
+heapless = { version = "0.8" }

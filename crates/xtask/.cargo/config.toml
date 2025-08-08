@@ -1,0 +1,11 @@
+# This file intentionally left empty to override workspace build target.
+# The xtask crate should be built for the host platform, not the embedded target. 
+
+# [build]
+# target = "" # Empty string means use the host platform
+
+# [target.'cfg(all(target_arch = "arm", target_os = "none"))']
+# runner = "probe-rs run --chip nRF52840_xxAA"
+
+# [env]
+# CARGO_BUILD_TARGET = "" # Empty string means use the host platform

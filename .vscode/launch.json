@@ -1,0 +1,71 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "probe-rs-debug",
+      "request": "launch",
+      "name": "dc-mini-app",
+      "cwd": "${workspaceFolder}",
+      "connectUnderReset": false,
+      "chip": "nRF52840_xxAA",
+      "flashingConfig": {
+        "flashingEnabled": true,
+        "haltAfterReset": true
+      },
+      "coreConfigs": [
+        {
+          "coreIndex": 0,
+          "programBinary": "./target/thumbv7em-none-eabihf/debug/dc-mini-app"
+        }
+      ]
+    },
+    {
+      "type": "probe-rs-debug",
+      "request": "launch",
+      "name": "statig_blinky",
+      "cwd": "${workspaceFolder}",
+      "connectUnderReset": false,
+      "chip": "nRF52840_xxAA",
+      "flashingConfig": {
+        "flashingEnabled": true,
+        "haltAfterReset": false
+      },
+      "coreConfigs": [
+        {
+          "coreIndex": 0,
+          "rttEnabled": true,
+          "programBinary": "./target/thumbv7em-none-eabihf/debug/statig_blinky"
+        }
+      ],
+      "env": {
+        "RUST_LOG": "info",
+        "DEFMT_LOG": "info"
+      },
+      "consoleLogLevel": "Console"
+    },
+    {
+      "type": "probe-rs-debug",
+      "request": "launch",
+      "name": "rp2040-fw",
+      "cwd": "${workspaceFolder}",
+      "connectUnderReset": false,
+      "chip": "RP2040",
+      "flashingConfig": {
+        "flashingEnabled": true,
+        "haltAfterReset": false
+      },
+      "coreConfigs": [
+        {
+          "coreIndex": 0,
+          "rttEnabled": true,
+          "programBinary": "./examples/rp2040-fw/target/thumbv6m-none-eabi/debug/main"
+        }
+      ],
+      "env": {
+        "RUST_LOG": "info",
+        "DEFMT_LOG": "info"
+      },
+      "consoleLogLevel": "Console"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+[package]
+name = "dc-mini-boot"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+repository = "https://github.com/iscoe/dc-mini-sw"
+authors = ["Preston Peranich <pperanich@gmail.com>"]
+categories = ["hardware-support", "embedded", "no-std"]
+keywords = ["arm", "cortex-m", "nrf", "hal"]
+license = "0BSD"
+
+[features]
+default = ["defmt"]
+defmt = [
+  "dep:defmt",
+  "dep:defmt-rtt",
+  "embassy-boot/defmt",
+  "embassy-boot-nrf/defmt",
+  "embassy-embedded-hal/defmt",
+  "embassy-nrf/defmt",
+  "dc-mini-bsp/defmt",
+]
+softdevice = ["dep:nrf-softdevice-mbr", "embassy-boot-nrf/softdevice"]
+trouble = []
+usb = []
+alloc = []
+critical-section = []
+# Hardware revision of board.
+r6 = ["dc-mini-bsp/r6"]
+sr1 = ["dc-mini-bsp/sr1"]
+sr2 = ["dc-mini-bsp/sr2"]
+sr3 = ["dc-mini-bsp/sr3"]
+
+[dependencies]
+embassy-boot = { workspace = true }
+embassy-boot-nrf = { workspace = true }
+embassy-nrf = { workspace = true }
+nrf-softdevice-mbr = { workspace = true, optional = true }
+embassy-embedded-hal = { workspace = true }
+embassy-sync = { workspace = true }
+
+defmt = { workspace = true, optional = true }
+defmt-rtt = { workspace = true, optional = true }
+
+cortex-m = { version = "0.7", features = [
+  "critical-section-single-core",
+  "inline-asm",
+] }
+cortex-m-rt = { workspace = true }
+
+dc-mini-bsp = { path = "../dc-mini-bsp" }

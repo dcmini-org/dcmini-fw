@@ -1,0 +1,108 @@
+[package]
+name = "dc-mini-app"
+version = "0.1.0"
+edition = "2021"
+
+repository = "https://github.com/iscoe/dc-mini-sw"
+authors = ["Preston Peranich <pperanich@gmail.com>"]
+categories = ["hardware-support", "embedded", "no-std"]
+keywords = ["arm", "cortex-m", "nrf", "hal"]
+license = "0BSD"
+publish = false
+
+[package.metadata.rust-analyzer]
+checkOnSave.target = "thumbv7m-none-eabi"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = []
+defmt = [
+  "dep:defmt",
+  "dep:defmt-rtt",
+  "defmt/alloc",
+  "embassy-embedded-hal/defmt",
+  "embassy-executor/defmt",
+  "embassy-nrf/defmt",
+  "embassy-usb/defmt",
+  "embassy-time/defmt",
+  "embassy-time/defmt-timestamp-uptime",
+  "sequential-storage/defmt-03",
+  "heapless/defmt-03",
+  "rgb/defmt-03",
+  "dc-mini-bsp/defmt",
+  "dc-mini-icd/defmt",
+  "postcard-rpc/defmt",
+  "ads1299/defmt",
+  "trouble-host/defmt",
+  "nrf-softdevice/defmt",
+]
+alloc = ["defmt/alloc"]
+usb = ["dc-mini-bsp/usb", "dep:embassy-usb"]
+trouble = ["dc-mini-bsp/trouble", "bt-hci", "trouble-host"]
+softdevice = ["nrf-softdevice", "nrf-softdevice-s140", "dc-mini-bsp/softdevice"]
+critical-section = ["cortex-m/critical-section-single-core"]
+
+# Hardware revision of board.
+r6 = ["dc-mini-bsp/r6"]
+sr1 = ["dc-mini-bsp/sr1"]
+sr2 = ["dc-mini-bsp/sr2"]
+sr3 = ["dc-mini-bsp/sr3"]
+
+[dependencies]
+cortex-m = { workspace = true }
+cortex-m-rt = { workspace = true }
+defmt = { workspace = true, optional = true }
+defmt-rtt = { workspace = true, optional = true }
+derive_more = { workspace = true }
+embassy-embedded-hal = { workspace = true }
+embassy-executor = { workspace = true }
+embassy-futures = { workspace = true }
+embassy-sync = { workspace = true }
+embassy-time = { workspace = true }
+embassy-nrf = { workspace = true }
+embassy-usb = { workspace = true, optional = true }
+embedded-alloc = { workspace = true }
+embedded-storage = { workspace = true }
+embedded-storage-async = { workspace = true }
+embedded-sdmmc = { workspace = true }
+futures = { workspace = true }
+heapless = { workspace = true }
+paste = { workspace = true }
+panic-probe = { workspace = true }
+panic-reset = { workspace = true }
+prost = { workspace = true }
+portable-atomic = { workspace = true }
+
+postcard = { workspace = true }
+postcard-schema = { workspace = true }
+postcard-rpc = { workspace = true }
+
+# atomic-pool = "1"
+static_cell = { workspace = true }
+statig = { git = "https://github.com/mdeloof/statig", branch = "no_std_async", features = [
+  "async",
+] }
+nrf-softdevice = { workspace = true, optional = true }
+nrf-softdevice-s140 = { workspace = true, optional = true }
+trouble-host = { workspace = true, optional = true }
+nrf-sdc = { workspace = true }
+bt-hci = { workspace = true, optional = true }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+sequential-storage = { workspace = true }
+
+smart-leds = { workspace = true }
+ws2812-spi = { workspace = true }
+npm1300 = { workspace = true }
+apds9253 = { workspace = true }
+rgb = "0.8"
+
+dc-mini-bsp = { path = "../dc-mini-bsp" }
+dc-mini-icd = { path = "../dc-mini-icd" }
+ads1299 = { path = "../ads1299" }
+icm-45605 = { path = "../icm-45605/" }
+ws2812-nrf-pwm = { path = "../ws2812-nrf-pwm" }
+cfg-if.workspace = true
+
+time = { workspace = true }
+trallocator = { workspace = true }

@@ -1,0 +1,22 @@
+[package]
+name = "dc-mini-icd"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+postcard-rpc = { workspace = true }
+postcard-schema = { workspace = true }
+serde = { version = "1.0", features = ["derive"], default-features = false }
+defmt = { workspace = true, optional = true }
+ads1299 = { path = "../ads1299/" }
+icm-45605 = { path = "../icm-45605/" }
+heapless = { workspace = true }
+prost = { workspace = true }
+
+[features]
+default = []
+use-std = ["prost/std"]
+defmt = ["dep:defmt", "icm-45605/defmt", "ads1299/defmt"]
+
+[build-dependencies]
+prost-build = "0.13"

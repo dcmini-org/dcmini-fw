@@ -1,0 +1,1906 @@
+config:
+  default_byte_order: BE
+  buffer_address_type: u16
+  command_address_type: u16
+  register_address_type: u16
+  defmt_feature: "defmt"
+
+ACCEL_DATA_X_UI:
+  type: register
+  address: 0x00
+  size_bits: 16
+  access: RO
+  description: Accel X-axis data for UI path
+  fields:
+    data:
+      base: int
+      start: 0
+      end: 16
+
+ACCEL_DATA_Y_UI:
+  type: register
+  address: 0x02
+  size_bits: 16
+  access: RO
+  description: Accel Y-axis data for UI path
+  fields:
+    data:
+      base: int
+      start: 0
+      end: 16
+
+ACCEL_DATA_Z_UI:
+  type: register
+  address: 0x04
+  size_bits: 16
+  access: RO
+  description: Accel Z-axis data for UI path
+  fields:
+    data:
+      base: int
+      start: 0
+      end: 16
+
+GYRO_DATA_X_UI:
+  type: register
+  address: 0x06
+  size_bits: 16
+  access: RO
+  description: Gyro X-axis data for UI path
+  fields:
+    data:
+      base: int
+      start: 0
+      end: 16
+
+GYRO_DATA_Y_UI:
+  type: register
+  address: 0x08
+  size_bits: 16
+  access: RO
+  description: Gyro Y-axis data for UI path
+  fields:
+    data:
+      base: int
+      start: 0
+      end: 16
+
+GYRO_DATA_Z_UI:
+  type: register
+  address: 0x0a
+  size_bits: 16
+  access: RO
+  description: Gyro Z-axis data for UI path
+  fields:
+    data:
+      base: int
+      start: 0
+      end: 16
+
+TEMP_DATA_UI:
+  type: register
+  address: 0x0c
+  size_bits: 16
+  access: RO
+  description: Temperature data for UI path
+  fields:
+    data:
+      base: int
+      start: 0
+      end: 16
+
+TMST_FSYNC_DATA_UI:
+  type: register
+  address: 0x0e
+  size_bits: 16
+  access: RO
+  description: >
+    The time delta from the rising edge of FSYNC to the latest ODR until
+    the UI Interface reads the FSYNC tag in the status register
+  fields:
+    data:
+      base: int
+      start: 0
+      end: 16
+
+PWR_MGMT0:
+  type: register
+  address: 0x10
+  size_bits: 8
+  access: RW
+  fields:
+    accel_mode:
+      base: uint
+      conversion:
+        name: ACCEL_MODE
+        Off: 0b00
+        OffAlt: 0b01
+        LowPower: 0b10
+        LowNoise: 0b11
+      start: 0
+      end: 2
+      description: Accelerometer power mode
+    gyro_mode:
+      base: uint
+      conversion:
+        name: GYRO_MODE
+        Off: 0b00
+        Standby: 0b01
+        LowPower: 0b10
+        LowNoise: 0b11
+      start: 2
+      end: 4
+      description: Gyroscope power mode
+
+FIFO_DATA_CNT:
+  type: register
+  address: 0x12
+  size_bits: 16
+  access: RO
+  description: Indicates the number of packets available in FIFO
+  fields:
+    data:
+      base: uint
+      start: 0
+      end: 16
+
+FIFO_DATA:
+  type: register
+  address: 0x14
+  size_bits: 8
+  access: RO
+  description: FIFO data port
+  fields:
+    data:
+      base: uint
+      start: 0
+      end: 8
+
+INT1_CONFIG0:
+  type: register
+  address: 0x16
+  size_bits: 8
+  reset_value: 0x80
+  fields:
+    int1_status_en_fifo_full:
+      base: bool
+      start: 0
+      description: Enable FIFO full interrupt on INT1
+    int1_status_en_fifo_ths:
+      base: bool
+      start: 1
+      description: Enable FIFO threshold interrupt on INT1
+    int1_status_en_drdy:
+      base: bool
+      start: 2
+      description: Enable data ready interrupt on INT1
+    int1_status_en_aux1_drdy:
+      base: bool
+      start: 3
+      description: Enable AUX1 data ready interrupt on INT1
+    int1_status_en_ap_fsync:
+      base: bool
+      start: 4
+      description: Enable AP FSYNC interrupt on INT1
+    int1_status_en_ap_agc_rdy:
+      base: bool
+      start: 5
+      description: Enable AP AGC ready interrupt on INT1
+    int1_status_en_aux1_agc_rdy:
+      base: bool
+      start: 6
+      description: Enable AUX1 AGC ready interrupt on INT1
+    int1_status_en_reset_done:
+      base: bool
+      start: 7
+      description: Enable reset done interrupt on INT1
+
+INT1_CONFIG1:
+  type: register
+  address: 0x17
+  size_bits: 8
+  reset_value: 0x00
+  fields:
+    int1_status_en_pll_rdy:
+      base: bool
+      start: 0
+    int1_status_en_wom_x:
+      base: bool
+      start: 1
+    int1_status_en_wom_y:
+      base: bool
+      start: 2
+    int1_status_en_wom_z:
+      base: bool
+      start: 3
+    int1_status_en_i3c_protocol_err:
+      base: bool
+      start: 4
+    int1_status_en_i2cm_done:
+      base: bool
+      start: 5
+    int1_status_en_apex_event:
+      base: bool
+      start: 6
+
+INT1_CONFIG2:
+  type: register
+  address: 0x18
+  size_bits: 8
+  reset_value: 0x04
+  fields:
+    int1_polarity:
+      base: uint
+      conversion:
+        name: Int1Polarity
+        ActiveLow: 0b0
+        ActiveHigh: 0b1
+      start: 0
+      end: 1
+    int1_mode:
+      base: uint
+      conversion:
+        name: Int1Mode
+        Pulse: 0b0
+        Latch: 0b1
+      start: 1
+      end: 2
+    int1_drive:
+      base: uint
+      conversion:
+        name: Int1Drive
+        PushPull: 0b0
+        OpenDrain: 0b1
+      start: 2
+      end: 3
+
+INT1_STATUS0:
+  type: register
+  address: 0x19
+  size_bits: 8
+  access: RO
+  description: Interrupt 1 status register 0
+  fields:
+    int1_status_fifo_full:
+      base: bool
+      start: 0
+      description: FIFO full interrupt status
+    int1_status_fifo_ths:
+      base: bool
+      start: 1
+      description: FIFO threshold interrupt status
+    int1_status_drdy:
+      base: bool
+      start: 2
+      description: Data ready interrupt status
+    int1_status_aux1_drdy:
+      base: bool
+      start: 3
+      description: AUX1 data ready interrupt status
+    int1_status_ap_fsync:
+      base: bool
+      start: 4
+      description: AP FSYNC interrupt status
+    int1_status_ap_agc_rdy:
+      base: bool
+      start: 5
+      description: AP AGC ready interrupt status
+    int1_status_aux1_agc_rdy:
+      base: bool
+      start: 6
+      description: AUX1 AGC ready interrupt status
+    int1_status_reset_done:
+      base: bool
+      start: 7
+      description: Reset done interrupt status
+
+INT1_STATUS1:
+  type: register
+  address: 0x1a
+  size_bits: 8
+  access: RO
+  description: Interrupt 1 status register 1
+  fields:
+    int1_status_pll_rdy:
+      base: bool
+      start: 0
+      description: PLL ready interrupt status
+    int1_status_wom_x:
+      base: bool
+      start: 1
+      description: Wake on motion X-axis interrupt status
+    int1_status_wom_y:
+      base: bool
+      start: 2
+      description: Wake on motion Y-axis interrupt status
+    int1_status_wom_z:
+      base: bool
+      start: 3
+      description: Wake on motion Z-axis interrupt status
+    int1_status_i3c_protocol_err:
+      base: bool
+      start: 4
+      description: I3C protocol error interrupt status
+    int1_status_i2cm_done:
+      base: bool
+      start: 5
+      description: I2C master done interrupt status
+    int1_status_apex_event:
+      base: bool
+      start: 6
+      description: APEX event interrupt status
+
+ACCEL_CONFIG0:
+  type: register
+  address: 0x1b
+  size_bits: 8
+  access: RW
+  description: Accelerometer configuration register 0
+  fields:
+    accel_odr:
+      base: uint
+      start: 0
+      end: 4
+      description: Accelerometer ODR selection for UI interface output
+      try_conversion:
+        name: AccelOdr
+        Odr6_4kHz: 0b0011
+        Odr3_2kHz: 0b0100
+        Odr1_6kHz: 0b0101
+        Odr800Hz: 0b0110
+        Odr400Hz: 0b0111
+        Odr200Hz: 0b1000
+        Odr100Hz: 0b1001
+        Odr50Hz: 0b1010
+        Odr25Hz: 0b1011
+        Odr12_5Hz: 0b1100
+        Odr6_25Hz: 0b1101
+        Odr3_125Hz: 0b1110
+        Odr1_5625Hz: 0b1111
+    accel_ui_fs_sel:
+      base: uint
+      start: 4
+      end: 7
+      description: Full scale select for accelerometer UI interface output
+      try_conversion:
+        name: AccelFsr
+        Fs16g: 0b001
+        Fs8g: 0b010
+        Fs4g: 0b011
+        Fs2g: 0b100
+
+GYRO_CONFIG0:
+  type: register
+  address: 0x1c
+  size_bits: 8
+  access: RW
+  description: Gyroscope configuration register 0
+  fields:
+    gyro_odr:
+      base: uint
+      start: 0
+      end: 4
+      description: Gyroscope ODR selection for UI interface output
+      try_conversion:
+        name: GyroOdr
+        Odr6_4kHz: 0b0011
+        Odr3_2kHz: 0b0100
+        Odr1_6kHz: 0b0101
+        Odr800Hz: 0b0110
+        Odr400Hz: 0b0111
+        Odr200Hz: 0b1000
+        Odr100Hz: 0b1001
+        Odr50Hz: 0b1010
+        Odr25Hz: 0b1011
+        Odr12_5Hz: 0b1100
+        Odr6_25Hz: 0b1101
+        Odr3_125Hz: 0b1110
+        Odr1_5625Hz: 0b1111
+    gyro_ui_fs_sel:
+      base: uint
+      start: 4
+      end: 8
+      description: Full scale select for gyroscope UI interface output
+      try_conversion:
+        name: GyroFsr
+        Fs2000dps: 0b0001
+        Fs1000dps: 0b0010
+        Fs500dps: 0b0011
+        Fs250dps: 0b0100
+        Fs125dps: 0b0101
+        Fs62_5dps: 0b0110
+        Fs31_25dps: 0b0111
+        Fs15_625dps: 0b1000
+
+FIFO_CONFIG0:
+  type: register
+  address: 0x1d
+  size_bits: 8
+  access: RW
+  description: FIFO configuration register 0
+  fields:
+    fifo_depth:
+      base: uint
+      start: 0
+      end: 6
+      description: FIFO depth configuration
+      try_conversion:
+        name: FifoDepth
+        Depth2k: 0b000111
+        Depth8k: 0b011111
+    fifo_mode:
+      base: uint
+      start: 6
+      end: 8
+      description: FIFO mode configuration
+      try_conversion:
+        name: FifoMode
+        Bypass: 0b00
+        Stream: 0b01
+        StopOnFull: 0b10
+
+FIFO_CONFIG1:
+  type: register
+  address: 0x1e
+  size_bits: 16
+  byte_order: LE
+  fields:
+    fifo_wm_th:
+      base: uint
+      start: 0
+      end: 16
+      description: >
+        FIFO watermark threshold. When set to 0, the watermark is disabled.
+        When writing new threshold value, user must first write threshold
+        LSByte (bits [7:0]), then MSByte (bits [15:8]). New threshold register
+        value will take effect only when MSByte is written.
+
+        Can be changed on-the-fly.
+
+FIFO_CONFIG2:
+  type: register
+  address: 0x20
+  size_bits: 8
+  access: RW
+  description: FIFO configuration register 2
+  fields:
+    fifo_wr_wm_gt_th:
+      base: bool
+      start: 3
+      description: >
+        Set write watermark interrupt generating condition:
+
+        0: Write watermark interrupt generated when FIFO data count is
+        equal to the FIFO watermark threshold
+
+        1: Write watermark interrupt generated when FIFO data count is
+        greater than or equal to FIFO watermark threshold
+
+        Can be changed when FIFO is disabled (Bypass mode).
+    fifo_flush:
+      base: bool
+      start: 7
+      description: >
+        FIFO flush command. When set high the FIFO is flushed, meaning the
+        pointers and control logic is reset. Configuration registers are
+        not reset.
+
+        Can be changed on-the-fly.
+
+FIFO_CONFIG3:
+  type: register
+  address: 0x21
+  size_bits: 8
+  access: RW
+  description: FIFO configuration register 3
+  fields:
+    fifo_if_en:
+      base: bool
+      start: 0
+      description: >
+        Enable Sensor Registers write interface to FIFO. This interface should
+        be enabled when the FIFO is also enabled (i.e., not in bypass mode).
+        A standard enable sequence is:
+
+        1) Enable FIFO.
+
+        2) Enable Sensor Registers to FIFO interface.
+
+        The opposite sequence should be used for the disable.
+        To prevent power drain, FIFO_IF_EN should be set to 0 if FIFO is
+        in bypass mode.
+
+        Can be changed on-the-fly.
+    fifo_accel_en:
+      base: bool
+      start: 1
+      description: Enable accelerometer data insertion into FIFO frame
+    fifo_gyro_en:
+      base: bool
+      start: 2
+      description: Enable gyroscope data insertion into FIFO frame
+    fifo_hires_en:
+      base: bool
+      start: 3
+      description: Enable high resolution accel and gyro data insertion into FIFO frame
+    fifo_es0_en:
+      base: bool
+      start: 4
+      description: Enable External Sensor 0 data insertion into FIFO frame
+    fifo_es1_en:
+      base: bool
+      start: 5
+      description: Enable External Sensor 1 data insertion into FIFO frame
+
+FIFO_CONFIG4:
+  type: register
+  address: 0x22
+  size_bits: 8
+  access: RW
+  description: FIFO configuration register 4
+  fields:
+    fifo_es0_6b_9b:
+      base: bool
+      start: 0
+      description: >
+        Select number of valid bytes provided by External Sensor 0
+
+        0: 6 bytes
+
+        1: 9 bytes
+    fifo_tmst_fsync_en:
+      base: bool
+      start: 1
+      description: >
+        Enable the insertion of the Timestamp or FSYNC data into FIFO frame
+
+        0: No Timestamp/FSYNC data inserted into FIFO frame (timestamp fields
+        are 0x0000). FSYNC_TAG_EN bit in FIFO header is 0.
+
+        1: Timestamp/FSYNC data inserted into FIFO frame. FSYNC_TAG_EN bit in
+        FIFO header is set on an FSYNC trigger event.
+    fifo_comp_en:
+      base: bool
+      start: 2
+      description: >
+        0: FIFO compression disabled
+
+        1: FIFO compression enabled
+    fifo_comp_nc_flow_cfg:
+      base: uint
+      start: 3
+      end: 6
+      description: Configure non-compressed packet flow rate
+      try_conversion:
+        name: NonCompressedPacketFlow
+        Disabled: 0b000
+        Every8Frames: 0b001
+        Every16Frames: 0b010
+        Every32Frames: 0b011
+        Every64Frames: 0b100
+        Every128Frames: 0b101
+
+TMST_WOM_CONFIG:
+  type: register
+  address: 0x23
+  size_bits: 8
+  fields:
+    wom_int_dur:
+      base: uint
+      start: 0
+      end: 2
+      conversion:
+        name: WomDuration
+        FirstOvrThresh: 0b00
+        SecondOvrThresh: 0b01
+        ThirdOvrThresh: 0b10
+        FourthOvrThresh: 0b11
+    wom_int_mode:
+      base: bool
+      start: 2
+      description: |
+        Wake on Motion Interrupt
+        0: Off
+        1: On
+    wom_mode:
+      base: bool
+      start: 3
+      description: |
+        Wake on Motion Mode
+        0: Initial sample is stored. Future samples are compared to initial sample
+        1: Compare current sample to previous sample
+    wom_en:
+      base: bool
+      start: 4
+      description: |
+        Wake on Motion Enable
+        0: Wake on Motion not enabled
+        1: Wake on Motion enabled
+    tmst_resol:
+      base: bool
+      start: 5
+      description: |
+        Time Stamp Resolution
+        0: 1μs
+        1: 16μs
+    tmst_delta_en:
+      base: bool
+      start: 6
+      description: >
+        Time Stamp Delta Enable
+
+        0: Time stamp field does not contain the measurement of time since
+        the last occurrence of trigger event
+
+        1: Time stamp field contains the measurement of time since the last
+        occurrence of trigger event
+
+FSYNC_CONFIG0:
+  type: register
+  address: 0x24
+  size_bits: 8
+  fields:
+    ap_fsync_sel:
+      base: uint
+      start: 0
+      end: 3
+      description: Select the AP/UI sensor that will carry the FSYNC tagging.
+      conversion:
+        name: FsyncTagging
+        Disabled: 0b000
+        TempDataUiLsb: 0b001
+        GyroDataXUiLsb: 0b010
+        GyroDataYUiLsb: 0b011
+        GyroDataZUiLsb: 0b100
+        AccelDataXUiLsb: 0b101
+        AccelDataYUiLsb: 0b110
+        AccelDataZUiLsb: 0b111
+    ap_fsync_flag_clear_sel:
+      base: bool
+      start: 3
+      description: >
+        Select the AP/UI FSYNC flag clear policy.
+
+        0: The FSYNC flag is cleared when UI/AP sensor register is updated.
+
+        1: The FSYNC flag is cleared when UI/AP serial interface reads the
+        sensor register LSB of FSYNC tagged axis.
+
+DMP_EXT_SEN_ODR_CFG:
+  type: register
+  address: 0x27
+  size_bits: 8
+  fields:
+    apex_odr:
+      base: uint
+      start: 0
+      end: 3
+      description: >
+        DMP Output Data Rate. APEX_ODR should be smaller than or equal to both
+        ACCEL_ODR and GYRO_ODR. All rates shown below except 800Hz can be set
+        if Accel UI/AP in in LP mode. Accel UI/AP must be in LN mode to set 800Hz.
+      try_conversion:
+        name: DmpOdr
+        Odr25Hz: 0b000
+        Odr50Hz: 0b001
+        Odr100Hz: 0b010
+        Odr200Hz: 0b011
+        Odr400Hz: 0b100
+        Odr800Hz: 0b101
+    ext_odr:
+      base: uint
+      start: 3
+      end: 6
+      description: I2C master external sensor ODR
+      conversion:
+        name: ExtOdr
+        Odr3_25Hz: 0b000
+        Odr6_25Hz: 0b001
+        Odr12_5Hz: 0b010
+        Odr25Hz: 0b011
+        Odr50Hz: 0b100
+        Odr100Hz: 0b101
+        Odr200Hz: 0b110
+        Odr400Hz: 0b111
+    ext_sensor_en:
+      base: bool
+      start: 6
+      description: >
+        0: Disables generation of ODR event for external sensor
+        operation per the setting of EXT_ODR.
+
+        1: Enables generation of ODR event for external sensor
+        operation per the setting of EXT_ODR.
+
+ODR_DECIMATE_CONFIG:
+  type: register
+  address: 0x28
+  size_bits: 8
+  fields:
+    accel_fifo_odr_dec:
+      base: uint
+      start: 0
+      end: 4
+      description: Decimation factor for Accelerometer FIFO data
+      try_conversion:
+        name: AccelFifoDecimate
+        By1: 0b0000
+        By2: 0b0001
+        By4: 0b0010
+        By8: 0b0011
+        By16: 0b0100
+        By32: 0b0101
+        By64: 0b0110
+        By128: 0b0111
+        By256: 0b1000
+        By512: 0b1001
+        By1024: 0b1010
+        By2048: 0b1011
+        By4096: 0b1100
+    gyro_fifo_odr_dec:
+      base: uint
+      start: 4
+      end: 8
+      try_conversion:
+        name: GyroFifoDecimate
+        By1: 0b0000
+        By2: 0b0001
+        By4: 0b0010
+        By8: 0b0011
+        By16: 0b0100
+        By32: 0b0101
+        By64: 0b0110
+        By128: 0b0111
+        By256: 0b1000
+        By512: 0b1001
+        By1024: 0b1010
+        By2048: 0b1011
+        By4096: 0b1100
+
+EDMP_APEX_EN0:
+  type: register
+  address: 0x29
+  size_bits: 8
+  access: RW
+  description: APEX enable register 0
+  fields:
+    tap_en:
+      base: bool
+      start: 0
+      description: Enable tap detection
+    tilt_en:
+      base: bool
+      start: 3
+      description: Enable tilt detection
+    pedo_en:
+      base: bool
+      start: 4
+      description: Enable pedometer
+    ff_en:
+      base: bool
+      start: 5
+      description: Enable freefall detection
+    r2w_en:
+      base: bool
+      start: 6
+      description: Enable raise to wake detection
+    smd_en:
+      base: bool
+      start: 7
+      description: Enable significant motion detection
+
+EDMP_APEX_EN1:
+  type: register
+  address: 0x2a
+  size_bits: 8
+  access: RW
+  description: APEX enable register 1
+  fields:
+    iron_corr_en:
+      base: bool
+      start: 0
+      description: Enable iron correction
+    init_en:
+      base: bool
+      start: 1
+      description: Enable initialization
+    power_save_en:
+      base: bool
+      start: 2
+      description: Enable power save mode
+    feature3_en:
+      base: bool
+      start: 4
+      description: Enable feature 3
+    edmp_enable:
+      base: bool
+      start: 6
+      description: Enable EDMP
+
+APEX_BUFFER_MGMT:
+  type: register
+  address: 0x2b
+  size_bits: 8
+  access: RW
+  description: APEX buffer management register
+  fields:
+    step_count_edmp_wptr:
+      base: uint
+      start: 0
+      end: 2
+      access: RO
+      description: >
+        Read only register field: LSB indicates SRAM address for eDMP
+        to write; MSB indicates size 2 buffer wrap around
+    step_count_host_rptr:
+      base: uint
+      start: 2
+      end: 4
+      description: >
+        LSB indicates SRAM address for host to read;
+        MSB indicates size 2 buffer wrap around
+    ff_duration_edmp_wptr:
+      base: uint
+      start: 4
+      end: 6
+      access: RO
+      description: >
+        Read only register field: LSB indicates SRAM address for eDMP
+        to write; MSB indicates size 2 buffer wrap around
+    ff_duration_host_rptr:
+      base: uint
+      start: 6
+      end: 8
+      description: >
+        LSB indicates SRAM address for host to read;
+        MSB indicates size 2 buffer wrap around
+
+INTF_CONFIG0:
+  type: register
+  address: 0x2c
+  size_bits: 8
+  access: RW
+  fields:
+    ap_spi_mode:
+      base: bool
+      start: 0
+      access: RO
+      description: >
+        Read only register field, shows OTP trim for UI
+        interface SPI mode selection
+
+        0: SPI mode 0 or 3
+
+        1: SPI mode 1 or 2
+    ap_spi_34_mode:
+      base: bool
+      start: 1
+      access: RO
+      description: >
+        Read only register field, shows OTP trim for UI interface
+        SPI in 3-wire or 4-wire mode
+
+        0: 3-wire mode
+
+        1: 4-wire mode
+
+INTF_CONFIG1_OVRD:
+  type: register
+  address: 0x2d
+  size_bits: 8
+  access: RW
+  fields:
+    ap_spi_mode_ovrd_val:
+      base: bool
+      start: 0
+      description: |
+        Override value for AP interface SPI Mode
+        0: SPI mode 0 or 3
+        1: SPI mode 1 or 2
+    ap_spi_mode_ovrd:
+      base: bool
+      start: 1
+      description: |
+        0: Override disable for AP interface SPI_MODE value
+        1: Override enable for AP interface SPI_MODE value
+    ap_spi_34_mode_ovrd_val:
+      base: bool
+      start: 2
+      description: |
+        Override value for AP interface SPI 4-wire/3-wire modes
+        0: SPI 3-wire mode
+        1: SPI 4-wire mode
+    ap_spi_34_mode_ovrd:
+      base: bool
+      start: 3
+      description: |
+        0: Override disable for AP interface SPI 4-wire/3-wire modes
+        1: Override enable for AP interface SPI 4-wire/3-wire modes
+
+IOC_PAD_SCENARIO:
+  type: register
+  address: 0x2f
+  size_bits: 8
+  access: RO
+  description: IOC pad scenario register
+  fields:
+    aux1_enable:
+      base: bool
+      start: 0
+      description: |
+        Read only register field, enable or disable AUX1
+        0: AUX1 disabled
+        1: AUX1 enabled
+    aux1_mode:
+      base: uint
+      start: 1
+      end: 3
+      description: |
+        Read only register field, effective only when AUX1_ENABLE is 1. Selects AUX1 mode:
+        00: Reserved
+        01: AUX1 in I2C Master mode
+        10: AUX1 in I2C Master Bypass mode (Enable only when AP is not in SPI mode)
+        11: Reserved
+
+IOC_PAD_SCENARIO_AUX_OVRD:
+  type: register
+  address: 0x30
+  size_bits: 8
+  access: RW
+  description: IOC pad scenario AUX override register
+  fields:
+    aux1_enable_ovrd_val:
+      base: bool
+      start: 0
+      description: |
+        Override value for AUX1_ENABLE
+        0: AUX1 disabled
+        1: AUX1 enabled
+    aux1_enable_ovrd:
+      base: bool
+      start: 1
+      description: |
+        Override enable for AUX1_ENABLE
+        0: Disable
+        1: Enable
+    aux1_mode_ovrd:
+      base: bool
+      start: 4
+      description: |
+        Override enable for AUX1_MODE
+        0: Disable
+        1: Enable
+
+DRIVE_CONFIG0:
+  type: register
+  address: 0x32
+  size_bits: 8
+  access: RW
+  fields:
+    pads_spi_slew:
+      base: uint
+      start: 1
+      end: 4
+      description: |
+        Slew rate control for any pin in the SPI mode of operation.
+        Setting of the slew rate takes effect 1.5μs after the register is programmed.
+        000: MIN: 12 ns; TYP: 38 ns; MAX: 106 ns
+        001: MIN: 4 ns; TYP: 14 ns; MAX: 45 ns
+        010: MIN: 3 ns; TYP: 10 ns; MAX: 37 ns
+        011: MIN: 2 ns; TYP: 7 ns; MAX: 25 ns
+        100: MIN: 1 ns; TYP: 5 ns; MAX: 17 ns
+        101: MIN: 1 ns; TYP: 4 ns; MAX: 14 ns
+        11x: MIN: 0.1 ns; TYP: 0.5 ns; MAX: 6 ns
+    pads_i2c_slew:
+      base: uint
+      start: 4
+      end: 7
+      description: |
+        Slew rate control for any pin in the I2C mode of operation, including pins on the
+        AP serial interface when device is a client device of an I2C bus, including pins
+        on the AUX1 serial interface when device is a master device of an I2C bus.
+        Setting of the slew rate takes effect 1.5μs after the register is programmed.
+
+        000: MIN: 3 ns; TYP: 20 ns; MAX: 136 ns
+        010: MIN: 2 ns; TYP: 7 ns; MAX: 84 ns
+        Others: Reserved
+
+DRIVE_CONFIG1:
+  type: register
+  address: 0x33
+  size_bits: 8
+  access: RW
+  fields:
+    pads_i3c_sdr_slew:
+      base: uint
+      start: 0
+      end: 3
+      description: |
+        Slew rate control when device is in I3CSM SDR protocol. Setting of the slew rate
+        takes effect 1.5μs after the register is programmed.
+
+        000: MIN: 12 ns; TYP: 38 ns; MAX: 106 ns
+        001: MIN: 4 ns; TYP: 14 ns; MAX: 45 ns
+        010: MIN: 3 ns; TYP: 10 ns; MAX: 37 ns
+        011: MIN: 2 ns; TYP: 7 ns; MAX: 25 ns
+        100: MIN: 1 ns; TYP: 5 ns; MAX: 17 ns
+        101: MIN: 1 ns; TYP: 4 ns; MAX: 14 ns
+        11x: MIN: 0.1 ns; TYP: 0.5 ns; MAX: 6 ns
+    pads_i3c_ddr_slew:
+      base: uint
+      start: 3
+      end: 6
+      description: |
+        Slew rate control when device is in I3CSM DDR protocol. Setting of the slew rate
+        takes effect 1.5μs after the register is programmed.
+
+        000: MIN: 12 ns; TYP: 38 ns; MAX: 106 ns
+        001: MIN: 4 ns; TYP: 14 ns; MAX: 45 ns
+        010: MIN: 3 ns; TYP: 10 ns; MAX: 37 ns
+        011: MIN: 2 ns; TYP: 7 ns; MAX: 25 ns
+        100: MIN: 1 ns; TYP: 5 ns; MAX: 17 ns
+        101: MIN: 1 ns; TYP: 4 ns; MAX: 14 ns
+        11x: MIN: 0.1 ns; TYP: 0.5 ns; MAX: 6 ns
+
+DRIVE_CONFIG2:
+  type: register
+  address: 0x34
+  size_bits: 8
+  access: RW
+  fields:
+    pads_slew:
+      base: uint
+      start: 0
+      end: 3
+      description: |
+        Slew rate control for INT1 pin at all times. Slew rate control for
+        all pins before OTP copy operation is completed. Setting of the slew
+        rate takes effect 1.5μs after the register is programmed.
+
+        000: MIN: 12 ns; TYP: 38 ns; MAX: 106 ns
+        001: MIN: 4 ns; TYP: 14 ns; MAX: 45 ns
+        010: MIN: 3 ns; TYP: 10 ns; MAX: 37 ns
+        011: MIN: 2 ns; TYP: 7 ns; MAX: 25 ns
+        100: MIN: 1 ns; TYP: 5 ns; MAX: 17 ns
+        101: MIN: 1 ns; TYP: 4 ns; MAX: 14 ns
+        11x: MIN: 0.1 ns; TYP: 0.5 ns; MAX: 6 ns
+
+REG_MISC1:
+  type: register
+  address: 0x35
+  size_bits: 8
+  access: RW
+  description: Miscellaneous control register 1
+  fields:
+    osc_id_ovrd:
+      base: uint
+      start: 0
+      end: 4
+      description: |
+        Selects MCLK source.
+        0000: MCLK source requested by internal logic (default)
+        0010: Requests internal relaxation oscillator
+        1000: Requests external clock
+        Rest: Reserved
+        The selected clock source is the highest index that's requested and that is ready.
+
+INT_APEX_CONFIG0:
+  type: register
+  address: 0x39
+  size_bits: 8
+  access: RW
+  description: APEX interrupt configuration register 0
+  fields:
+    int_status_mask_pin_tap_det:
+      base: bool
+      start: 0
+      description: Mask tap detection interrupt on pin
+    int_status_mask_pin_high_g_det:
+      base: bool
+      start: 1
+      description: Mask high-G detection interrupt on pin
+    int_status_mask_pin_low_g_det:
+      base: bool
+      start: 2
+      description: Mask low-G detection interrupt on pin
+    int_status_mask_pin_tilt_det:
+      base: bool
+      start: 3
+      description: Mask tilt detection interrupt on pin
+    int_status_mask_pin_step_cnt_ovfl:
+      base: bool
+      start: 4
+      description: Mask step count overflow interrupt on pin
+    int_status_mask_pin_step_det:
+      base: bool
+      start: 5
+      description: Mask step detection interrupt on pin
+    int_status_mask_pin_ff_det:
+      base: bool
+      start: 6
+      description: Mask freefall detection interrupt on pin
+    int_status_mask_pin_r2w_wake_det:
+      base: bool
+      start: 7
+      description: Mask raise to wake detection interrupt on pin
+
+INT_APEX_CONFIG1:
+  type: register
+  address: 0x3a
+  size_bits: 8
+  access: RW
+  description: APEX interrupt configuration register 1
+  fields:
+    int_status_mask_pin_r2w_sleep_det:
+      base: bool
+      start: 0
+      description: Mask raise to wake sleep detection interrupt on pin
+    int_status_mask_pin_smd_det:
+      base: bool
+      start: 1
+      description: Mask significant motion detection interrupt on pin
+    int_status_mask_pin_selftest_done:
+      base: bool
+      start: 2
+      description: Mask self-test done interrupt on pin
+    int_status_mask_pin_sa_done:
+      base: bool
+      start: 4
+      description: Mask sensor alignment done interrupt on pin
+
+INT_APEX_STATUS0:
+  type: register
+  address: 0x3b
+  size_bits: 8
+  access: RO
+  description: APEX interrupt status register 0
+  fields:
+    int_status_tap_det:
+      base: bool
+      start: 0
+      description: Tap detection interrupt status
+    int_status_high_g_det:
+      base: bool
+      start: 1
+      description: High-G detection interrupt status
+    int_status_low_g_det:
+      base: bool
+      start: 2
+      description: Low-G detection interrupt status
+    int_status_tilt_det:
+      base: bool
+      start: 3
+      description: Tilt detection interrupt status
+    int_status_step_cnt_ovfl:
+      base: bool
+      start: 4
+      description: Step count overflow interrupt status
+    int_status_step_det:
+      base: bool
+      start: 5
+      description: Step detection interrupt status
+    int_status_ff_det:
+      base: bool
+      start: 6
+      description: Freefall detection interrupt status
+    int_status_r2w_wake_det:
+      base: bool
+      start: 7
+      description: Raise to wake detection interrupt status
+
+INT_APEX_STATUS1:
+  type: register
+  address: 0x3c
+  size_bits: 8
+  access: RO
+  description: APEX interrupt status register 1
+  fields:
+    int_status_r2w_sleep_det:
+      base: bool
+      start: 0
+      description: Raise to wake sleep detection interrupt status
+    int_status_smd_det:
+      base: bool
+      start: 1
+      description: Significant motion detection interrupt status
+    int_status_selftest_done:
+      base: bool
+      start: 2
+      description: Self-test done interrupt status
+    int_status_sa_done:
+      base: bool
+      start: 4
+      description: Sensor alignment done interrupt status
+
+WHO_AM_I:
+  type: register
+  address: 0x72
+  size_bits: 8
+  access: RO
+  description: Device identification register
+  fields:
+    whoami:
+      base: uint
+      start: 0
+      end: 8
+      description: Device ID value
+
+REG_HOST_MSG:
+  type: register
+  address: 0x73
+  size_bits: 8
+  access: RW
+  fields:
+    testopenable:
+      base: bool
+      start: 0
+      description: Test mode enable
+    edmp_on_demand_en:
+      base: bool
+      start: 5
+      description: Enable EDMP on demand
+
+IREG_ADDR:
+  type: register
+  address: 0x7c
+  size_bits: 16
+  description: Indirect register address
+  fields:
+    ireg_addr:
+      base: uint
+      start: 0
+      end: 16
+      description: IREG_ADDR
+
+IREG_DATA:
+  type: register
+  address: 0x7e
+  size_bits: 8
+  access: RW
+  description: Indirect register data
+  fields:
+    ireg_data:
+      base: uint
+      start: 0
+      end: 8
+      description: IREG_DATA
+
+REG_MISC2:
+  type: register
+  address: 0x7f
+  size_bits: 8
+  access: RW
+  description: Miscellaneous control register 2
+  fields:
+    ireg_done:
+      base: bool
+      start: 0
+      description: >
+        0: Indicates that an indirect register access operation is in progress.
+        No new indirect register access should be triggered.
+
+        1: Indirect register access has completed.
+        New indirect register access can be triggered.
+    soft_rst:
+      base: bool
+      start: 1
+      description: >
+        0: Soft reset not enabled.
+
+        1: Triggers soft reset operation. The programmed value of 1 is
+        self-cleared to 0 upon completion of soft reset operation.
+
+        Can be changed on-the-fly.
+
+# IMEM_SRAM Registers
+IMEM_SRAM:
+  type: block
+  description: IMEM_SRAM registers
+  address_offset: 0xb000
+  objects:
+    GYRO_X_STR_FT:
+      type: register
+      address: 0x00
+      size_bits: 16
+      description: >
+        Self-test response for gyro X-axis. Units are in kdps.
+        Full scale is 0.5kdps, LSB is 30mdps.
+
+    GYRO_Y_STR_FT:
+      type: register
+      address: 0x02
+      size_bits: 16
+      description: >
+        Self-test response for gyro Y-axis. Units are in kdps.
+        Full scale is 0.5kdps, LSB is 30mdps.
+
+    GYRO_Z_STR_FT:
+      type: register
+      address: 0x04
+      size_bits: 16
+
+    GYRO_X_CMOS_GAIN_FT:
+      type: register
+      address: 0x06
+      size_bits: 12
+
+    GYRO_Y_CMOS_GAIN_FT:
+      type: register
+      address: 0x08
+      size_bits: 12
+
+    GYRO_Z_CMOS_GAIN_FT:
+      type: register
+      address: 0x0a
+      size_bits: 12
+
+    IMEM_SRAM_REG_56_57:
+      type: register
+      address: 0x038
+      size_bits: 16
+      fields:
+        stc_init_en:
+          base: bool
+          start: 0
+        st_accel_en:
+          base: bool
+          start: 1
+        st_gyro_en:
+          base: bool
+          start: 2
+        st_avg_time:
+          base: uint
+          start: 7
+          end: 10
+        st_avvel_limit:
+          base: uint
+          start: 10
+          end: 13
+        st_gyro_limit:
+          base: uint
+          start: 13
+          end: 16
+
+    ST_DEBUG_EN:
+      type: register
+      address: 0x040
+      size_bits: 8
+
+    IMEM_SRAM_REG_68:
+      type: register
+      address: 0x044
+      size_bits: 8
+      fields:
+        ax_st_pass:
+          base: bool
+          start: 0
+        ay_st_pass:
+          base: bool
+          start: 1
+        az_st_pass:
+          base: bool
+          start: 2
+        gx_st_pass:
+          base: bool
+          start: 3
+        gy_st_pass:
+          base: bool
+          start: 4
+        gz_st_pass:
+          base: bool
+          start: 5
+        st_status:
+          base: uint
+          start: 6
+          end: 8
+
+    QUAT_RESET_EN:
+      type: register
+      address: 0x5c
+      size_bits: 8
+
+    STC_GAIN_GX:
+      type: register
+      address: 0x60
+      size_bits: 32
+
+    STC_GAIN_GY:
+      type: register
+      address: 0x64
+      size_bits: 32
+
+    STC_GAIN_GZ:
+      type: register
+      address: 0x68
+      size_bits: 32
+
+    FF_DURATION_BUF:
+      type: register
+      address: 0x88
+      size_bits: 32
+
+    TAP_NUM:
+      type: register
+      address: 0x8d
+      size_bits: 8
+
+    TAP_AXIS:
+      type: register
+      address: 0x8e
+      size_bits: 8
+
+    TAP_DIR:
+      type: register
+      address: 0x8f
+      size_bits: 8
+
+    DOUBLE_TAP_TIMING:
+      type: register
+      address: 0x90
+      size_bits: 8
+
+    TILT_RESET_EN:
+      type: register
+      address: 0x92
+      size_bits: 8
+
+    PED_STEP_CNT_BUF1:
+      type: register
+      address: 0x9a
+      size_bits: 16
+
+    PED_STEP_CNT_BUF2:
+      type: register
+      address: 0x9c
+      size_bits: 16
+
+    PED_STEP_CADENCE:
+      type: register
+      address: 0x9f
+      size_bits: 8
+
+    POWER_ACTIVITY_CLASS:
+      type: register
+      address: 0xa0
+      size_bits: 8
+
+    ES_RAM_IMAGE_EN:
+      type: register
+      address: 0xb6
+      size_bits: 8
+
+    ES0_COMPASS_EN:
+      type: register
+      address: 0xb9
+      size_bits: 8
+
+    ES_POWER_MODE:
+      type: register
+      address: 0xba
+      size_bits: 8
+
+    POWER_SAVE_TIME:
+      type: register
+      address: 0xc4
+      size_bits: 32
+
+    FF_MIN_DURATION:
+      type: register
+      address: 0x120
+      size_bits: 32
+
+    FF_MAX_DURATION:
+      type: register
+      address: 0x124
+      size_bits: 32
+
+    FF_DEBOUNCE_DURATION:
+      type: register
+      address: 0x128
+      size_bits: 32
+
+    HIGHG_PEAK_TH:
+      type: register
+      address: 0x130
+      size_bits: 16
+
+    HIGHG_PEAK_TH_HYST:
+      type: register
+      address: 0x132
+      size_bits: 16
+
+    HIGHG_TIME_TH:
+      type: register
+      address: 0x134
+      size_bits: 16
+
+    LOWG_PEAK_TH:
+      type: register
+      address: 0x13c
+      size_bits: 16
+
+    LOWG_PEAK_TH_HYST:
+      type: register
+      address: 0x13e
+      size_bits: 16
+
+    LOWG_TIME_TH:
+      type: register
+      address: 0x140
+      size_bits: 16
+
+    TILT_WAIT_TIME:
+      type: register
+      address: 0x188
+      size_bits: 16
+
+    TAP_TMAX:
+      type: register
+      address: 0x190
+      size_bits: 16
+
+    TAP_TMIN:
+      type: register
+      address: 0x192
+      size_bits: 8
+
+    TAP_MIN_JERK:
+      type: register
+      address: 0x193
+      size_bits: 8
+
+    TAP_SMUDGE_REJECT_THR:
+      type: register
+      address: 0x194
+      size_bits: 8
+
+    TAP_MAX_PEAK_TOL:
+      type: register
+      address: 0x195
+      size_bits: 8
+
+    TAP_TAVG:
+      type: register
+      address: 0x196
+      size_bits: 8
+
+    R2W_SLEEP_TIME_OUT:
+      type: register
+      address: 0x21c
+      size_bits: 32
+
+    R2W_SLEEP_GESTURE_DELAY:
+      type: register
+      address: 0x220
+      size_bits: 32
+
+    R2W_MOUNTING_MATRIX:
+      type: register
+      address: 0x224
+      size_bits: 32
+
+    R2W_GRAVITY_FILTER_GAIN:
+      type: register
+      address: 0x22c
+      size_bits: 32
+
+    R2W_MOTION_THR_ANGLE_COSINE:
+      type: register
+      address: 0x230
+      size_bits: 32
+
+    R2W_MOTION_THR_TIMER_FAST:
+      type: register
+      address: 0x234
+      size_bits: 32
+
+    R2W_MOTION_THR_TIMER_SLOW:
+      type: register
+      address: 0x238
+      size_bits: 32
+
+    R2W_MOTION_PREV_GRAVITY_TIMEOUT:
+      type: register
+      address: 0x23c
+      size_bits: 32
+
+    R2W_LAST_GRAVITY_MOTION_TIMER:
+      type: register
+      address: 0x240
+      size_bits: 32
+
+    R2W_LAST_GRAVITY_TIMEOUT:
+      type: register
+      address: 0x244
+      size_bits: 32
+
+    R2W_GESTURE_VALIDITY_TIMEOUT:
+      type: register
+      address: 0x248
+      size_bits: 32
+
+    PED_STEP_CNT_TH:
+      type: register
+      address: 0x3dc
+      size_bits: 16
+
+    PED_STEP_DET_TH:
+      type: register
+      address: 0x3de
+      size_bits: 16
+
+    PED_SB_TIMER_TH:
+      type: register
+      address: 0x3e2
+      size_bits: 16
+
+    PED_LOW_EN_AMP_TH:
+      type: register
+      address: 0x3e8
+      size_bits: 32
+
+    PED_SENSITIVITY_MODE:
+      type: register
+      address: 0x3ec
+      size_bits: 8
+
+    PED_AMP_TH:
+      type: register
+      address: 0x3f0
+      size_bits: 32
+
+    PED_HI_EN_TH:
+      type: register
+      address: 0x3f8
+      size_bits: 32
+
+    SMD_SENSITIVITY:
+      type: register
+      address: 0x412
+      size_bits: 8
+
+    SOFT_IRON_SENSITIVITY_MATRIX:
+      type: register
+      address: 0x490
+      size_bits: 280
+
+# IPREG_BAR
+IPREG_BAR:
+  type: block
+  description: IPREG_BAR registers
+  address_offset: 0xa000
+  objects:
+    IPREG_BAR_REG_57:
+      type: register
+      address: 0x39
+      size_bits: 8
+      fields:
+        io_opt1:
+          base: bool
+          start: 5
+        io_opt0:
+          base: bool
+          start: 6
+
+    IPREG_BAR_REG_58:
+      type: register
+      address: 0x3a
+      size_bits: 8
+      fields:
+        io_opt2:
+          base: bool
+          start: 0
+        pad_ap_cs_pe_trim_d2a:
+          base: bool
+          start: 3
+        pads_ap_cs_pud_trim_d2a:
+          base: bool
+          start: 4
+        pads_ap_sclk_pe_trim_d2a:
+          base: bool
+          start: 6
+        pads_ap_sclk_pud_trim_d2a:
+          base: bool
+          start: 7
+
+    IPREG_BAR_REG_59:
+      type: register
+      address: 0x3b
+      size_bits: 8
+      fields:
+        pads_ap_sdi_pe_trim_d2a:
+          base: bool
+          start: 1
+        pads_ap_sdi_pud_trim_d2a:
+          base: bool
+          start: 2
+        pads_ap_sdo_pe_trim_d2a:
+          base: bool
+          start: 4
+        pads_ap_sdo_pud_trim_d2a:
+          base: bool
+          start: 5
+        pads_pin7_pe_trim_d2a:
+          base: bool
+          start: 7
+
+    IPREG_BAR_REG_60:
+      type: register
+      address: 0x3c
+      size_bits: 8
+      fields:
+        pads_pin7_cs_pud_trim_d2a:
+          base: bool
+          start: 0
+        pads_aux1_cs_pe_trim_d2a:
+          base: bool
+          start: 2
+        pads_aux1_cs_pud_trim_d2a:
+          base: bool
+          start: 3
+        pads_aux_sclk_tp2_from_pad_disable_trim_d2a:
+          base: bool
+          start: 4
+        pads_aux1_sclk_pe_trim_d2a:
+          base: bool
+          start: 5
+        pads_aux1_sclk_pud_trim_d2a:
+          base: bool
+          start: 6
+
+    IPREG_BAR_REG_61:
+      type: register
+      address: 0x3d
+      size_bits: 8
+      fields:
+        pads_aux1_sdi_pe_trim_d2a:
+          base: bool
+          start: 0
+        pads_aux1_sdi_pud_trim_d2a:
+          base: bool
+          start: 1
+        pads_aux1_sdo_pe_trim_d2a:
+          base: bool
+          start: 3
+        pads_aux1_sdo_pud_trim_d2a:
+          base: bool
+          start: 4
+        pads_int1_pe_trim_d2a:
+          base: bool
+          start: 6
+        pads_int1_pud_trim_d2a:
+          base: bool
+          start: 7
+
+    IPREG_BAR_REG_62:
+      type: register
+      address: 0x3e
+      size_bits: 8
+      fields:
+        pads_int2_pe_trim_d2a:
+          base: bool
+          start: 1
+        pads_int2_pud_trim_d2a:
+          base: bool
+          start: 2
+
+# IPREG_TOP1
+IPREG_TOP1:
+  type: block
+  description: IPREG_TOP1 registers
+  address_offset: 0xa200
+  objects:
+    I2CM_COMMAND_0:
+      type: register
+      address: 0x06
+      size_bits: 8
+    SREG_CTRL:
+      type: register
+      address: 0x67
+      size_bits: 8
+      fields:
+        sreg_data_endian_sel:
+          base: bool
+          start: 1
+
+# IPREG_SYS1
+IPREG_SYS1:
+  type: block
+  description: IPREG_SYS1 registers
+  address_offset: 0xa400
+  objects:
+    GYRO_X_OFFUSER:
+      type: register
+      address: 0x2a
+      size_bits: 14
+
+    GYRO_Y_OFFUSER:
+      type: register
+      address: 0x38
+      size_bits: 14
+
+    GYRO_Z_OFFUSER:
+      type: register
+      address: 0x46
+      size_bits: 14
+
+    IPREG_SYS1_REG_166:
+      type: register
+      address: 0xa6
+      size_bits: 8
+      fields:
+        gyro_src_ctrl:
+          base: uint
+          start: 5
+          end: 7
+
+    IPREG_SYS1_REG_170:
+      type: register
+      address: 0xaa
+      size_bits: 8
+      fields:
+        gyro_lp_avg_sel:
+          base: uint
+          start: 1
+          end: 5
+
+    IPREG_SYS1_REG_172:
+      type: register
+      address: 0xac
+      size_bits: 8
+      fields:
+        gyro_ui_lpfbw_sel:
+          base: uint
+          start: 0
+          end: 3
+
+# IPREG_SYS2
+IPREG_SYS2:
+  type: block
+  description: IPREG_SYS2 registers
+  address_offset: 0xa500
+  objects:
+    ACCEL_X_OFFUSER:
+      type: register
+      address: 0x18
+      size_bits: 14
+
+    ACCEL_Y_OFFUSER:
+      type: register
+      address: 0x20
+      size_bits: 14
+
+    ACCEL_Z_OFFUSER:
+      type: register
+      address: 0x28
+      size_bits: 14
+
+    IPREG_SYS2_REG_123:
+      type: register
+      address: 0x7b
+      size_bits: 8
+      fields:
+        accel_src_ctrl:
+          base: uint
+          start: 0
+          end: 2
+
+    IPREG_SYS2_REG_129:
+      type: register
+      address: 0x81
+      size_bits: 8
+      fields:
+        accel_lp_avg_sel:
+          base: uint
+          start: 0
+          end: 4
+
+    IPREG_SYS2_REG_131:
+      type: register
+      address: 0x83
+      size_bits: 8
+      fields:
+        accel_ui_lpfbw_sel:
+          base: uint
+          start: 0
+          end: 3

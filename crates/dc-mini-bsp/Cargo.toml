@@ -1,0 +1,46 @@
+[package]
+name = "dc-mini-bsp"
+version = "0.1.0"
+edition = "2021"
+
+repository = "https://github.com/iscoe/dc-minihw"
+authors = ["Preston Peranich <pperanich@gmail.com>"]
+categories = ["hardware-support", "embedded", "no-std"]
+keywords = ["arm", "cortex-m", "nrf", "hal"]
+license = "0BSD"
+
+[features]
+default = []
+defmt = [
+  "dep:defmt",
+  "embassy-nrf/defmt",
+  "heapless/defmt-03",
+  "nrf-sdc/defmt",
+  "nrf-mpsl/defmt",
+  "ads1299/defmt",
+]
+trouble = ["nrf-sdc", "nrf-mpsl"]
+softdevice = []
+usb = []
+sr1 = []
+sr2 = []
+sr3 = []
+r6 = []
+
+[dependencies]
+embassy-nrf = { workspace = true }
+embassy-sync = { workspace = true }
+embassy-time = { workspace = true }
+embassy-executor = { workspace = true }
+embassy-embedded-hal = { workspace = true }
+heapless = { workspace = true }
+defmt = { workspace = true, optional = true }
+nrf-sdc = { workspace = true, optional = true }
+nrf-mpsl = { workspace = true, optional = true }
+static_cell = { workspace = true }
+embedded-hal-bus = { workspace = true }
+embedded-sdmmc = { workspace = true }
+
+ads1299 = { path = "../ads1299/" }
+icm-45605 = { path = "../icm-45605/" }
+cfg-if.workspace = true

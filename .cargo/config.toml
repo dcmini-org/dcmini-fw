@@ -1,0 +1,8 @@
+[env]
+DEFMT_LOG = "trace"
+
+[alias]
+xrun = "run --quiet --package xtask -- run"
+xattach = "run --quiet --package xtask -- attach"
+xbuild = "run --quiet --package xtask -- build"
+xflash = "run --quiet --package xtask -- flash"
