@@ -1,20 +1,22 @@
 # DC-Mini Firmware
 
-This repository contains the firmware for the DC-Mini board, a custom PCB designed for recording EEG during sleep and real-time detection of sleep stages. The firmware is implemented using Rust and follows a modular approach with multiple crates for different components.
+© 2025 The Johns Hopkins University Applied Physics Laboratory LLC
+
+This repository contains the firmware for the DCMini board, a miniaturized biopotential amplifier and multisensor suite. The firmware is implemented using Rust and follows a modular approach with multiple crates for different components.
 
 ## Crates
 
 ### dc-mini-bsp
 
-The `dc-mini-bsp` crate is the Board Support Package (BSP) for the DC-Mini board. It implements drivers for various peripherals available on the board, including GPIO pins, SPI interface for ADS1299 EEG amplifiers, I2C interface for the accelerometer and ambient light sensor, as well as control for the neopixel LED and speaker. The BSP provides a hardware abstraction layer to simplify interaction with the board's peripherals.
+The `dc-mini-bsp` crate is the Board Support Package (BSP) for the DCMini board. It implements drivers for various peripherals available on the board, including GPIO pins, SPI interface for ADS1299 EEG amplifiers, I2C interface for the accelerometer and ambient light sensor, as well as control for the neopixel LED and speaker. The BSP provides a hardware abstraction layer to simplify interaction with the board's peripherals.
 
 ### dc-mini-boot
 
-The `dc-mini-boot` crate is the boot manager for the DC-Mini firmware. It supports firmware upgrades and ensures automatic firmware fallback in case the watchdog timer expires. The boot manager handles the firmware update process and maintains a reliable firmware execution environment, enhancing the reliability and robustness of the device.
+The `dc-mini-boot` crate is the boot manager for the DCMini firmware. It supports firmware upgrades and ensures automatic firmware fallback in case the watchdog timer expires. The boot manager handles the firmware update process and maintains a reliable firmware execution environment, enhancing the reliability and robustness of the device.
 
 ### dc-mini-app
 
-The `dc-mini-app` crate contains the application logic for the DC-Mini firmware. It is responsible for polling and processing data from various sensors, including the ADS1299 EEG amplifiers, accelerometer, ambient light sensor, and microphone. The crate also includes logic to control the neopixel LED and speaker, allowing for customizable feedback and notification features.
+The `dc-mini-app` crate contains the application logic for the DCMini firmware. It is responsible for polling and processing data from various sensors, including the ADS1299 EEG amplifiers, accelerometer, ambient light sensor, and microphone. The crate also includes logic to control the neopixel LED and speaker, allowing for customizable feedback and notification features.
 
 ## Toolchain Setup
 
@@ -125,6 +127,19 @@ cargo xflash --features "defmt,usb,softdevice" --force  # Example with both USB 
 ```
 
 The xtask system will automatically handle flashing the bootloader, softdevice (if enabled), and application in the correct order.
+
+## Acknowledgments
+This work was supported in part by intramural research funding from [Johns Hopkins University Applied Physics Lab (JHU APL)](https://www.jhuapl.edu/).
+
+* [Griffin Milsap](mailto:griffin.milsap@jhuapl.edu): Hardware design
+* [Preston Peranich](mailto:preston.peranich@jhuapl.edu): Firmware implementation
+* [Will Coon](mailto:will.coon@jhuapl.edu): Device validation
+
+If you use this hardware in a project or publication, we’d love to hear about it!  Additionally, please consider citing: 
+
+```
+Coon, W. G., Peranich, P., & Milsap, G. (2025). StARS DCM: A Sleep Stage-Decoding Forehead EEG Patch for Real-time Modulation of Sleep Physiology. arXiv preprint arXiv:2506.03442.
+```
 
 ## License
 
