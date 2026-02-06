@@ -1,6 +1,6 @@
 use crate::ui::{
-    AdsPanel, BatteryPanel, DeviceInfoPanel, ProfileEvent, ProfilePanel,
-    SessionPanel,
+    AcquisitionPanel, BatteryPanel, DeviceInfoPanel, ProfileEvent,
+    ProfilePanel, SessionPanel,
 };
 use crate::{AdsDataFrames, DeviceConnection};
 use crate::{BleClient, UsbClient};
@@ -45,7 +45,7 @@ pub struct DevicePanel {
     device_info_panel: DeviceInfoPanel,
     profile_panel: ProfilePanel,
     session_panel: SessionPanel,
-    ads_panel: AdsPanel,
+    ads_panel: AcquisitionPanel,
     // Event receiver for profile changes
     profile_event_receiver: mpsc::UnboundedReceiver<ProfileEvent>,
 }
@@ -68,7 +68,7 @@ impl DevicePanel {
             ProfilePanel::new(client.clone(), rt.clone());
         let session_panel = SessionPanel::new(client.clone(), rt.clone());
         let ads_panel =
-            AdsPanel::new(client.clone(), rt.clone(), stream_callback);
+            AcquisitionPanel::new(client.clone(), rt.clone(), stream_callback);
 
         Self {
             connection: None,

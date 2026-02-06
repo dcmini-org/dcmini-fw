@@ -1,3 +1,6 @@
+mod channel;
+mod settings;
+
 use crate::icd::{
     self, AdsConfig, CalFreq, CompThreshPos, FLeadOff, Gain, ILeadOff, Mux,
     SampleRate,
@@ -43,7 +46,7 @@ pub enum Message {
     Command(u8),
 }
 
-pub struct AdsPanel {
+pub struct AcquisitionPanel {
     client_tx_task: Option<tokio::task::JoinHandle<()>>,
     stream_task: Option<tokio::task::JoinHandle<()>>,
     update_rx: mpsc::UnboundedReceiver<AdsConfig>,
@@ -53,7 +56,7 @@ pub struct AdsPanel {
     status: bool,
 }
 
-impl AdsPanel {
+impl AcquisitionPanel {
     pub fn new(
         client: Arc<Mutex<Option<DeviceConnection>>>,
         rt: Handle,
@@ -81,7 +84,7 @@ impl AdsPanel {
 
         if let Some(callback) = stream_callback {
             let (watch_tx, watch_rx) = watch::channel(None);
-            // Start the config update task
+            // Start the data stream task
             panel.stream_task = Some(rt.spawn(Self::stream_data(
                 watch_rx,
                 callback,
@@ -742,11 +745,6 @@ impl AdsPanel {
         let _ = self.config_tx.send(message);
     }
 
-    // Add this method to handle UI events
-    fn handle_ui_event(&self, event: Message) {
-        self.send_message(event);
-    }
-
     pub fn show(&mut self, ui: &mut egui::Ui) {
         if let Ok(config) = self.update_rx.try_recv() {
             self.config = Some(config);
@@ -756,7 +754,7 @@ impl AdsPanel {
         }
 
         ui.vertical(|ui| {
-            ui.heading("ADS Configuration");
+            ui.heading("Signal Acquisition");
             ui.separator();
 
             // Start/Stop Streaming
@@ -789,449 +787,30 @@ impl AdsPanel {
 
             if let Some(config) = &self.config {
                 let mut config = config.clone();
-                // Global Settings
-                ui.collapsing("Global Settings", |ui| {
-                    if ui
-                        .checkbox(&mut config.daisy_en, "Multiple Readback Mode")
-                        .on_hover_ui(|ui| {
-                            ui.label(RichText::new("CONFIG1: ~DAISY_EN").color(Color32::RED));
-                            ui.label("Controls which multi-ADS1299 mode is enabled.");
-                            ui.label(" DCMini schematic is set up for multiple readback mode.");
-                            ui.hyperlink_to(
-                                "(See ADS1299 Datasheet 10.1.4.2.)", 
-                                "https://www.ti.com/document-viewer/ADS1299/datasheet#applications-and-implementation/SBAS459200"
-                            );
-                            ui.label("☑: Multiple readback mode **Recommended");
-                            ui.label("☐: Daisy-chain mode");
-                        })
-                        .changed() {
-                        self.handle_ui_event(Message::DiasyEn(config.daisy_en));
-                    }
+                let sender = |msg: Message| self.send_message(msg);
 
-                    if ui
-                        .checkbox(&mut config.clk_en, "Clock Output")
-                        .on_hover_ui(|ui|{
-                            ui.label(RichText::new("CONFIG1: CLK_EN").color(Color32::RED));
-                            ui.label("Enables clock output driver on base ADS1299 for multiple ADS1299 configurations");
-                            ui.label("NB: On DCMini, CLKSEL pin is pulled high on base AND daisy, but clock output is disabled on daisy by firmware.");
-                            ui.hyperlink_to(
-                                "(See ADS1299 Datasheet 9.3.2.2)", 
-                                "https://www.ti.com/document-viewer/ADS1299/datasheet#detailed-description/SBAS4597213"
-                            );
-                            ui.label("☑: Oscillator clock output enabled; CLK pin is output **Recommended");
-                            ui.label("☐: Oscilattor clock output disabled; CLK pin is tri-state input.");
-                        })
-                        .changed() {
-                        self.handle_ui_event(Message::ClkEn(config.clk_en));
-                    }
-
-                    ui.horizontal(|ui| {
-                        ui.label("Sampling Rate:");
-                        egui::ComboBox::new("sample_rate", "")
-                            .selected_text(format!("{:?}", config.sample_rate))
-                            .show_ui(ui, |ui| {
-                                for rate in [
-                                    icd::SampleRate::Sps250,
-                                    icd::SampleRate::Sps500,
-                                    icd::SampleRate::KSps1,
-                                    icd::SampleRate::KSps2,
-                                    icd::SampleRate::KSps4,
-                                    icd::SampleRate::KSps8,
-                                    icd::SampleRate::KSps16,
-                                ] {
-                                    if ui.selectable_value(
-                                        &mut config.sample_rate,
-                                        rate,
-                                        format!("{:?}", rate)
-                                    ).clicked() {
-                                        self.handle_ui_event(Message::SamplingRate(config.sample_rate));
-                                    }
-                                }
-                            })
-                    });
-
-                    if ui
-                        .checkbox(
-                            &mut config.internal_calibration,
-                            "Internal Test Signal Generation",
-                        )
-                        .on_hover_ui(|ui| {
-                            ui.label(RichText::new("CONFIG2: INT_CAL").color(Color32::RED));
-                            ui.label("Source for the test signal (when channels are mux'd to TestSignal");
-                            ui.label("☑: Test signals are generated internally **Recommended");
-                            ui.label("☐: Test signals are driven externally");
-                        }).changed() {
-                            self.handle_ui_event(Message::InternalCalibration(config.internal_calibration));
-                    }
-
-                    if ui
-                        .checkbox(
-                            &mut config.calibration_amplitude,
-                            "2X Calibration Amplitude",
-                        )
-                        .on_hover_ui(|ui|{
-                            ui.label(RichText::new("CONFIG2: CAL_AMP").color(Color32::RED));
-                            ui.label("Test signal amplitude");
-                            ui.label("(On DCMini, VREFP = 2.5V, VREFN = -2.5V)");
-                            ui.label("☑: 4.1666 mV **Recommended");
-                            ui.label("☐: 2.0833 mV");
-                        }).changed() {
-                                        self.handle_ui_event(Message::CalibrationAmplitude(config.calibration_amplitude));
-                    }
-
-                    ui.horizontal(|ui| {
-                        ui.label("Calibration Frequency:");
-                        egui::ComboBox::new("calibration_frequency", "")
-                            .selected_text(format!("{:?}", config.calibration_frequency))
-                            .show_ui(ui, |ui| {
-                                for freq in [
-                                    icd::CalFreq::FclkBy21,
-                                    icd::CalFreq::FclkBy20,
-                                    icd::CalFreq::DoNotUse,
-                                    icd::CalFreq::DC,
-                                ] {
-                                    if ui.selectable_value(
-                                        &mut config.calibration_frequency,
-                                        freq,
-                                        format!("{:?}", freq)
-                                    ).clicked() {
-                                        self.handle_ui_event(Message::CalibrationFrequency(config.calibration_frequency));
-                                    }
-                                }
-                            })
-                    });
-
-                    if ui
-                        .checkbox(&mut config.pd_refbuf, "Enable Internal Reference Buffer")
-                        .on_hover_ui(|ui|{
-                            ui.label(RichText::new("CONFIG3: ~PD_REFBUF").color(Color32::RED));
-                            ui.label("Power-down Reference Buffer");
-                            ui.label("☑: Enable internal reference buffer **Recommended");
-                            ui.label("☐: Power-down internal reference buffer");
-                        }).changed() {
-                            self.handle_ui_event(Message::PdRefBuf(config.pd_refbuf));
-                    }
-
-                    if ui
-                        .checkbox(&mut config.bias_meas, "Enable Bias Measurement")
-                        .on_hover_ui(|ui|{
-                            ui.label(RichText::new("CONFIG3: BIAS_MEAS").color(Color32::RED));
-                            ui.label("Enable routing of RldMeasure to channels");
-                            ui.label("☑: BIAS_IN signal is routed to (the?) channel(s?) mux'd to RldMeasure");
-                            ui.label("☐: Don't route BIAS_IN to any channels");
-                        }).changed() {
-                            self.handle_ui_event(Message::BiasMeas(config.bias_meas));
-                    }
-
-                    if ui
-                        .checkbox(&mut config.biasref_int, "Internal Bias Reference Generation")
-                        .on_hover_ui(|ui|{
-                            ui.label(RichText::new("CONFIG3: BIASREF_INT").color(Color32::RED));
-                            ui.label("BIASREF signal source selection");
-                            ui.label("☑: Enable internal Bias reference signal @ ~0V **Recommended");
-                            ui.label("☐: Bias reference signal is fed externally");
-                        }).changed() {
-                            self.handle_ui_event(Message::BiasRefInt(config.biasref_int));
-                    }
-
-                    if ui
-                        .checkbox(&mut config.pd_bias, "Enable Bias")
-                        .on_hover_ui(|ui|{
-                            ui.label(RichText::new("CONFIG3: ~PD_BIAS").color(Color32::RED));
-                            ui.label("Power-down Bias Buffer");
-                            ui.label("☑: Enable Bias");
-                            ui.label("☐: Power-down Bias Buffer");
-                        }).changed() {
-                            self.handle_ui_event(Message::PdBias(config.pd_bias));
-                    }
-
-                    if ui
-                        .checkbox(&mut config.bias_loff_sens, "Enable Bias Lead-Off Sense")
-                        .on_hover_ui(|ui|{
-                            ui.label(RichText::new("CONFIG3: BIAS_LOFF_SENS").color(Color32::RED));
-                            ui.label("Enable Bias Sense function");
-                            ui.label("☑: Bias Lead-Off Sensing is Enabled");
-                            ui.label("☐: Bias Lead-Off Sensing is Disabled");
-                        }).changed() {
-                            self.handle_ui_event(Message::BiasLoffSens(config.bias_loff_sens));
-                    }
-
-                    if ui
-                        .checkbox(&mut config.srb1, "Connect SRB1")
-                        .on_hover_ui(|ui|{
-                            ui.label(RichText::new("MISC1: SRB1").color(Color32::RED));
-                            ui.label("Connect SRB1 to ALL inverting (IN1N, IN2N, ...) inputs.");
-                            ui.label("☑: SRB1 Connected to ALL inverting inputs");
-                            ui.label("☐: Disconnect SRB1 **Recommended");
-                        }).changed() {
-                            self.handle_ui_event(Message::Srb1(config.srb1));
-                    }
-
-                    if ui
-                        .checkbox(&mut config.single_shot, "Single Shot Mode")
-                        .on_hover_ui(|ui|{
-                            ui.label(RichText::new("CONFIG4: SINGLE_SHOT").color(Color32::RED));
-                            ui.label("Set conversion mode");
-                            ui.label("☑: Perform a single conversion then stop");
-                            ui.label("☐: Enable continuous conversion (streaming) mode **Recommended");
-                        }).changed() {
-                            self.handle_ui_event(Message::SingleShot(config.single_shot));
-                    }
-
-                    if ui
-                        .checkbox(
-                            &mut config.pd_loff_comp,
-                            "Enable Lead-Off Comparators",
-                        )
-                        .on_hover_ui(|ui|{
-                            ui.label(RichText::new("CONFIG4: ~PD_LOFF_COMP").color(Color32::RED));
-                            ui.label("Enable Lead-off (channel disconnected) comparators");
-                            ui.label("☑: Lead-off comparators enabled");
-                            ui.label("☐: Lead-off comparators disabled");
-                        }).changed() {
-                            self.handle_ui_event(Message::PdLoffComp(config.pd_loff_comp));
-                    }
-                });
-
-                    // Lead-off settings
-                ui.collapsing("Lead-Off Settings", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label("Lead-Off Current:");
-                        egui::ComboBox::new("lead_off_current", "")
-                            .selected_text(format!("{:?}", config.lead_off_current))
-                            .show_ui(ui, |ui| {
-                                for current in [
-                                    icd::ILeadOff::_6nA,
-                                    icd::ILeadOff::_24nA,
-                                    icd::ILeadOff::_6uA,
-                                    icd::ILeadOff::_24uA,
-                                ] {
-                                        if ui.selectable_value(
-                                            &mut config.lead_off_current,
-                                            current,
-                                            format!("{:?}", current),
-                                        ).clicked()
-                                        {
-                                            self.handle_ui_event(Message::LeadOffCurrent(config.lead_off_current));
-                                        }
-                                    }})
-                    });
-
-                        ui.horizontal(|ui| {
-                            ui.label("Lead-Off Frequency:");
-                            egui::ComboBox::new("lead_off_freq", "")
-                                .selected_text(format!("{:?}", config.lead_off_frequency))
-                                .show_ui(ui, |ui| {
-                                    for freq in [
-                                        icd::FLeadOff::Dc,
-                                        icd::FLeadOff::Ac7_8,
-                                        icd::FLeadOff::Ac31_2,
-                                        icd::FLeadOff::AcFdrBy4,
-                                    ] {
-                                        if ui.selectable_value(
-                                            &mut config.lead_off_frequency,
-                                            freq,
-                                            format!("{:?}", freq),
-                                        ).clicked() {
-                                self.handle_ui_event(Message::LeadOffFrequency(config.lead_off_frequency));
-                            }
-                                    }
-                                })
-                        });
-
-                        ui.horizontal(|ui| {
-                            ui.label("Comparator Threshold:");
-                            egui::ComboBox::new("comp_thresh", "")
-                                .selected_text(format!("{:?}", config.comparator_threshold_pos))
-                                .show_ui(ui, |ui| {
-                                    for thresh in [
-                                        icd::CompThreshPos::_95,
-                                        icd::CompThreshPos::_92_5,
-                                        icd::CompThreshPos::_90,
-                                        icd::CompThreshPos::_87_5,
-                                        icd::CompThreshPos::_85,
-                                        icd::CompThreshPos::_80,
-                                        icd::CompThreshPos::_75,
-                                        icd::CompThreshPos::_70,
-                                    ] {
-                                        if ui.selectable_value(
-                                            &mut config.comparator_threshold_pos,
-                                            thresh,
-                                            format!("{:?}", thresh),
-                                        )                            .clicked() {
-                                self.handle_ui_event(Message::ComparatorThresholdPos(config.comparator_threshold_pos));
-                            }
-
-                                    }
-                                })
-                        });
-                    });
-
-                    // GPIO Configuration
-                    ui.collapsing("GPIO Configuration", |ui| {
-                        let mut gpioc = config.gpioc;
-                        let mut changed = false;
-                        for (i, gpio) in gpioc.iter_mut().enumerate() {
-                            if ui
-                                .checkbox(gpio, format!("GPIO {} is Input", i))
-                                .on_hover_ui(|ui|{
-                                    ui.label(RichText::new(format!("GPIO: GPIOC{}", i)).color(Color32::RED));
-                                    ui.label(format!("Set if corresponding GPIOD{} is input or output", i));
-                                    ui.label(format!("☑: GPIO{} is input", i));
-                                    ui.label(format!("☐: GPIO{} is output", i));
-                                })
-                                .changed() {
-                                changed = true;
-                            }
-                        }
-                        if changed {
-                            config.gpioc = gpioc;
-                            self.handle_ui_event(Message::Gpioc(gpioc));
-                        }
-                    });
+                settings::show_global_settings(ui, &mut config, &sender);
+                settings::show_leadoff_settings(ui, &mut config, &sender);
+                settings::show_gpio_config(ui, &mut config, &sender);
 
                 // Channel Configuration
                 for i in 0..config.channels.len() {
                     ui.collapsing(format!("Channel {}", i), |ui| {
-                        if ui
-                            .checkbox(&mut config.channels[i].power_down, "Disabled")
-                            .on_hover_ui(|ui|{
-                                ui.label(RichText::new(format!("CH{}SET: PDn", i)).color(Color32::RED));
-                                ui.label(format!("Power-down channel {}", i));
-                                ui.label("NB: It's recommended to mux disabled channels to InputShorted");
-                                ui.label(format!("☑: Disable/Power-down Channel {}", i));
-                                ui.label("☐: Normal Operation");
-                            })
-                            .changed() {
-                            self.send_message(Message::PowerDown((i as u8, config.channels[i].power_down)));
-                        }
-
-                        ui.horizontal(|ui| {
-                            ui.label("Gain:");
-                            egui::ComboBox::new(format!("gain_{}", i), "")
-                                .selected_text(format!("{:?}", config.channels[i].gain))
-                                .show_ui(ui, |ui| {
-                                    for g in [
-                                        icd::Gain::X1,
-                                        icd::Gain::X2,
-                                        icd::Gain::X4,
-                                        icd::Gain::X6,
-                                        icd::Gain::X8,
-                                        icd::Gain::X12,
-                                        icd::Gain::X24,
-                                    ] {
-                                        if ui.selectable_value(
-                                            &mut config.channels[i].gain,
-                                            g,
-                                            format!("{:?}", g),
-                                        )
-                                .clicked() {
-                                self.send_message(Message::Gain((i as u8, config.channels[i].gain)));
-                            }
-                                    }
-                                })
-                        });
-
-                        ui.horizontal(|ui| {
-                            ui.label("Mux:");
-                            egui::ComboBox::new(format!("mux_{}", i), "")
-                                .selected_text(format!("{:?}", config.channels[i].mux))
-                                .show_ui(ui, |ui| {
-                                    for m in [
-                                        icd::Mux::NormalElectrodeInput,
-                                        icd::Mux::InputShorted,
-                                        icd::Mux::RldMeasure,
-                                        icd::Mux::MVDD,
-                                        icd::Mux::TemperatureSensor,
-                                        icd::Mux::TestSignal,
-                                        icd::Mux::RldDrp,
-                                        icd::Mux::RldDrn,
-                                    ] {
-                                        if ui.selectable_value(
-                                            &mut config.channels[i].mux,
-                                            m,
-                                            format!("{:?}", m),
-                                        )
-                                .clicked() {
-                                self.send_message(Message::Mux((i as u8, config.channels[i].mux)));
-                            }
-                                    }
-                                })
-                        });
-
-                        if ui
-                            .checkbox(&mut config.channels[i].bias_sensp, "Bias Sense on Positive Input")
-                            .on_hover_ui(|ui|{
-                                ui.label(RichText::new(format!("BIAS_SENSP: BIASP{}", i)).color(Color32::RED));
-                                ui.label(format!("Include Channel {} Positive lead for Bias Calculation", i));
-                                ui.label(format!("☑: Add IN{}P to Bias Calculation", i));
-                                ui.label(format!("☐: Don't include IN{}P in Bias Calculation", i));
-                            })
-                            .changed() {
-                            self.send_message(Message::BiasSensP((i as u8, config.channels[i].bias_sensp)));
-                        }
-
-                        if ui
-                            .checkbox(&mut config.channels[i].bias_sensn, "Bias Sense on Negative Input")
-                            .on_hover_ui(|ui|{
-                                ui.label(RichText::new(format!("BIAS_SENSN: BIASN{}", i)).color(Color32::RED));
-                                ui.label(format!("Include Channel {} Negative lead for Bias Calculation", i));
-                                ui.label(format!("☑: Add IN{}N to Bias Calculation", i));
-                                ui.label(format!("☐: Don't include IN{}N in Bias Calculation", i));
-                            })
-                            .changed() {
-                            self.send_message(Message::BiasSensN((i as u8, config.channels[i].bias_sensn)));
-                        }
-
-                        if ui
-                            .checkbox(&mut config.channels[i].lead_off_sensp, "Lead-off Sense on Positive Input")
-                            .on_hover_ui(|ui|{
-                                ui.label(RichText::new(format!("LOFF_SENSP: LOFFP{}", i)).color(Color32::RED));
-                                ui.label(format!("☑: Enable Lead-off sensing on IN{}P", i));
-                                ui.label(format!("☐: Disable Lead-off sensing on IN{}P", i));
-                            })
-                            .changed() {
-                            self.send_message(Message::LeadOffSensP((i as u8, config.channels[i].lead_off_sensp)));
-                        }
-
-                        if ui
-                            .checkbox(&mut config.channels[i].lead_off_sensn, "Lead-off Sense on Negative Input")
-                            .on_hover_ui(|ui|{
-                                ui.label(RichText::new(format!("LOFF_SENSN: LOFFN{}", i)).color(Color32::RED));
-                                ui.label(format!("☑: Enable Lead-off sensing on IN{}N", i));
-                                ui.label(format!("☐: Disable Lead-off sensing on IN{}N", i));
-                            })
-                            .changed() {
-                            self.send_message(Message::LeadOffSensN((i as u8, config.channels[i].lead_off_sensn)));
-                        }
-
-                        if ui
-                            .checkbox(&mut config.channels[i].lead_off_flip, "Lead-off Flip")
-                            .on_hover_ui(|ui|{
-                                ui.label(RichText::new(format!("LOFF_FLIP: LOFFF{}", i)).color(Color32::RED));
-                                ui.label(format!("☑: IN{}P is pulled to AVSS and IN{}N pulled to AVDD", i, i));
-                                ui.label(format!("☐: IN{}P is pulled to AVDD and IN{}N pulled to AVSS", i, i));
-                            })
-                            .changed() {
-                            self.send_message(Message::LeadOffFlip((i as u8, config.channels[i].lead_off_flip)));
-                        }
-
-                        if ui
-                            .checkbox(&mut config.channels[i].srb2, "SRB2")
-                            .on_hover_ui(|ui|{
-                                ui.label(RichText::new(format!("CH{}SET: SRB2", i)).color(Color32::RED));
-                                ui.label(format!("Connect SRB2 to positive input (IN{}P); useful for common reference", i));
-                                ui.label(format!("☑: Connect SRB2 to IN{}P", i));
-                                ui.label(format!("☐: Disconnect SRB2 from IN{}P", i));
-                            })
-                            .changed() {
-                            self.send_message(Message::Srb2((i as u8, config.channels[i].srb2)));
-                        }
+                        channel::show_channel_config(
+                            ui,
+                            i,
+                            &mut config.channels[i],
+                            &sender,
+                        );
                     });
                 }
+
                 self.config = Some(config);
             } else {
-                ui.label(RichText::new("Waiting for configuration...").color(Color32::GRAY));
+                ui.label(
+                    RichText::new("Waiting for configuration...")
+                        .color(Color32::GRAY),
+                );
             }
         });
     }
@@ -1245,7 +824,7 @@ impl AdsPanel {
     }
 }
 
-impl Drop for AdsPanel {
+impl Drop for AcquisitionPanel {
     fn drop(&mut self) {
         if let Some(task) = self.client_tx_task.take() {
             task.abort();
