@@ -106,11 +106,14 @@ async fn main(spawner: Spawner) {
 
     {
         use npm1300::{
-            gpios::{Gpio, GpioPolarity},
+            charger::ChargerTerminationVoltage,
+            gpios::{Gpio, GpioConfigBuilder, GpioMode, GpioPolarity},
             ldsw::LdoVoltage,
+            sysreg::VbusInCurrentLimit,
             Ldsw1Ldosel, Ldsw1Softstartdisable, Ldsw1Softstartsel,
-            Ldsw2Ldosel, Ldsw2Softstartdisable, Ldsw2Softstartsel, NPM1300,
+            NtcThermistorType, VsysThreshold, NPM1300,
         };
+
         // Acquire bus handle - configures bus if needed
         let handle = i2c_bus_manager.acquire().await.unwrap();
         let mut npm1300 = NPM1300::new(handle.device(), embassy_time::Delay);
@@ -119,20 +122,6 @@ async fn main(spawner: Spawner) {
         Timer::after_millis(200).await;
 
         power_manager.handle_event(PowerEvent::Enable).await;
-
-        // let buck_status = npm1300.get_buck_status().await;
-        // info!("Buck status: {:?}", buck_status);
-        //
-        // info!("Waiting 2s...");
-        // Timer::after_millis(200).await;
-        //
-        // info!("Setting buck 1 voltage to 1.8V...");
-        // let _ = npm1300.set_buck1_normal_voltage(BuckVoltage::V1_8).await;
-        // let buck1_current_voltage = npm1300.get_buck1_vout_status().await;
-        // info!("Set buck 1 voltage to {}", buck1_current_voltage);
-        //
-        // info!("Waiting 2s...");
-        // Timer::after_millis(200).await;
 
         npm1300
             .set_ldsw1_gpio_control(Gpio::None, GpioPolarity::NotInverted)
@@ -152,54 +141,82 @@ async fn main(spawner: Spawner) {
         info!("Waiting 2s...");
         Timer::after_millis(200).await;
 
-        info!("Configuring LDSW1 as LDO with 3.3V output...");
-        // Configure LDSW1 as LDO mode
-        let _ = npm1300.set_ldsw1_mode(Ldsw1Ldosel::Ldo).await;
-        info!("After set_ldsw1_mode...");
-        Timer::after_millis(200).await;
-        // Set LDO1 output voltage to 3.3V
-        let _ = npm1300.set_ldsw1_ldo_voltage(LdoVoltage::V3_3).await;
-        info!("After set_ldsw1_ldo_voltage...");
-        Timer::after_millis(200).await;
-        // Configure soft start
+        info!("Configuring LDSW1 as Load Switch");
+        let _ = npm1300.set_ldsw1_mode(Ldsw1Ldosel::Ldsw).await;
         let _ = npm1300
             .configure_ldsw1_soft_start(
                 Ldsw1Softstartdisable::Noeffect,
-                Ldsw1Softstartsel::Ma10,
+                Ldsw1Softstartsel::Ma50,
             )
             .await;
-        info!("After configure_ldsw1_soft_start...");
-        Timer::after_millis(200).await;
+
+        // Enable LDSW1
+        info!("Pre-charging analog frontend...");
+        let _ = npm1300.enable_ldsw1().await;
+
+        Timer::after_millis(500).await;
+
+        info!("Switching LDSW1 to LDO with 3.3V output...");
+        // Set LDO1 output voltage to 3.3V
+        let _ = npm1300.set_ldsw1_ldo_voltage(LdoVoltage::V3_3).await;
+        info!("After set_ldsw1_ldo_voltage...");
+        // Configure LDSW1 as LDO mode
+        let _ = npm1300.set_ldsw1_mode(Ldsw1Ldosel::Ldo).await;
+        info!("After set_ldsw1_mode...");
 
         info!("Check Status...");
         let status = npm1300.get_ldsw_status().await.unwrap();
         info!("LDSW status: {:?}", status);
 
-        // Enable LDSW1
-        let _ = npm1300.enable_ldsw1().await;
+        // Clear Charger Errors
+        npm1300.clear_charger_errors().await.unwrap();
 
-        info!("After enable_ldsw1...");
-        Timer::after_millis(200).await;
-
-        info!("Configuring LDSW2...");
-        // Configure LDSW2 as LDSW mode
-        let _ = npm1300.set_ldsw2_mode(Ldsw2Ldosel::Ldsw).await;
-        info!("After set_ldsw2_mode...");
-        Timer::after_millis(200).await;
-
-        // Configure soft start
-        let _ = npm1300
-            .configure_ldsw2_soft_start(
-                Ldsw2Softstartdisable::Noeffect,
-                Ldsw2Softstartsel::Ma50,
+        // Set up battery charging
+        npm1300
+            .set_vbus_in_current_limit(VbusInCurrentLimit::MA100)
+            .await
+            .unwrap();
+        npm1300.set_charger_current(32).await.unwrap(); // mA
+        npm1300
+            .configure_ntc_resistance(NtcThermistorType::Ntc10K, Some(4250.0))
+            .await
+            .unwrap();
+        npm1300
+            .set_normal_temperature_termination_voltage(
+                ChargerTerminationVoltage::V4_20,
             )
-            .await;
-        info!("After configure_ldsw2_soft_start...");
-        Timer::after_millis(200).await;
+            .await
+            .unwrap();
+        npm1300
+            .set_warm_temperature_termination_voltage(
+                ChargerTerminationVoltage::V4_10,
+            )
+            .await
+            .unwrap();
+        npm1300.enable_battery_charging().await.unwrap();
 
-        info!("Checking LDSW status...");
-        let status = npm1300.get_ldsw_status().await.unwrap();
-        info!("LDSW status: {:?}", status);
+        Timer::after_millis(500).await;
+
+        let chg_status = npm1300.get_charger_status().await.unwrap();
+        info!("Charger status: {:?}", chg_status);
+
+        let chg_error =
+            npm1300.get_charger_error_reason_and_sensor_value().await.unwrap();
+        info!("Charger Error: {:?}", chg_error);
+
+        let mut pofena =
+            npm1300.is_power_failure_detection_enabled().await.unwrap();
+        info!("Power failure detection enabled: {:?}", pofena);
+
+        let plw_config = GpioConfigBuilder::new()
+            .mode(GpioMode::GpoPowerLossWarning)
+            .build();
+        npm1300.configure_gpio(1, plw_config).await.unwrap();
+        npm1300.set_vsys_threshold(VsysThreshold::V32).await.unwrap();
+        npm1300.enable_power_failure_detection(true).await.unwrap();
+
+        pofena = npm1300.is_power_failure_detection_enabled().await.unwrap();
+        info!("Power failure detection enabled?: {:?}", pofena);
     }
 
     let ads_manager =

@@ -28,11 +28,11 @@ pub async fn demo_task(sender: EventSender) {
     Timer::after_secs(1).await;
 
     // 3. IMU stream
-    info!("[Demo] IMU stream — 5s");
-    sender.send(ImuEvent::StartStream.into()).await;
-    Timer::after_secs(5).await;
-    sender.send(ImuEvent::StopStream.into()).await;
-    Timer::after_secs(1).await;
+    // info!("[Demo] IMU stream — 5s");
+    // sender.send(ImuEvent::StartStream.into()).await;
+    // Timer::after_secs(5).await;
+    // sender.send(ImuEvent::StopStream.into()).await;
+    // Timer::after_secs(1).await;
 
     // 4. APDS stream
     info!("[Demo] APDS stream — 5s");

@@ -16,6 +16,12 @@ use embassy_sync::blocking_mutex::Mutex;
 fn main() -> ! {
     let mut board = DCMini::default();
 
+    // Uncomment this if you are debugging the bootloader with debugger/RTT attached,
+    // as it prevents a hard fault when accessing flash 'too early' after boot.
+    for i in 0..10000000 {
+        cortex_m::asm::nop();
+    }
+
     let mut wdt_config = wdt::Config::default();
     wdt_config.timeout_ticks = 32768 * 5; // timeout seconds
     wdt_config.action_during_sleep = SleepConfig::RUN;
