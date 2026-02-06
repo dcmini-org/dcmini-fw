@@ -202,84 +202,11 @@ async fn main(spawner: Spawner) {
         info!("LDSW status: {:?}", status);
     }
 
-    {
-        use apds9253::{Apds9253, LsGainRange, LsResolution};
-        use embassy_time::Timer;
-        // Acquire bus handle - configures bus if needed
-        let handle = i2c_bus_manager.acquire().await.unwrap();
-        let mut apds_sensor = Apds9253::new(handle.device());
-
-        info!("Created APDS-9253 sensor driver!");
-        // Initialize the sensor
-        match apds_sensor.init_async().await {
-            Ok(_) => {
-                info!("APDS-9253 sensor initialized successfully!");
-
-                // Get and verify device ID
-                let result = apds_sensor.get_device_id_async().await;
-
-                if let Ok((part_id, revision_id)) = result {
-                    info!(
-                        "APDS-9253 Device ID: 0x{:X}, Revision: 0x{:X}",
-                        part_id, revision_id
-                    );
-                }
-
-                // Configure sensor settings
-                let _ = apds_sensor.set_gain_async(LsGainRange::Gain3X).await;
-                info!("Set gain to 3X");
-                Timer::after_millis(100).await;
-
-                let _ = apds_sensor
-                    .set_resolution_async(LsResolution::Bits18100Ms)
-                    .await;
-                info!("Set resolution to 18-bit 100ms integration");
-                Timer::after_millis(100).await;
-
-                // Enable RGB mode (all channels: R, G, B, IR)
-                let _ = apds_sensor.enable_rgb_mode_async(true).await;
-                info!("Enabled RGB mode");
-                Timer::after_millis(100).await;
-
-                // Enable the sensor
-                let _ = apds_sensor.enable_async(true).await;
-                info!("Enabled APDS-9253 sensor");
-                Timer::after_millis(200).await;
-
-                // Take a few sample readings
-                for i in 0..3 {
-                    Timer::after_millis(150).await; // Wait for measurement
-
-                    if let Ok(true) = apds_sensor.is_data_ready_async().await {
-                        if let Ok(rgb_data) =
-                            apds_sensor.read_rgb_data_async().await
-                        {
-                            // Calculate lux
-                            if let Ok(lux) = apds_sensor
-                                .calculate_lux_async(&rgb_data)
-                                .await
-                            {
-                                info!("Calculated lux: {:?}", lux);
-                            }
-                        }
-                    } else {
-                        info!("APDS data not ready on attempt {}", i + 1);
-                    }
-                }
-
-                // Disable sensor when done
-                let _ = apds_sensor.enable_async(false).await;
-            }
-            Err(e) => {
-                info!("Failed to initialize APDS-9253 sensor: {:?}", e);
-            }
-        }
-    }
-
     let ads_manager =
         AdsManager::new(spi3_bus_resources, ads_resources, app_context);
     let imu_manager =
         ImuManager::new(i2c_bus_manager, imu_resources, app_context);
+    let apds_manager = ApdsManager::new(i2c_bus_manager, app_context);
     let mic_manager = MicManager::new(mic_resources, app_context);
     let session_manager = SessionManager::new(app_context, sd_card_resources);
 
@@ -290,6 +217,7 @@ async fn main(spawner: Spawner) {
     spawner.must_spawn(orchestrate(
         receiver,
         ads_manager.clone(),
+        apds_manager,
         session_manager,
         imu_manager,
         mic_manager,

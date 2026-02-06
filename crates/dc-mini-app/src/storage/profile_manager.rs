@@ -1,6 +1,6 @@
 use super::data::*;
 use super::keys::{Setting, StorageKey};
-use dc_mini_icd::{AdsConfig, ImuConfig, MicConfig, SessionId};
+use dc_mini_icd::{AdsConfig, ApdsConfig, ImuConfig, MicConfig, SessionId};
 use embedded_storage_async::nor_flash::NorFlash;
 use sequential_storage::cache::NoCache;
 use sequential_storage::map::{MapConfig, MapStorage};
@@ -52,7 +52,7 @@ pub struct ProfileManager<Flash: NorFlash, const N: usize> {
     imu_config: Option<ImuConfig>,
     haptic_config: Option<HapticConfig>,
     neopixel_config: Option<NeopixelConfig>,
-    ambient_light_config: Option<AmbientLightConfig>,
+    apds_config: Option<ApdsConfig>,
     mic_config: Option<MicConfig>,
 }
 
@@ -81,7 +81,7 @@ impl<Flash: NorFlash, const N: usize> ProfileManager<Flash, N> {
             imu_config: None,
             haptic_config: None,
             neopixel_config: None,
-            ambient_light_config: None,
+            apds_config: None,
             mic_config: None,
         };
 
@@ -174,9 +174,9 @@ impl<Flash: NorFlash, const N: usize> ProfileManager<Flash, N> {
             self.neopixel_config = None;
             self.get_neopixel_config().await;
         }
-        if self.ambient_light_config.is_some() {
-            self.ambient_light_config = None;
-            self.get_ambient_light_config().await;
+        if self.apds_config.is_some() {
+            self.apds_config = None;
+            self.get_apds_config().await;
         }
         if self.mic_config.is_some() {
             self.mic_config = None;
@@ -190,10 +190,6 @@ impl<Flash: NorFlash, const N: usize> ProfileManager<Flash, N> {
     config_accessors!(imu_config, ImuConfig, ImuConfig);
     config_accessors!(haptic_config, HapticConfig, HapticConfig);
     config_accessors!(neopixel_config, NeopixelConfig, NeopixelConfig);
-    config_accessors!(
-        ambient_light_config,
-        AmbientLightConfig,
-        AmbientLightConfig
-    );
+    config_accessors!(apds_config, ApdsConfig, ApdsConfig);
     config_accessors!(mic_config, MicConfig, MicConfig);
 }

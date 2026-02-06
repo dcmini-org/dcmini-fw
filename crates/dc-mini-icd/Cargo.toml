@@ -10,13 +10,14 @@ serde = { version = "1.0", features = ["derive"], default-features = false }
 defmt = { workspace = true, optional = true }
 ads1299 = { path = "../ads1299/" }
 icm-45605 = { path = "../icm-45605/" }
+apds9253 = { workspace = true }
 heapless = { workspace = true }
 prost = { workspace = true }
 
 [features]
 default = []
 use-std = ["prost/std"]
-defmt = ["dep:defmt", "icm-45605/defmt", "ads1299/defmt"]
+defmt = ["dep:defmt", "icm-45605/defmt", "ads1299/defmt", "apds9253/defmt-03"]
 
 [build-dependencies]
 prost-build = "0.13"

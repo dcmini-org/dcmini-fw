@@ -14,7 +14,7 @@ pub enum Setting {
     ImuConfig,
     HapticConfig,
     NeopixelConfig,
-    AmbientLightConfig,
+    ApdsConfig,
     SessionId,
     MicConfig,
 }
@@ -26,7 +26,7 @@ impl Setting {
             Setting::ImuConfig => 0x01,
             Setting::HapticConfig => 0x02,
             Setting::NeopixelConfig => 0x03,
-            Setting::AmbientLightConfig => 0x04,
+            Setting::ApdsConfig => 0x04,
             Setting::SessionId => 0x05,
             Setting::MicConfig => 0x06,
         }

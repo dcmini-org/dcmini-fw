@@ -1,5 +1,5 @@
 use super::{Setting, StorageKey};
-use dc_mini_icd::{AdsConfig, ImuConfig, MicConfig, SessionId};
+use dc_mini_icd::{AdsConfig, ApdsConfig, ImuConfig, MicConfig, SessionId};
 use postcard_schema::Schema;
 use sequential_storage::map::SerializationError;
 use serde::{Deserialize, Serialize};
@@ -14,7 +14,7 @@ pub enum StorageData {
     ImuConfig(ImuConfig),
     HapticConfig(HapticConfig),
     NeopixelConfig(NeopixelConfig),
-    AmbientLightConfig(AmbientLightConfig),
+    ApdsConfig(ApdsConfig),
     MicConfig(MicConfig),
 }
 
@@ -32,12 +32,6 @@ pub struct NeopixelConfig {
     pub r: u32,
     pub g: u32,
     pub b: u32,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize, Schema)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct AmbientLightConfig {
-    pub sensitivity: u8,
 }
 
 /// Abstraction for storage keys based on profiles or global keys.
@@ -75,9 +69,9 @@ impl KeyedEnum for StorageData {
                 setting: Setting::NeopixelConfig,
             }
             .into(),
-            StorageData::AmbientLightConfig(_) => StorageKey::UserProfile {
+            StorageData::ApdsConfig(_) => StorageKey::UserProfile {
                 profile_id: active_profile,
-                setting: Setting::AmbientLightConfig,
+                setting: Setting::ApdsConfig,
             }
             .into(),
             StorageData::SessionId(_) => StorageKey::UserProfile {

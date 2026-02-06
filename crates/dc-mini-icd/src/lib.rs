@@ -64,6 +64,9 @@ pub use imu::*;
 mod mic;
 pub use mic::*;
 
+mod apds;
+pub use apds::*;
+
 // Constants
 pub const MAX_PROFILES: u8 = 16;
 pub const MAX_ID_LEN: usize = 4;

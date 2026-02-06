@@ -96,6 +96,18 @@ impl AppContext {
             }
         }
     }
+    pub async fn save_apds_config(&mut self, config: prelude::ApdsConfig) {
+        match self.profile_manager.set_apds_config(config).await {
+            Ok(_) => {
+                self.event_sender
+                    .send(prelude::ApdsEvent::ConfigChanged.into())
+                    .await;
+            }
+            Err(e) => {
+                prelude::warn!("Failed to save APDS config: {:?}", e);
+            }
+        }
+    }
     pub async fn save_mic_config(&mut self, config: prelude::MicConfig) {
         match self.profile_manager.set_mic_config(config).await {
             Ok(_) => {

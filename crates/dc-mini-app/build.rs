@@ -67,8 +67,9 @@ fn main() {
 
     println!("cargo:rustc-link-arg-bins=--nmagic");
     println!("cargo:rustc-link-arg-bins=-Tlink.x");
-    #[cfg(feature = "defmt")]
-    println!("cargo:rustc-link-arg-bins=-Tdefmt.x");
+    if env::var("CARGO_FEATURE_DEFMT").is_ok() {
+        println!("cargo:rustc-link-arg-bins=-Tdefmt.x");
+    }
 
     // Build info
     let pkg_version = env!("CARGO_PKG_VERSION");

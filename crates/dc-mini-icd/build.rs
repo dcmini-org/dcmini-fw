@@ -5,8 +5,7 @@ fn main() {
     // Compile our protos
     let mut config = Config::new();
 
-    #[cfg(feature = "defmt")]
-    {
+    if env::var("CARGO_FEATURE_DEFMT").is_ok() {
         config.message_attribute(".", "#[derive(defmt::Format)]");
         config.enum_attribute(".", "#[derive(defmt::Format)]");
     }

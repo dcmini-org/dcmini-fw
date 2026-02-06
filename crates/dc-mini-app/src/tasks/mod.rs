@@ -8,6 +8,7 @@ use embassy_nrf::Peri;
 use embassy_time::Instant;
 
 pub mod ads;
+pub mod apds;
 pub mod blinky;
 pub mod imu;
 pub mod mic;
@@ -22,6 +23,7 @@ pub mod usb;
 
 // Re-exports
 pub use ads::*;
+pub use apds::*;
 #[cfg(feature = "trouble")]
 pub use ble::*;
 pub use blinky::*;
