@@ -18,9 +18,9 @@ fn main() -> ! {
 
     // Uncomment this if you are debugging the bootloader with debugger/RTT attached,
     // as it prevents a hard fault when accessing flash 'too early' after boot.
-    for i in 0..10000000 {
-        cortex_m::asm::nop();
-    }
+    // for i in 0..10000000 {
+    //     cortex_m::asm::nop();
+    // }
 
     let mut wdt_config = wdt::Config::default();
     wdt_config.timeout_ticks = 32768 * 5; // timeout seconds

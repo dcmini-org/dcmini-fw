@@ -4,6 +4,7 @@ pub(crate) struct AdpcmEncoder {
     state: AdpcmImaState,
 }
 
+#[allow(dead_code)]
 impl AdpcmEncoder {
     pub fn new() -> Self {
         Self { state: AdpcmImaState::new() }

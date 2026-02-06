@@ -104,120 +104,117 @@ async fn main(spawner: Spawner) {
 
     Timer::after_millis(50).await;
 
-    {
-        use npm1300::{
-            charger::ChargerTerminationVoltage,
-            gpios::{Gpio, GpioConfigBuilder, GpioMode, GpioPolarity},
-            ldsw::LdoVoltage,
-            sysreg::VbusInCurrentLimit,
-            Ldsw1Ldosel, Ldsw1Softstartdisable, Ldsw1Softstartsel,
-            NtcThermistorType, VsysThreshold, NPM1300,
-        };
+    use npm1300::{
+        charger::ChargerTerminationVoltage,
+        gpios::{Gpio, GpioConfigBuilder, GpioMode, GpioPolarity},
+        ldsw::LdoVoltage,
+        sysreg::VbusInCurrentLimit,
+        Ldsw1Ldosel, Ldsw1Softstartdisable, Ldsw1Softstartsel,
+        NtcThermistorType, VsysThreshold, NPM1300,
+    };
 
-        // Acquire bus handle - configures bus if needed
-        let handle = i2c_bus_manager.acquire().await.unwrap();
-        let mut npm1300 = NPM1300::new(handle.device(), embassy_time::Delay);
+    // Acquire bus handle - configures bus if needed
+    let handle = i2c_bus_manager.acquire().await.unwrap();
+    let mut npm1300 = NPM1300::new(handle.device(), embassy_time::Delay);
 
-        info!("Created nPM1300 driver!");
-        Timer::after_millis(200).await;
+    info!("Created nPM1300 driver!");
+    Timer::after_millis(200).await;
 
-        power_manager.handle_event(PowerEvent::Enable).await;
+    power_manager.handle_event(PowerEvent::Enable).await;
 
-        npm1300
-            .set_ldsw1_gpio_control(Gpio::None, GpioPolarity::NotInverted)
-            .await
-            .unwrap();
-        Timer::after_millis(200).await;
-        npm1300
-            .set_ldsw2_gpio_control(Gpio::None, GpioPolarity::NotInverted)
-            .await
-            .unwrap();
-        Timer::after_millis(200).await;
+    npm1300
+        .set_ldsw1_gpio_control(Gpio::None, GpioPolarity::NotInverted)
+        .await
+        .unwrap();
+    Timer::after_millis(200).await;
+    npm1300
+        .set_ldsw2_gpio_control(Gpio::None, GpioPolarity::NotInverted)
+        .await
+        .unwrap();
+    Timer::after_millis(200).await;
 
-        info!("Check Status...");
-        let status = npm1300.get_ldsw_status().await.unwrap();
-        info!("LDSW status: {:?}", status);
+    info!("Check Status...");
+    let status = npm1300.get_ldsw_status().await.unwrap();
+    info!("LDSW status: {:?}", status);
 
-        info!("Waiting 2s...");
-        Timer::after_millis(200).await;
+    info!("Waiting 2s...");
+    Timer::after_millis(200).await;
 
-        info!("Configuring LDSW1 as Load Switch");
-        let _ = npm1300.set_ldsw1_mode(Ldsw1Ldosel::Ldsw).await;
-        let _ = npm1300
-            .configure_ldsw1_soft_start(
-                Ldsw1Softstartdisable::Noeffect,
-                Ldsw1Softstartsel::Ma50,
-            )
-            .await;
+    info!("Configuring LDSW1 as Load Switch");
+    let _ = npm1300.set_ldsw1_mode(Ldsw1Ldosel::Ldsw).await;
+    let _ = npm1300
+        .configure_ldsw1_soft_start(
+            Ldsw1Softstartdisable::Noeffect,
+            Ldsw1Softstartsel::Ma50,
+        )
+        .await;
 
-        // Enable LDSW1
-        info!("Pre-charging analog frontend...");
-        let _ = npm1300.enable_ldsw1().await;
+    // Enable LDSW1
+    info!("Pre-charging analog frontend...");
+    let _ = npm1300.enable_ldsw1().await;
 
-        Timer::after_millis(500).await;
+    Timer::after_millis(500).await;
 
-        info!("Switching LDSW1 to LDO with 3.3V output...");
-        // Set LDO1 output voltage to 3.3V
-        let _ = npm1300.set_ldsw1_ldo_voltage(LdoVoltage::V3_3).await;
-        info!("After set_ldsw1_ldo_voltage...");
-        // Configure LDSW1 as LDO mode
-        let _ = npm1300.set_ldsw1_mode(Ldsw1Ldosel::Ldo).await;
-        info!("After set_ldsw1_mode...");
+    info!("Switching LDSW1 to LDO with 3.3V output...");
+    // Set LDO1 output voltage to 3.3V
+    let _ = npm1300.set_ldsw1_ldo_voltage(LdoVoltage::V3_3).await;
+    info!("After set_ldsw1_ldo_voltage...");
+    // Configure LDSW1 as LDO mode
+    let _ = npm1300.set_ldsw1_mode(Ldsw1Ldosel::Ldo).await;
+    info!("After set_ldsw1_mode...");
 
-        info!("Check Status...");
-        let status = npm1300.get_ldsw_status().await.unwrap();
-        info!("LDSW status: {:?}", status);
+    info!("Check Status...");
+    let status = npm1300.get_ldsw_status().await.unwrap();
+    info!("LDSW status: {:?}", status);
 
-        // Clear Charger Errors
-        npm1300.clear_charger_errors().await.unwrap();
+    // Clear Charger Errors
+    npm1300.clear_charger_errors().await.unwrap();
 
-        // Set up battery charging
-        npm1300
-            .set_vbus_in_current_limit(VbusInCurrentLimit::MA100)
-            .await
-            .unwrap();
-        npm1300.set_charger_current(32).await.unwrap(); // mA
-        npm1300
-            .configure_ntc_resistance(NtcThermistorType::Ntc10K, Some(4250.0))
-            .await
-            .unwrap();
-        npm1300
-            .set_normal_temperature_termination_voltage(
-                ChargerTerminationVoltage::V4_20,
-            )
-            .await
-            .unwrap();
-        npm1300
-            .set_warm_temperature_termination_voltage(
-                ChargerTerminationVoltage::V4_10,
-            )
-            .await
-            .unwrap();
-        npm1300.enable_battery_charging().await.unwrap();
+    // Set up battery charging
+    npm1300
+        .set_vbus_in_current_limit(VbusInCurrentLimit::MA100)
+        .await
+        .unwrap();
+    npm1300.set_charger_current(32).await.unwrap(); // mA
+    npm1300
+        .configure_ntc_resistance(NtcThermistorType::Ntc10K, Some(4250.0))
+        .await
+        .unwrap();
+    npm1300
+        .set_normal_temperature_termination_voltage(
+            ChargerTerminationVoltage::V4_20,
+        )
+        .await
+        .unwrap();
+    npm1300
+        .set_warm_temperature_termination_voltage(
+            ChargerTerminationVoltage::V4_10,
+        )
+        .await
+        .unwrap();
+    npm1300.enable_battery_charging().await.unwrap();
 
-        Timer::after_millis(500).await;
+    Timer::after_millis(500).await;
 
-        let chg_status = npm1300.get_charger_status().await.unwrap();
-        info!("Charger status: {:?}", chg_status);
+    let chg_status = npm1300.get_charger_status().await.unwrap();
+    info!("Charger status: {:?}", chg_status);
 
-        let chg_error =
-            npm1300.get_charger_error_reason_and_sensor_value().await.unwrap();
-        info!("Charger Error: {:?}", chg_error);
+    let chg_error =
+        npm1300.get_charger_error_reason_and_sensor_value().await.unwrap();
+    info!("Charger Error: {:?}", chg_error);
 
-        let mut pofena =
-            npm1300.is_power_failure_detection_enabled().await.unwrap();
-        info!("Power failure detection enabled: {:?}", pofena);
+    let mut pofena =
+        npm1300.is_power_failure_detection_enabled().await.unwrap();
+    info!("Power failure detection enabled: {:?}", pofena);
 
-        let plw_config = GpioConfigBuilder::new()
-            .mode(GpioMode::GpoPowerLossWarning)
-            .build();
-        npm1300.configure_gpio(1, plw_config).await.unwrap();
-        npm1300.set_vsys_threshold(VsysThreshold::V32).await.unwrap();
-        npm1300.enable_power_failure_detection(true).await.unwrap();
+    let plw_config =
+        GpioConfigBuilder::new().mode(GpioMode::GpoPowerLossWarning).build();
+    npm1300.configure_gpio(1, plw_config).await.unwrap();
+    npm1300.set_vsys_threshold(VsysThreshold::V32).await.unwrap();
+    npm1300.enable_power_failure_detection(true).await.unwrap();
 
-        pofena = npm1300.is_power_failure_detection_enabled().await.unwrap();
-        info!("Power failure detection enabled?: {:?}", pofena);
-    }
+    pofena = npm1300.is_power_failure_detection_enabled().await.unwrap();
+    info!("Power failure detection enabled?: {:?}", pofena);
 
     let ads_manager =
         AdsManager::new(spi3_bus_resources, ads_resources, app_context);
@@ -275,4 +272,16 @@ async fn main(spawner: Spawner) {
 
     #[cfg(feature = "demo")]
     spawner.must_spawn(demo_task(sender));
+
+    for _ in 0..10 {
+        Timer::after_secs(10).await;
+        match npm1300.measure_ntc().await {
+            Ok(temp) => {
+                info!("NPM1300 NTC meaurement = {:?} degrees Celsius", temp);
+            }
+            Err(e) => {
+                info!("Error making NTC measurment: {:?}", e);
+            }
+        }
+    }
 }
