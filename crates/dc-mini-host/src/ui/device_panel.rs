@@ -1,8 +1,8 @@
 use crate::ui::{
-    AcquisitionPanel, BatteryPanel, DeviceInfoPanel, ProfileEvent,
+    AcquisitionPanel, BatteryPanel, DeviceInfoPanel, MicPanel, ProfileEvent,
     ProfilePanel, SessionPanel,
 };
-use crate::{AdsDataFrames, DeviceConnection};
+use crate::{AdsDataFrames, DeviceConnection, MicDataFrames};
 use crate::{BleClient, UsbClient};
 use dc_mini_icd::SampleRate;
 use egui::{Color32, RichText};
@@ -46,6 +46,7 @@ pub struct DevicePanel {
     profile_panel: ProfilePanel,
     session_panel: SessionPanel,
     ads_panel: AcquisitionPanel,
+    mic_panel: MicPanel,
     // Event receiver for profile changes
     profile_event_receiver: mpsc::UnboundedReceiver<ProfileEvent>,
 }
@@ -54,6 +55,7 @@ impl DevicePanel {
     pub fn new(
         rt: Handle,
         stream_callback: Option<Box<dyn Fn(SampleRate, AdsDataFrames) + Send>>,
+        mic_stream_callback: Option<Box<dyn Fn(MicDataFrames) + Send>>,
     ) -> Self {
         let (connection_sender, connection_receiver) =
             mpsc::unbounded_channel();
@@ -69,6 +71,8 @@ impl DevicePanel {
         let session_panel = SessionPanel::new(client.clone(), rt.clone());
         let ads_panel =
             AcquisitionPanel::new(client.clone(), rt.clone(), stream_callback);
+        let mic_panel =
+            MicPanel::new(client.clone(), rt.clone(), mic_stream_callback);
 
         Self {
             connection: None,
@@ -90,6 +94,7 @@ impl DevicePanel {
             profile_panel,
             session_panel,
             ads_panel,
+            mic_panel,
             // Event receiver
             profile_event_receiver,
         }
@@ -212,6 +217,7 @@ impl DevicePanel {
                     .send(ConnectionEvent::Connected(connection));
                 // Refresh all panels on connection
                 self.ads_panel.refresh();
+                self.mic_panel.refresh();
                 self.battery_panel.refresh();
                 self.session_panel.refresh();
                 self.device_info_panel.refresh();
@@ -229,8 +235,9 @@ impl DevicePanel {
                         }
                     }
                 }
-                // Refresh all panels on connection
+                // Refresh all panels on disconnection
                 self.ads_panel.refresh();
+                self.mic_panel.refresh();
                 self.battery_panel.refresh();
                 self.session_panel.refresh();
                 self.device_info_panel.refresh();
@@ -252,6 +259,7 @@ impl DevicePanel {
                 ProfileEvent::Changed(_) => {
                     // When profile changes, refresh panels that depend on profile
                     self.ads_panel.refresh();
+                    self.mic_panel.refresh();
                     self.session_panel.refresh();
                 }
             }
@@ -410,6 +418,9 @@ impl DevicePanel {
                 ui.separator();
 
                 self.session_panel.show(ui);
+                ui.separator();
+
+                self.mic_panel.show(ui);
                 ui.separator();
 
                 self.ads_panel.show(ui);

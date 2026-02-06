@@ -18,6 +18,8 @@ mod uuids {
         bluest::Uuid::from_u128(0x32300000_af46_43af_a0ba_4dbeb457f51c);
     pub const SESSION_SERVICE_UUID: bluest::Uuid =
         bluest::Uuid::from_u128(0x32200000_af46_43af_a0ba_4dbeb457f51c);
+    pub const MIC_SERVICE_UUID: bluest::Uuid =
+        bluest::Uuid::from_u128(0x33100000_af46_43af_a0ba_4dbeb457f51c);
 
     // Battery Service Characteristics
     pub const BATTERY_LEVEL_UUID: bluest::Uuid =
@@ -44,6 +46,18 @@ mod uuids {
         bluest::Uuid::from_u128(0x32200002_af46_43af_a0ba_4dbeb457f51c);
     pub const SESSION_CMD_UUID: bluest::Uuid =
         bluest::Uuid::from_u128(0x32200004_af46_43af_a0ba_4dbeb457f51c);
+
+    // Mic Service Characteristics
+    pub mod mic {
+        pub const GAIN_DB_UUID: bluest::Uuid =
+            bluest::Uuid::from_u128(0x33000000_af46_43af_a0ba_4dbeb457f51c);
+        pub const SAMPLE_RATE_UUID: bluest::Uuid =
+            bluest::Uuid::from_u128(0x33000001_af46_43af_a0ba_4dbeb457f51c);
+        pub const DATA_STREAM_UUID: bluest::Uuid =
+            bluest::Uuid::from_u128(0x33000200_af46_43af_a0ba_4dbeb457f51c);
+        pub const COMMAND_UUID: bluest::Uuid =
+            bluest::Uuid::from_u128(0x33000300_af46_43af_a0ba_4dbeb457f51c);
+    }
 
     // ADS Service Characteristics
     pub mod ads {
@@ -136,6 +150,7 @@ impl BleClient {
                 uuids::ADS_SERVICE_UUID,
                 uuids::PROFILE_SERVICE_UUID,
                 uuids::SESSION_SERVICE_UUID,
+                uuids::MIC_SERVICE_UUID,
                 // uuids::BATTERY_SERVICE_UUID,
                 // uuids::DEVICE_INFO_SERVICE_UUID,
             ])
@@ -165,6 +180,7 @@ impl BleClient {
             uuids::DEVICE_INFO_SERVICE_UUID,
             uuids::PROFILE_SERVICE_UUID,
             uuids::SESSION_SERVICE_UUID,
+            uuids::MIC_SERVICE_UUID,
         ] {
             if let Ok(service) =
                 device.discover_services_with_uuid(service_uuid).await
@@ -765,6 +781,61 @@ impl BleClient {
         values: &[u8],
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.write_characteristic(LEAD_OFF_FLIP_UUID, values).await
+    }
+
+    // Mic Service Methods
+    pub async fn notify_mic_stream(
+        &self,
+    ) -> impl Stream<Item = bluest::Result<Vec<u8>>> + Send + Unpin + use<'_>
+    {
+        let characteristic = self
+            .get_characteristic(uuids::mic::DATA_STREAM_UUID)
+            .ok_or("Mic data stream characteristic not found")
+            .unwrap();
+        let stream = characteristic.notify().await.unwrap();
+        stream
+    }
+
+    pub async fn get_mic_config(
+        &self,
+    ) -> Result<icd::MicConfig, Box<dyn std::error::Error + Send + Sync>>
+    {
+        let gain_db =
+            self.read_characteristic(uuids::mic::GAIN_DB_UUID).await?[0]
+                as i8;
+        let sample_rate = icd::MicSampleRate::from(
+            self.read_characteristic(uuids::mic::SAMPLE_RATE_UUID).await?[0],
+        );
+        Ok(icd::MicConfig { gain_db, sample_rate })
+    }
+
+    pub async fn set_mic_config(
+        &self,
+        config: &icd::MicConfig,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.write_characteristic(
+            uuids::mic::GAIN_DB_UUID,
+            &[config.gain_db as u8],
+        )
+        .await?;
+        self.write_characteristic(
+            uuids::mic::SAMPLE_RATE_UUID,
+            &[config.sample_rate as u8],
+        )
+        .await?;
+        Ok(())
+    }
+
+    pub async fn start_mic_streaming(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.write_characteristic(uuids::mic::COMMAND_UUID, &[0]).await
+    }
+
+    pub async fn stop_mic_streaming(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.write_characteristic(uuids::mic::COMMAND_UUID, &[1]).await
     }
 
     pub async fn is_connected(&self) -> bool {

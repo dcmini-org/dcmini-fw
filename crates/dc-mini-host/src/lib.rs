@@ -6,9 +6,16 @@ pub use dc_mini_icd as icd;
 
 pub mod fileio;
 
+use audio_codec_algorithms::{decode_adpcm_ima, AdpcmImaState};
+
 pub enum AdsDataFrames {
     Proto(icd::proto::AdsDataFrame),
     Icd(icd::AdsDataFrame),
+}
+
+pub enum MicDataFrames {
+    Proto(icd::mic_proto::MicDataFrame),
+    Icd(icd::MicDataFrame),
 }
 
 pub async fn read_line() -> String {
@@ -118,4 +125,42 @@ pub fn get_sample_period_us(sample_rate: icd::SampleRate) -> f64 {
         icd::SampleRate::KSps16 => 16_000.0,
     };
     1_000_000.0 / rate_hz
+}
+
+fn decode_adpcm_block(adpcm_data: &[u8], predictor: i16, step_index: u8) -> Vec<i16> {
+    let mut state = AdpcmImaState { predictor, step_index };
+    let mut pcm = Vec::with_capacity(adpcm_data.len() * 2);
+    for &byte in adpcm_data {
+        pcm.push(decode_adpcm_ima(byte & 0x0F, &mut state));
+        pcm.push(decode_adpcm_ima(byte >> 4, &mut state));
+    }
+    pcm
+}
+
+pub fn log_mic_frame(
+    rec: rerun::RecordingStream,
+) -> Box<dyn Fn(MicDataFrames) + Send> {
+    Box::new(move |frame: MicDataFrames| {
+        let (ts, sample_rate, predictor, step_index, adpcm_data) = match &frame {
+            MicDataFrames::Icd(f) => {
+                (f.ts, f.sample_rate, f.predictor, f.step_index, &f.adpcm_data)
+            }
+            MicDataFrames::Proto(f) => {
+                (f.ts, f.sample_rate, f.predictor, f.step_index, &f.adpcm_data)
+            }
+        };
+
+        let pcm = decode_adpcm_block(adpcm_data, predictor as i16, step_index as u8);
+        let sample_period_us = 1_000_000.0 / sample_rate as f64;
+        let num_samples = pcm.len();
+
+        for (i, &sample) in pcm.iter().enumerate() {
+            let timestamp = (ts as f64
+                - ((num_samples - 1 - i) as f64 * sample_period_us))
+                / 1_000_000.0;
+            rec.set_duration_secs("time", timestamp);
+            rec.log("mic/audio", &rerun::Scalars::new([sample as f64]))
+                .unwrap();
+        }
+    })
 }

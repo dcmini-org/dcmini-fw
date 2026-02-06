@@ -19,7 +19,7 @@ impl DcMiniApp {
         let handle = rt.handle().clone();
 
         Ok(Self {
-            device_panel: DevicePanel::new(handle, None),
+            device_panel: DevicePanel::new(handle, None, None),
             dark_mode: true,
             _rt: rt,
         })

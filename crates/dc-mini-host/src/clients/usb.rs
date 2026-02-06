@@ -2,10 +2,11 @@ use dc_mini_icd::{
     AdsConfig, AdsGetConfigEndpoint, AdsResetConfigEndpoint,
     AdsSetConfigEndpoint, AdsStartEndpoint, AdsStopEndpoint,
     BatteryGetLevelEndpoint, BatteryLevel, DeviceInfo, DeviceInfoGetEndpoint,
-    ProfileCommand, ProfileCommandEndpoint, ProfileGetEndpoint,
-    ProfileSetEndpoint, SessionGetIdEndpoint, SessionGetStatusEndpoint,
-    SessionId, SessionSetIdEndpoint, SessionStartEndpoint,
-    SessionStopEndpoint,
+    MicConfig, MicGetConfigEndpoint, MicSetConfigEndpoint, MicStartEndpoint,
+    MicStopEndpoint, ProfileCommand, ProfileCommandEndpoint,
+    ProfileGetEndpoint, ProfileSetEndpoint, SessionGetIdEndpoint,
+    SessionGetStatusEndpoint, SessionId, SessionSetIdEndpoint,
+    SessionStartEndpoint, SessionStopEndpoint,
 };
 use postcard_rpc::{
     header::VarSeqKind,
@@ -174,6 +175,36 @@ impl UsbClient {
 
     pub async fn stop_session(&self) -> Result<bool, UsbError<Infallible>> {
         let result = self.client.send_resp::<SessionStopEndpoint>(&()).await?;
+        Ok(result)
+    }
+
+    // Mic Service Methods
+    pub async fn start_mic_streaming(
+        &self,
+    ) -> Result<MicConfig, UsbError<Infallible>> {
+        let config = self.client.send_resp::<MicStartEndpoint>(&()).await?;
+        Ok(config)
+    }
+
+    pub async fn stop_mic_streaming(&self) -> Result<(), UsbError<Infallible>> {
+        let res = self.client.send_resp::<MicStopEndpoint>(&()).await?;
+        Ok(res)
+    }
+
+    pub async fn get_mic_config(
+        &self,
+    ) -> Result<MicConfig, UsbError<Infallible>> {
+        let config =
+            self.client.send_resp::<MicGetConfigEndpoint>(&()).await?;
+        Ok(config)
+    }
+
+    pub async fn set_mic_config(
+        &self,
+        config: MicConfig,
+    ) -> Result<bool, UsbError<Infallible>> {
+        let result =
+            self.client.send_resp::<MicSetConfigEndpoint>(&config).await?;
         Ok(result)
     }
 

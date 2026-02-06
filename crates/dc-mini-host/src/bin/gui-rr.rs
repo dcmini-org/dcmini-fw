@@ -95,7 +95,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 rerun_app,
                 device_panel: DevicePanel::new(
                     handle,
-                    Some(dc_mini_host::log_ads_frame(recording)),
+                    Some(dc_mini_host::log_ads_frame(recording.clone())),
+                    Some(dc_mini_host::log_mic_frame(recording)),
                 ),
             }))
         }),
