@@ -43,13 +43,13 @@ pub fn log_ads_frame(
                     let timestamp = (frame.ts as f64
                         - ((num_samples - 1 - i) as f64 * sample_period_us))
                         / 1_000_000.0;
-                    rec.set_time_seconds("time", timestamp);
+                    rec.set_duration_secs("time", timestamp);
 
                     // Log each channel's data
                     for (ch, &value) in sample.data.iter().enumerate() {
                         rec.log(
                             format!("ads/channel_{}", ch),
-                            &rerun::Scalar::new(value as f64),
+                            &rerun::Scalars::new([value as f64]),
                         )
                         .unwrap();
                     }
@@ -67,15 +67,37 @@ pub fn log_ads_frame(
                     let timestamp = (frame.ts as f64
                         - ((num_samples - 1 - i) as f64 * sample_period_us))
                         / 1_000_000.0;
-                    rec.set_time_seconds("time", timestamp);
+                    rec.set_duration_secs("time", timestamp);
 
                     // Log each channel's data
                     for (ch, &value) in sample.data.iter().enumerate() {
                         rec.log(
                             format!("ads/channel_{}", ch),
-                            &rerun::Scalar::new(value as f64),
+                            &rerun::Scalars::new([value as f64]),
                         )
                         .unwrap();
+                    }
+
+                    // Log IMU accelerometer data if present
+                    if let Some(val) = sample.accel_x {
+                        rec.log("imu/accel_x", &rerun::Scalars::new([val as f64])).unwrap();
+                    }
+                    if let Some(val) = sample.accel_y {
+                        rec.log("imu/accel_y", &rerun::Scalars::new([val as f64])).unwrap();
+                    }
+                    if let Some(val) = sample.accel_z {
+                        rec.log("imu/accel_z", &rerun::Scalars::new([val as f64])).unwrap();
+                    }
+
+                    // Log IMU gyroscope data if present
+                    if let Some(val) = sample.gyro_x {
+                        rec.log("imu/gyro_x", &rerun::Scalars::new([val as f64])).unwrap();
+                    }
+                    if let Some(val) = sample.gyro_y {
+                        rec.log("imu/gyro_y", &rerun::Scalars::new([val as f64])).unwrap();
+                    }
+                    if let Some(val) = sample.gyro_z {
+                        rec.log("imu/gyro_z", &rerun::Scalars::new([val as f64])).unwrap();
                     }
                 }
             }

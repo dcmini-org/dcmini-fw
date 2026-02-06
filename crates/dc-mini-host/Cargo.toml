@@ -8,23 +8,20 @@ description = "Host utilities for DC-Mini"
 
 [dependencies]
 dc-mini-icd = { path = "../../crates/dc-mini-icd/", features = ["use-std"] }
-postcard-rpc = { version = "0.11", features = ["use-std", "raw-nusb"] }
+postcard-rpc = { version = "0.12", features = ["use-std", "raw-nusb"] }
 postcard-schema = { version = "0.2", features = ["derive", "use-std"] }
 tokio = { version = "1.37.0", features = ["rt-multi-thread", "macros", "time"] }
-rerun = "0.22"
-re_viewer = "0.22"
-re_crash_handler = "0.22"
-re_sdk_comms = { version = "0.22", features = ["server"] }
+rerun = { version = "0.29", default-features = false, features = ["native_viewer", "sdk", "server"] }
 bluest = "0.6"
-postcard = "1"
-futures-lite = "2.5"
+postcard = "1.1"
+futures-lite = "2.6"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-prost = "0.13"
-eframe = "0.31"
-egui = "0.31"
-egui_extras = { version = "0.31", features = ["datepicker"] }
-heapless = "0.8"
+prost = "0.14"
+eframe = "0.33"
+egui = "0.33"
+egui_extras = { version = "0.33", features = ["datepicker"] }
+heapless = "0.9"
 futures = "0.3"
 once_cell = "1.20"
 
@@ -35,7 +32,7 @@ mimalloc = "0.1.43"
 byteorder = "1.5"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.5", features = ["derive"] }
-rfd = "0.15"                                       # Native file dialogs
+rfd = "0.17"                                       # Native file dialogs
 walkdir = "2.5"                                    # Directory traversal
 
 derive_more = { version = "2.0", features = ["full"] }
