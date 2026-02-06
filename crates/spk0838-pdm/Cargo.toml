@@ -1,0 +1,13 @@
+[package]
+name = "spk0838-pdm"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["defmt"]
+defmt = ["dep:defmt", "embassy-nrf/defmt"]
+
+[dependencies]
+embassy-nrf = { workspace = true }
+defmt = { workspace = true, optional = true }
+fixed = "1"

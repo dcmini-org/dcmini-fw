@@ -54,6 +54,12 @@ pub struct SdCardResources {
     pub spim: Peri<'static, peripherals::SPI2>,
 }
 
+pub struct MicResources {
+    pub pdm: Peri<'static, PDM>,
+    pub clk: Peri<'static, P0_27>,
+    pub din: Peri<'static, P0_00>,
+}
+
 /// Pins for External QSPI flash
 pub struct ExternalFlashResources {
     /// The QSPI instance.
@@ -83,10 +89,8 @@ pub struct DCMini {
     pub pwrbtn: Peri<'static, P0_31>,
     /// Pin to control Neopixels.
     pub neopix: Peri<'static, P0_11>,
-    /// Clock pin for the microphone.
-    pub mic_clk: Peri<'static, P0_27>,
-    /// Data pin for the microphone.
-    pub mic_data: Peri<'static, P0_00>,
+    /// PDM microphone resources (SPK0838HT4H).
+    pub mic: MicResources,
     /// Interrupt pin for the ambient light sensor.
     pub apds_irq: Peri<'static, P1_09>,
     /// Power enable for 5V rail
@@ -161,8 +165,6 @@ pub struct DCMini {
     pub timer3: Peri<'static, TIMER3>,
     /// Timer 4.
     pub timer4: Peri<'static, TIMER4>,
-    /// Pulse Density Modulation.
-    pub pdm: Peri<'static, PDM>,
     /// Inter-IC Sound.
     pub i2s: Peri<'static, I2S>,
     #[cfg(feature = "trouble")]
@@ -191,8 +193,11 @@ impl DCMini {
             vbus_src: p.P1_11,
             pwrbtn: p.P0_31,
             neopix: p.P0_11,
-            mic_clk: p.P0_27,
-            mic_data: p.P0_00,
+            mic: MicResources {
+                pdm: p.PDM,
+                clk: p.P0_27,
+                din: p.P0_00,
+            },
             apds_irq: p.P1_09,
             en5v: p.P0_30,
             haptrig: p.P1_02,
@@ -224,7 +229,6 @@ impl DCMini {
             timer2: p.TIMER2,
             timer3: p.TIMER3,
             timer4: p.TIMER4,
-            pdm: p.PDM,
             i2s: p.I2S,
             external_flash: ExternalFlashResources {
                 qspi: p.QSPI,

@@ -7,6 +7,7 @@ members = [
   "crates/dc-mini-host",
   "crates/dc-mini-host-py",
   "crates/ws2812-nrf-pwm",
+  "crates/spk0838-pdm",
   "crates/xtask",
   "crates/icm-45605",
 ]
@@ -113,30 +114,9 @@ prost = { version = "0.14", default-features = false, features = ["derive"] }
 
 
 [patch.crates-io]
-# embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-# embassy-boot = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-# embassy-boot-nrf = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-# embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-# embassy-usb = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-# embassy-usb-driver = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-# embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-# embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-# embassy-time = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-# embassy-time-driver = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-# embassy-time-queue-utils = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-# embassy-embedded-hal = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-#
-# # embedded-sdmmc = { git = "https://github.com/rust-embedded-community/embedded-sdmmc-rs", branch = "develop" }
-# embedded-sdmmc = { git = "https://github.com/Be-ing/embedded-sdmmc-rs", branch = "bisync" }
-# postcard-rpc = { git = "https://github.com/jamesmunns/postcard-rpc.git", branch = "main" }
-# postcard-schema = { git = "https://github.com/jamesmunns/postcard.git", branch = "main" }
-# sequential-storage = { git = "https://github.com/tweedegolf/sequential-storage.git", branch = "master" }
 nrf-sdc = { git = "https://github.com/alexmoon/nrf-sdc.git", branch = "main" }
 nrf-mpsl = { git = "https://github.com/alexmoon/nrf-sdc.git", branch = "main" }
-# bt-hci = { git = "https://github.com/embassy-rs/bt-hci.git", branch = "main" }
 trouble-host = { git = "https://github.com/embassy-rs/trouble.git", branch = "main" }
-# micromath = { git = "https://github.com/tarcieri/micromath", branch = "main" }
-# bluest = { git = "https://github.com/alexmoon/bluest", branch = "main" }
 
 [profile.dev]
 opt-level = 3

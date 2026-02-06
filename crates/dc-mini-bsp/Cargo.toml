@@ -39,4 +39,5 @@ embedded-sdmmc = { workspace = true }
 
 ads1299 = { path = "../ads1299/" }
 icm-45605 = { path = "../icm-45605/" }
+spk0838-pdm = { path = "../spk0838-pdm/" }
 cfg-if.workspace = true
