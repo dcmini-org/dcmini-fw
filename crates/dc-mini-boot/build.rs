@@ -17,9 +17,17 @@ fn main() {
     // Put `memory.x` in our output directory and ensure it's
     // on the linker search path.
     let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
+
+    let linker_data: &[u8] =
+        if env::var("CARGO_FEATURE_EXTERNAL_FLASH").is_ok() {
+            include_bytes!("memory.x")
+        } else {
+            include_bytes!("memory_no_ext_flash.x")
+        };
+
     File::create(out.join("memory.x"))
         .unwrap()
-        .write_all(include_bytes!("memory.x"))
+        .write_all(linker_data)
         .unwrap();
     println!("cargo:rustc-link-search={}", out.display());
 
@@ -28,6 +36,7 @@ fn main() {
     // here, we ensure the build script is only re-run when
     // `memory.x` is changed.
     println!("cargo:rerun-if-changed=memory.x");
+    println!("cargo:rerun-if-changed=memory_no_ext_flash.x");
 
     println!("cargo:rustc-link-arg-bins=--nmagic");
     println!("cargo:rustc-link-arg-bins=-Tlink.x");

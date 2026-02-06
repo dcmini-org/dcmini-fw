@@ -40,6 +40,7 @@ alloc = ["defmt/alloc"]
 usb = ["dc-mini-bsp/usb", "dep:embassy-usb"]
 trouble = ["dc-mini-bsp/trouble", "bt-hci", "trouble-host", "nrf-sdc"]
 critical-section = ["cortex-m/critical-section-single-core"]
+external-flash = []
 demo = []
 
 # Hardware revision of board.

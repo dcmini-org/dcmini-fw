@@ -30,7 +30,11 @@ impl Default for HwVersion {
 }
 
 fn linker_data() -> &'static [u8] {
-    include_bytes!("memory.x")
+    if env::var("CARGO_FEATURE_EXTERNAL_FLASH").is_ok() {
+        include_bytes!("memory.x")
+    } else {
+        include_bytes!("memory_no_ext_flash.x")
+    }
 }
 
 fn main() {
@@ -62,6 +66,7 @@ fn main() {
     // here, we ensure the build script is only re-run when
     // `memory.x` is changed.
     println!("cargo:rerun-if-changed=memory.x");
+    println!("cargo:rerun-if-changed=memory_no_ext_flash.x");
 
     println!("cargo:rustc-link-arg-bins=--nmagic");
     println!("cargo:rustc-link-arg-bins=-Tlink.x");

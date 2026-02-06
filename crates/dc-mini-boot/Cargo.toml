@@ -15,10 +15,11 @@ default = ["defmt"]
 defmt = [
   "dep:defmt",
   "dep:defmt-rtt",
-  "embassy-boot-nrf/defmt",
+  "embassy-boot-nrf?/defmt",
   "embassy-nrf/defmt",
   "dc-mini-bsp/defmt",
 ]
+external-flash = ["dep:embassy-boot-nrf"]
 trouble = []
 usb = []
 alloc = []
@@ -28,7 +29,7 @@ demo = []
 sr6 = ["dc-mini-bsp/sr6"]
 
 [dependencies]
-embassy-boot-nrf = { workspace = true }
+embassy-boot-nrf = { workspace = true, optional = true }
 embassy-nrf = { workspace = true }
 embassy-sync = { workspace = true }
 
