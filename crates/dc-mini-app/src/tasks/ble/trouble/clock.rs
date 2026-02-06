@@ -4,9 +4,11 @@ use embassy_futures::select::Either;
 use embassy_time::Instant;
 use trouble_host::prelude::*;
 
-pub async fn sync_time<'a, C: Controller, P: PacketPool>(
-    stack: &'a Stack<'a, C, P>,
-    conn: &Connection<'a, P>,
+use super::BleController;
+
+pub async fn sync_time<'a>(
+    stack: &'a Stack<'a, BleController, DefaultPacketPool>,
+    conn: &Connection<'a, DefaultPacketPool>,
 ) {
     info!("[ble] synchronizing time");
     let client =
@@ -34,7 +36,7 @@ pub async fn sync_time<'a, C: Controller, P: PacketPool>(
                 info!("Time synced");
             }
         }
-        Ok::<(), BleHostError<C::Error>>(())
+        Ok::<(), BleHostError<_>>(())
     })
     .await
     {

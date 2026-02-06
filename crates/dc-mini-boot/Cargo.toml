@@ -1,7 +1,7 @@
 [package]
 name = "dc-mini-boot"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 publish = false
 
 repository = "https://github.com/iscoe/dc-mini-sw"
@@ -15,9 +15,7 @@ default = ["defmt"]
 defmt = [
   "dep:defmt",
   "dep:defmt-rtt",
-  "embassy-boot/defmt",
   "embassy-boot-nrf/defmt",
-  "embassy-embedded-hal/defmt",
   "embassy-nrf/defmt",
   "dc-mini-bsp/defmt",
 ]
@@ -29,10 +27,8 @@ critical-section = []
 sr6 = ["dc-mini-bsp/sr6"]
 
 [dependencies]
-embassy-boot = { workspace = true }
 embassy-boot-nrf = { workspace = true }
 embassy-nrf = { workspace = true }
-embassy-embedded-hal = { workspace = true }
 embassy-sync = { workspace = true }
 
 defmt = { workspace = true, optional = true }

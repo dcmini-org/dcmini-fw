@@ -18,6 +18,8 @@ defmt = [
   "nrf-sdc/defmt",
   "nrf-mpsl/defmt",
   "ads1299/defmt",
+  "icm-45605/defmt",
+  "spk0838-pdm/defmt",
 ]
 trouble = ["nrf-sdc", "nrf-mpsl"]
 usb = []

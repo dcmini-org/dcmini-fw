@@ -54,7 +54,7 @@ pub async fn mpsl_task(
 }
 
 /// Run the BLE controller runner in a loop, restarting on error.
-async fn ble_runner<C: Controller, P: PacketPool>(mut runner: Runner<'_, C, P>) {
+async fn ble_runner(mut runner: Runner<'_, BleController, DefaultPacketPool>) {
     loop {
         if let Err(e) = runner.run().await {
             error!("BLE runner error: {:?}", e);
@@ -98,9 +98,9 @@ async fn run(
     let _ = embassy_futures::join::join(ble_runner(runner), app_loop).await;
 }
 
-async fn app_task<'values, C: Controller>(
+async fn app_task<'values>(
     server: &Server<'values>,
-    peripheral: &mut Peripheral<'values, C, DefaultPacketPool>,
+    peripheral: &mut Peripheral<'values, BleController, DefaultPacketPool>,
     app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
 ) {
     loop {
