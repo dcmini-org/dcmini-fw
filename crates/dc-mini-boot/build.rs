@@ -11,10 +11,7 @@
 use std::{env, fs::File, io::Write, path::PathBuf};
 
 fn linker_data() -> &'static [u8] {
-    #[cfg(feature = "softdevice")]
-    return include_bytes!("memory-softdevice.x");
-    #[cfg(not(feature = "softdevice"))]
-    return include_bytes!("memory.x");
+    include_bytes!("memory.x")
 }
 
 fn main() {

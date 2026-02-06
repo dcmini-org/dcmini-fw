@@ -40,7 +40,6 @@
             gcc-arm-embedded
             cargo-binstall
             cargo-watch
-            wget
 
             # pkgconfig deps
             dbus
@@ -73,26 +72,6 @@
             done
 
             cargo install-update "''${tools[@]}"
-
-            # Directory to check and create
-            dir="softdevice"
-            # Archive filename
-            zipFile="s140_nrf52_7.3.0.zip"
-            # URL of the zip archive
-            url="https://nsscprodmedia.blob.core.windows.net/prod/software-and-other-downloads/softdevices/s140/$zipFile"
-            # Check if the directory exists
-            if [ ! -d "$dir" ]; then
-                echo "$dir does not exist. Creating directory and downloading the file..."
-                # Make directory
-                mkdir -p $dir
-                # Download the zip file
-                wget $url -O $zipFile
-                # Unzip only the .hex files to the specified directory
-                unzip -j $zipFile "*.hex" -d $dir
-                # Cleanup
-                rm $zipFile
-                echo "Done."
-            fi
           '';
 
           RUST_SRC_PATH = "${toolchain}/lib/rustlib/src/rust/library";

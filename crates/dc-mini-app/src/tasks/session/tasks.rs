@@ -42,17 +42,6 @@ pub async fn recording_task(
 
     let mut sd_resources = sd.lock().await;
 
-    // Don't want to change the SD card impl to return the SDIO pin.
-    #[cfg(feature = "sr1")]
-    let _sdio = {
-        let sdio_pin = unsafe { embassy_nrf::peripherals::P0_29::steal() };
-        embassy_nrf::gpio::Output::new(
-            sdio_pin,
-            embassy_nrf::gpio::Level::High,
-            embassy_nrf::gpio::OutputDrive::Standard,
-        )
-    };
-
     let sd_card = sd_resources.get_card();
 
     // Initialize SD card

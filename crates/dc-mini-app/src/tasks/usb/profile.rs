@@ -57,11 +57,5 @@ pub async fn profile_command(
         }
     }
 
-    #[cfg(feature = "softdevice")]
-    {
-        update_profile_characteristics(context.app).await;
-        update_session_characteristics(context.app).await;
-        update_ads_characteristics(context.app).await;
-    }
     true
 }

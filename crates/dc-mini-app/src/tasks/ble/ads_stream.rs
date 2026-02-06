@@ -136,7 +136,7 @@ fn ensure_mtu_fit(
     (current_max_samples, carry_over)
 }
 
-/// Generic implementation of ADS stream notification that works with both softdevice and trouble implementations
+/// Generic implementation of ADS stream notification
 pub(crate) async fn ads_stream_notify<T: AdsStreamNotifier>(
     notifier: &T,
     mtu: usize,

@@ -20,12 +20,8 @@ defmt = [
   "ads1299/defmt",
 ]
 trouble = ["nrf-sdc", "nrf-mpsl"]
-softdevice = []
 usb = []
-sr1 = []
-sr2 = []
-sr3 = []
-r6 = []
+sr6 = []
 
 [dependencies]
 embassy-nrf = { workspace = true }

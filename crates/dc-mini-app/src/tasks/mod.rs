@@ -8,22 +8,20 @@ use embassy_nrf::Peri;
 use embassy_time::Instant;
 
 pub mod ads;
-pub mod battery;
 pub mod blinky;
 pub mod imu;
 pub mod neopix;
 pub mod power_control;
 pub mod session;
 
-#[cfg(any(feature = "softdevice", feature = "trouble"))]
+#[cfg(feature = "trouble")]
 pub mod ble;
 #[cfg(feature = "usb")]
 pub mod usb;
 
 // Re-exports
 pub use ads::*;
-pub use battery::*;
-#[cfg(any(feature = "softdevice", feature = "trouble"))]
+#[cfg(feature = "trouble")]
 pub use ble::*;
 pub use blinky::*;
 pub use imu::*;

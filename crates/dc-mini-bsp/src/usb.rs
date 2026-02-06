@@ -23,15 +23,7 @@ impl UsbDriverBuilder {
     }
 
     cfg_if::cfg_if! {
-        if #[cfg(feature = "softdevice")] {
-            pub fn init<'a>(
-                self,
-                vbus: &'static embassy_nrf::usb::vbus_detect::SoftwareVbusDetect,
-            ) -> Driver<'a, &'static embassy_nrf::usb::vbus_detect::SoftwareVbusDetect> {
-                Driver::new(self.usbd, UsbIrqs, vbus)
-            }
-        }
-        else if #[cfg(feature = "trouble")] {
+        if #[cfg(feature = "trouble")] {
             pub fn init<'a>(
                 self,
             ) -> Driver<'a, embassy_nrf::usb::vbus_detect::HardwareVbusDetect> {

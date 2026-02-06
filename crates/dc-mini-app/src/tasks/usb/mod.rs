@@ -40,12 +40,6 @@ pub type AppTx = WireTxImpl<MutexType, AppDriver>;
 type AppRx = WireRxImpl<AppDriver>;
 type AppServer = Server<AppTx, AppRx, WireRxBuf, DcMiniUsbApp>;
 
-#[cfg(feature = "softdevice")]
-type AppDriver = Driver<
-    'static,
-    &'static embassy_nrf::usb::vbus_detect::SoftwareVbusDetect,
->;
-#[cfg(not(feature = "softdevice"))]
 type AppDriver = Driver<
     'static,
     embassy_nrf::usb::vbus_detect::HardwareVbusDetect,
@@ -135,16 +129,11 @@ pub async fn usb_task(
     spawner: Spawner,
     usbd: UsbDriverBuilder,
     app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
-    #[cfg(feature = "softdevice")]
-    vbus: &'static embassy_nrf::usb::vbus_detect::SoftwareVbusDetect,
 ) {
     let context = Context { app: app_context };
     let dispatcher = DcMiniUsbApp::new(context, spawner.into());
     let vkk = dispatcher.min_key_len();
 
-    #[cfg(feature = "softdevice")]
-    let driver = usbd.init(vbus);
-    #[cfg(not(feature = "softdevice"))]
     let driver = usbd.init();
     let pbufs = PBUFS.take();
     let config = usb_config();

@@ -149,8 +149,6 @@ impl AdsManager {
                     }
                 }
 
-                #[cfg(feature = "softdevice")]
-                update_ads_characteristics(self.app).await;
             }
             AdsEvent::PrintConfig => {
                 let mut context = self.app.lock().await;

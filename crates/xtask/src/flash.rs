@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::process::Command;
 
-use crate::constants::{CHIP, SOFTDEVICE_PATH};
+use crate::constants::CHIP;
 
 pub fn flash_firmware(
     features: Option<&str>,
@@ -24,26 +24,6 @@ pub fn flash_firmware(
         let status = cmd.status().context("Failed to erase chip")?;
         if !status.success() {
             anyhow::bail!("Failed to erase chip");
-        }
-    }
-
-    // If softdevice feature is enabled, flash it first
-    if features.is_some_and(|f| f.contains("softdevice")) {
-        println!("Checking/Flashing Softdevice...");
-        let mut cmd = Command::new("probe-rs");
-        cmd.args([
-            "download",
-            "--chip",
-            CHIP,
-            SOFTDEVICE_PATH,
-            "--binary-format",
-            "hex",
-            "--preverify",
-        ]);
-
-        let status = cmd.status().context("Failed to flash softdevice")?;
-        if !status.success() {
-            anyhow::bail!("Failed to flash softdevice");
         }
     }
 

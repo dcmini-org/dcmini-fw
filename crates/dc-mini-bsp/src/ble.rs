@@ -1,4 +1,4 @@
-//! nRF Softdevice Controller Configuration for Bluetooth Peripheral
+//! nRF SDC BLE Controller Configuration for Bluetooth Peripheral
 //!
 //! Used with `trouble-host` crate.
 
@@ -15,16 +15,16 @@ use static_cell::StaticCell;
 #[cfg(feature = "usb")]
 use embassy_nrf::usb;
 
-/// Default memory allocation for softdevice controller in bytes.
+/// Default memory allocation for SDC BLE controller in bytes.
 /// - Minimum 2168 bytes,
 /// - maximum associated with [task-arena-size](https://docs.embassy.dev/embassy-executor/git/cortex-m/index.html)
 const SDC_MEMORY_SIZE: usize = 1448; // bytes
 
-/// Softdevice Bluetooth Controller Builder.
+/// SDC BLE Controller Builder.
 pub struct BleControllerBuilder<'d> {
-    /// Softdevice Controller peripherals
+    /// SDC Controller peripherals
     sdc_peripherals: sdc::Peripherals<'d>,
-    /// Softdevice Controller memory
+    /// SDC Controller memory
     sdc_mem: sdc::Mem<SDC_MEMORY_SIZE>,
     // Required peripherals for the Multiprotocol Service Layer (MPSL)
     rtc0: Peri<'d, peripherals::RTC0>,
@@ -60,7 +60,7 @@ where
             skip_wait_lfclk_started:
                 mpsl::raw::MPSL_DEFAULT_SKIP_WAIT_LFCLK_STARTED != 0,
         };
-    /// Create a new instance of the Softdevice Controller BLE builder
+    /// Create a new instance of the SDC BLE controller builder
     pub(crate) fn new(
         rtc0: Peri<'d, peripherals::RTC0>,
         temp: Peri<'d, peripherals::TEMP>,
@@ -80,7 +80,7 @@ where
         ppi_ch30: Peri<'d, peripherals::PPI_CH30>,
         ppi_ch31: Peri<'d, peripherals::PPI_CH31>,
     ) -> Self {
-        // Softdevice Controller peripherals
+        // SDC peripherals
         let sdc_peripherals = sdc::Peripherals::new(
             ppi_ch17, ppi_ch18, ppi_ch20, ppi_ch21, ppi_ch22, ppi_ch23,
             ppi_ch24, ppi_ch25, ppi_ch26, ppi_ch27, ppi_ch28, ppi_ch29,
@@ -141,7 +141,7 @@ where
     }
 }
 
-/// Build the Softdevice Controller layer to pass to trouble-host
+/// Build the SDC controller layer to pass to trouble-host
 fn build_sdc<'d, const N: usize>(
     p: nrf_sdc::Peripherals<'d>,
     rng: &'d mut rng::Rng<'d, Async>,

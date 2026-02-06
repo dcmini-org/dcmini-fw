@@ -89,19 +89,6 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 # BLE dependencies
 bt-hci = { version = "0.7", default-features = false }
 trouble-host = { version = "0.5", features = ["gatt", "derive", "peripheral"] }
-nrf-softdevice = { version = "0.1", features = [
-  "ble-peripheral",
-  "ble-gatt-server",
-  "ble-gatt-client",
-  "ble-sec",
-  "s140",
-  "nrf52840",
-  "critical-section-impl",
-  "evt-max-size-256",
-] }
-nrf-softdevice-s140 = "0.1"
-nrf-softdevice-mbr = { version = "0.2" }
-
 syn = "2.0"
 quote = "1.0"
 
@@ -144,9 +131,6 @@ prost = { version = "0.14", default-features = false, features = ["derive"] }
 # postcard-rpc = { git = "https://github.com/jamesmunns/postcard-rpc.git", branch = "main" }
 # postcard-schema = { git = "https://github.com/jamesmunns/postcard.git", branch = "main" }
 # sequential-storage = { git = "https://github.com/tweedegolf/sequential-storage.git", branch = "master" }
-# nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice.git", branch = "master" }
-# nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice.git", branch = "master" }
-# nrf-softdevice-mbr = { git = "https://github.com/embassy-rs/nrf-softdevice.git", branch = "master" }
 nrf-sdc = { git = "https://github.com/alexmoon/nrf-sdc.git", branch = "main" }
 nrf-mpsl = { git = "https://github.com/alexmoon/nrf-sdc.git", branch = "main" }
 # bt-hci = { git = "https://github.com/embassy-rs/bt-hci.git", branch = "main" }

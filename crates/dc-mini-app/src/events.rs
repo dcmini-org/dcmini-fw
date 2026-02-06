@@ -2,10 +2,6 @@ use crate::tasks::ads::events::AdsEvent;
 use crate::tasks::session::events::SessionEvent;
 use crate::{prelude::*, todo};
 use derive_more::From;
-#[cfg(any(feature = "r6", feature = "sr1"))]
-use embassy_nrf::gpio::AnyPin;
-#[cfg(any(feature = "r6", feature = "sr1"))]
-use embassy_nrf::Peri;
 
 #[derive(Debug, From)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -29,23 +25,11 @@ pub enum Event {
 #[embassy_executor::task]
 pub async fn orchestrate(
     receiver: EventReceiver,
-    #[cfg(any(feature = "r6", feature = "sr1"))] latch_pin: Peri<
-        'static,
-        AnyPin,
-    >,
     ads_manager: AdsManager,
     mut session_manager: SessionManager,
     imu_manager: ImuManager,
-    #[cfg(any(feature = "sr2", feature = "sr3"))]
     mut power_manager: PowerManager,
 ) {
-    #[cfg(any(feature = "r6", feature = "sr1"))]
-    let latch = {
-        use embassy_nrf::gpio::{Level, Output, OutputDrive};
-        Output::new(latch_pin, Level::High, OutputDrive::Standard)
-    };
-
-    #[cfg(any(feature = "sr2", feature = "sr3"))]
     power_manager.handle_event(PowerEvent::Enable).await;
 
     loop {
@@ -56,22 +40,17 @@ pub async fn orchestrate(
                 ButtonPress::Single => {} // Do nothing
                 ButtonPress::Double => {
                     ads_manager.handle_event(AdsEvent::ManualRecord).await;
-                } // Do nothing
+                }
                 ButtonPress::Hold => {
                     info!("Powering down");
                     unwrap!(NEOPIX_CHAN.try_send(NeopixEvent::PowerOff));
-
-                    #[cfg(any(feature = "r6", feature = "sr1"))]
-                    drop(latch);
-                    #[cfg(any(feature = "r6", feature = "sr1"))]
-                    return;
+                    // TODO: implement SR6 power-off
                 }
             },
             Event::TimerElapsed => todo!(),
             Event::ImuEvent(e) => imu_manager.handle_event(e).await,
-            Event::PowerEvent(_e) => {
-                #[cfg(any(feature = "sr2", feature = "sr3"))]
-                power_manager.handle_event(_e).await;
+            Event::PowerEvent(e) => {
+                power_manager.handle_event(e).await;
             }
         }
     }

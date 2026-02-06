@@ -11,12 +11,8 @@ pub mod storage;
 pub mod tasks;
 mod util;
 
-#[cfg(any(
-    all(feature = "critical-section", feature = "trouble"),
-    all(feature = "critical-section", feature = "softdevice"),
-    all(feature = "trouble", feature = "softdevice")
-))]
-compile_error!("You must enable exactly one of the following features:`trouble`, `softdevice`, `critical-section`");
+#[cfg(all(feature = "critical-section", feature = "trouble"))]
+compile_error!("You must enable exactly one of the following features: `trouble`, `critical-section`");
 
 use core::ptr::addr_of_mut;
 use dc_mini_icd::DeviceInfo;
@@ -50,10 +46,6 @@ pub fn init_heap() {
 }
 
 const PROFILE_BUF_SZ: usize = 256;
-#[cfg(feature = "softdevice")]
-pub type AppProfileManager =
-    ProfileManager<nrf_softdevice::Flash, PROFILE_BUF_SZ>;
-#[cfg(not(feature = "softdevice"))]
 pub type AppProfileManager = ProfileManager<
     embassy_embedded_hal::adapter::BlockingAsync<
         embassy_nrf::nvmc::Nvmc<'static>,
@@ -62,9 +54,6 @@ pub type AppProfileManager = ProfileManager<
 >;
 
 pub static CLOCK: clock::Clock = clock::Clock::new();
-
-#[cfg(feature = "softdevice")]
-pub type BleServer = tasks::ble::Server;
 
 pub struct State {
     pub usb_powered: bool,
@@ -80,8 +69,6 @@ pub struct AppContext {
     pub event_sender: EventSender,
     pub profile_manager: AppProfileManager,
     pub state: State,
-    #[cfg(feature = "softdevice")]
-    pub ble_server: &'static BleServer,
 }
 
 impl AppContext {

@@ -1,9 +1,9 @@
 use embassy_nrf::interrupt::Priority;
 use embassy_nrf::peripherals::{
-    self, I2S, NVMC, P0_00, P0_11, P0_12, P0_27, P0_28, P0_29, P0_30, P1_01,
-    P1_03, P1_04, P1_05, P1_06, P1_07, P1_09, P1_11, P1_14, P1_15, PDM, PWM0,
-    PWM1, PWM2, PWM3, QDEC, RNG, RTC2, SAADC, TIMER0, TIMER1, TIMER2,
-    TIMER3, TIMER4, TWISPI0, UARTE0, UARTE1, WDT,
+    self, I2S, NVMC, P0_00, P0_02, P0_03, P0_11, P0_12, P0_27, P0_30, P0_31,
+    P1_01, P1_02, P1_03, P1_04, P1_05, P1_06, P1_07, P1_09, P1_11, P1_12,
+    PDM, PWM0, PWM1, PWM2, PWM3, QDEC, RNG, RTC2, SAADC, TIMER0, TIMER1,
+    TIMER2, TIMER3, TIMER4, TWISPI0, UARTE0, UARTE1, WDT,
 };
 use embassy_nrf::Peri;
 
@@ -35,7 +35,7 @@ pub struct AdsResources {
     pub start: Peri<'static, peripherals::P0_15>,
     pub cs1: Peri<'static, peripherals::P0_16>,
     pub cs2: Peri<'static, peripherals::P0_18>,
-    pub drdy: Peri<'static, peripherals::P0_02>,
+    pub drdy: Peri<'static, peripherals::P0_28>,
 }
 
 pub struct Spi3BusResources {
@@ -45,15 +45,12 @@ pub struct Spi3BusResources {
     pub spim: Peri<'static, peripherals::SPI3>,
 }
 
-// Need to pull SDIO high, but only after enabling 3.3V line
-// ADS is now set to 3.3V line.
-// NOTE: Detect pin removed in SR3 revision.
 pub struct SdCardResources {
     pub sclk: Peri<'static, peripherals::P0_05>,
     pub mosi: Peri<'static, peripherals::P0_07>,
     pub miso: Peri<'static, peripherals::P0_26>,
     pub cs: Peri<'static, peripherals::P1_08>,
-    pub sdio: Peri<'static, peripherals::P0_31>,
+    pub sdio: Peri<'static, peripherals::P0_29>,
     pub spim: Peri<'static, peripherals::SPI2>,
 }
 
@@ -83,35 +80,38 @@ pub struct DCMini {
     /// If vbus connected through EXT, don't allow EEG
     pub vbus_src: Peri<'static, P1_11>,
     /// Pin for the user/power button.
-    pub pwrbtn: Peri<'static, P0_30>,
+    pub pwrbtn: Peri<'static, P0_31>,
     /// Pin to control Neopixels.
-    pub neopix: Peri<'static, P1_09>,
+    pub neopix: Peri<'static, P0_11>,
     /// Clock pin for the microphone.
     pub mic_clk: Peri<'static, P0_27>,
     /// Data pin for the microphone.
     pub mic_data: Peri<'static, P0_00>,
     /// Interrupt pin for the ambient light sensor.
-    /// FIXME: Different,  APDS9253 RGB + INF light sensor, no gesture capabilities
-    pub apds_irq: Peri<'static, P0_28>,
+    pub apds_irq: Peri<'static, P1_09>,
     /// Power enable for 5V rail
     /// pull low to turn on 5V rail.
-    pub en5v: Peri<'static, P0_29>,
+    pub en5v: Peri<'static, P0_30>,
     /// Haptics engine trigger
-    pub haptrig: Peri<'static, P1_01>,
+    pub haptrig: Peri<'static, P1_02>,
 
-    // USB Select, set default pull-up, down when we want to use usb that is connected on board to
-    // board connector
-    pub usbsel: Peri<'static, P0_12>,
+    // USB Select, set default pull-up,
+    // down when we want to use usb that
+    // is connected on board to board connector
+    pub usbsel: Peri<'static, P1_01>,
 
     // General purpose nRF gpio that connects to b2b connector.
     pub nrf_gpio1: Peri<'static, P1_03>,
     pub nrf_gpio2: Peri<'static, P1_06>,
-    pub nrf_gpio3: Peri<'static, P1_14>,
-    pub nrf_gpio4: Peri<'static, P0_11>,
+    pub nrf_gpio3: Peri<'static, P0_03>,
+    pub nrf_gpio4: Peri<'static, P0_12>,
     pub nrf_gpio5: Peri<'static, P1_05>,
     pub nrf_gpio6: Peri<'static, P1_07>,
     pub nrf_gpio7: Peri<'static, P1_04>,
-    pub nrf_gpio8: Peri<'static, P1_15>,
+    pub nrf_gpio8: Peri<'static, P0_02>,
+
+    // Power Chip Interrupt (useful for power low interrupt)
+    pub npm_gpio: Peri<'static, P1_12>,
 
     /// Configuration pins for external flash memory.
     pub external_flash: ExternalFlashResources,
@@ -169,7 +169,7 @@ pub struct DCMini {
     /// Bluetooth Low Energy peripheral
     pub ble: ble::BleControllerBuilder<'static>,
     #[cfg(feature = "usb")]
-    /// Bluetooth Low Energy peripheral
+    /// USB driver builder
     pub usb: usb::UsbDriverBuilder,
 }
 
@@ -189,22 +189,23 @@ impl DCMini {
 
         Self {
             vbus_src: p.P1_11,
-            pwrbtn: p.P0_30,
-            neopix: p.P1_09,
+            pwrbtn: p.P0_31,
+            neopix: p.P0_11,
             mic_clk: p.P0_27,
             mic_data: p.P0_00,
-            apds_irq: p.P0_28,
-            en5v: p.P0_29,
-            haptrig: p.P1_01,
-            usbsel: p.P0_12,
+            apds_irq: p.P1_09,
+            en5v: p.P0_30,
+            haptrig: p.P1_02,
+            usbsel: p.P1_01,
             nrf_gpio1: p.P1_03,
             nrf_gpio2: p.P1_06,
-            nrf_gpio3: p.P1_14,
-            nrf_gpio4: p.P0_11,
+            nrf_gpio3: p.P0_03,
+            nrf_gpio4: p.P0_12,
             nrf_gpio5: p.P1_05,
             nrf_gpio6: p.P1_07,
             nrf_gpio7: p.P1_04,
-            nrf_gpio8: p.P1_15,
+            nrf_gpio8: p.P0_02,
+            npm_gpio: p.P1_12,
             rtc2: p.RTC2,
             wdt: p.WDT,
             nvmc: p.NVMC,
@@ -240,7 +241,7 @@ impl DCMini {
                 start: p.P0_15,
                 cs1: p.P0_16,
                 cs2: p.P0_18,
-                drdy: p.P0_02,
+                drdy: p.P0_28,
             },
             spi3_bus_resources: Spi3BusResources {
                 sclk: p.P0_13,
@@ -253,7 +254,7 @@ impl DCMini {
                 mosi: p.P0_07,
                 miso: p.P0_26,
                 cs: p.P1_08,
-                sdio: p.P0_31,
+                sdio: p.P0_29,
                 spim: p.SPI2,
             },
             twim1_bus_resources: Twim1BusResources {

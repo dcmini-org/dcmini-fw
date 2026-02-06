@@ -12,42 +12,30 @@ use std::{env, fs::File, io::Write, path::PathBuf};
 
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 enum HwVersion {
-    R6,
-    SR1,
-    SR2,
-    SR3,
+    SR6,
 }
 
 impl HwVersion {
     fn as_str(self) -> &'static str {
         match self {
-            Self::R6 => "r6",
-            Self::SR1 => "sr1",
-            Self::SR2 => "sr2",
-            Self::SR3 => "sr3",
+            Self::SR6 => "sr6",
         }
     }
 }
 
 impl Default for HwVersion {
     fn default() -> Self {
-        Self::R6
+        Self::SR6
     }
 }
 
 fn linker_data() -> &'static [u8] {
-    #[cfg(feature = "softdevice")]
-    return include_bytes!("memory-softdevice.x");
-    #[cfg(not(feature = "softdevice"))]
-    return include_bytes!("memory.x");
+    include_bytes!("memory.x")
 }
 
 fn main() {
     let hw_features = [
-        (cfg!(feature = "r6"), HwVersion::R6),
-        (cfg!(feature = "sr1"), HwVersion::SR1),
-        (cfg!(feature = "sr2"), HwVersion::SR2),
-        (cfg!(feature = "sr3"), HwVersion::SR3),
+        (cfg!(feature = "sr6"), HwVersion::SR6),
     ];
 
     let enabled_hw: Vec<HwVersion> = hw_features

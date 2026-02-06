@@ -34,19 +34,14 @@ defmt = [
   "postcard-rpc/defmt",
   "ads1299/defmt",
   "trouble-host/defmt",
-  "nrf-softdevice/defmt",
 ]
 alloc = ["defmt/alloc"]
 usb = ["dc-mini-bsp/usb", "dep:embassy-usb"]
 trouble = ["dc-mini-bsp/trouble", "bt-hci", "trouble-host", "nrf-sdc"]
-softdevice = ["nrf-softdevice", "nrf-softdevice-s140", "dc-mini-bsp/softdevice"]
 critical-section = ["cortex-m/critical-section-single-core"]
 
 # Hardware revision of board.
-r6 = ["dc-mini-bsp/r6"]
-sr1 = ["dc-mini-bsp/sr1"]
-sr2 = ["dc-mini-bsp/sr2"]
-sr3 = ["dc-mini-bsp/sr3"]
+sr6 = ["dc-mini-bsp/sr6"]
 
 [dependencies]
 cortex-m = { workspace = true }
@@ -82,8 +77,6 @@ static_cell = { workspace = true }
 statig = { git = "https://github.com/mdeloof/statig", branch = "no_std_async", features = [
   "async",
 ] }
-nrf-softdevice = { workspace = true, optional = true }
-nrf-softdevice-s140 = { workspace = true, optional = true }
 trouble-host = { workspace = true, optional = true }
 nrf-sdc = { workspace = true, optional = true }
 bt-hci = { workspace = true, optional = true }

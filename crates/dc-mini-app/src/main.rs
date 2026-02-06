@@ -9,12 +9,6 @@ use embassy_sync::mutex::Mutex;
 
 use static_cell::StaticCell;
 
-#[cfg(feature = "sr2")]
-use embassy_nrf::saadc::Input;
-
-#[cfg(feature = "softdevice")]
-use nrf_softdevice as _;
-
 #[cfg(feature = "defmt")]
 use defmt_rtt as _;
 #[cfg(feature = "defmt")]
@@ -47,29 +41,7 @@ async fn main(spawner: Spawner) {
     // First we initialize our board.
     let board = DCMini::default();
 
-    #[cfg(feature = "sr2")]
-    let power_manager = PowerManager::new(board.pwctl.into());
-    #[cfg(feature = "sr3")]
     let mut power_manager = PowerManager::new(board.en5v.into());
-
-    // Only create the software vbus if USB and softdevice is enabled.
-    #[cfg(all(feature = "softdevice", feature = "usb"))]
-    let software_vbus = {
-        static VBUS: StaticCell<
-            embassy_nrf::usb::vbus_detect::SoftwareVbusDetect,
-        > = StaticCell::new();
-        let vbus =
-            embassy_nrf::usb::vbus_detect::SoftwareVbusDetect::new(true, true);
-        VBUS.init(vbus)
-    };
-
-    #[cfg(feature = "softdevice")]
-    let (server, advertiser, sd) = Server::start_gatt(
-        "dc-mini",
-        spawner,
-        #[cfg(feature = "usb")]
-        software_vbus,
-    );
 
     #[cfg(feature = "trouble")]
     let sdc = {
@@ -89,9 +61,6 @@ async fn main(spawner: Spawner) {
     let (sender, receiver) = init_event_channel();
 
     // Create our Profile Manager.
-    #[cfg(feature = "softdevice")]
-    let flash = nrf_softdevice::Flash::take(sd);
-    #[cfg(not(feature = "softdevice"))]
     let flash = embassy_embedded_hal::adapter::BlockingAsync::new(
         embassy_nrf::nvmc::Nvmc::new(board.nvmc),
     );
@@ -117,8 +86,6 @@ async fn main(spawner: Spawner) {
             vsys_voltage: 0.0,
             recording_status: false,
         },
-        #[cfg(feature = "softdevice")]
-        ble_server: server,
     }));
     let spi3_bus_resources =
         SPI3_BUS_RESOURCES.init(Mutex::new(board.spi3_bus_resources));
@@ -133,7 +100,6 @@ async fn main(spawner: Spawner) {
 
     Timer::after_millis(50).await;
 
-    #[cfg(feature = "sr3")]
     {
         use npm1300::{
             gpios::{Gpio, GpioPolarity},
@@ -148,11 +114,7 @@ async fn main(spawner: Spawner) {
         info!("Created nPM1300 driver!");
         Timer::after_millis(200).await;
 
-        #[cfg(any(feature = "sr2", feature = "sr3"))]
         power_manager.handle_event(PowerEvent::Enable).await;
-
-        // info!("Powering up 5V");
-        // Timer::after_millis(5000).await;
 
         // let buck_status = npm1300.get_buck_status().await;
         // info!("Buck status: {:?}", buck_status);
@@ -236,7 +198,6 @@ async fn main(spawner: Spawner) {
         info!("LDSW status: {:?}", status);
     }
 
-    #[cfg(feature = "sr3")]
     {
         use apds9253::{Apds9253, LsGainRange, LsResolution};
         use embassy_time::Timer;
@@ -317,19 +278,15 @@ async fn main(spawner: Spawner) {
         ImuManager::new(i2c_bus_manager, imu_resources, app_context);
     let session_manager = SessionManager::new(app_context, sd_card_resources);
 
-    #[cfg(any(feature = "sr2", feature = "sr3"))]
     let _usbsel = {
         use embassy_nrf::gpio::{Level, Output, OutputDrive};
         Output::new(board.usbsel, Level::High, OutputDrive::Standard)
     };
     spawner.must_spawn(orchestrate(
         receiver,
-        #[cfg(any(feature = "r6", feature = "sr1"))]
-        board.pwctl.into(),
         ads_manager.clone(),
         session_manager,
         imu_manager,
-        #[cfg(any(feature = "sr2", feature = "sr3"))]
         power_manager,
     ));
 
@@ -341,14 +298,6 @@ async fn main(spawner: Spawner) {
         context
             .low_prio_spawner
             .must_spawn(neopix_task(board.pwm0, board.neopix.into()));
-
-        // FIXME: need to change vsense pin to one capable of analog input.
-        #[cfg(feature = "sr2")]
-        context.low_prio_spawner.must_spawn(battery_monitor(
-            board.vdiv.degrade_saadc(),
-            board.vsense.into(),
-            board.saadc,
-        ));
 
         // Check for ADS config.
         // create a default config.
@@ -372,23 +321,8 @@ async fn main(spawner: Spawner) {
         spawner,
         board.usb,
         app_context,
-        #[cfg(feature = "softdevice")]
-        software_vbus,
     ));
-
-    #[cfg(feature = "softdevice")]
-    spawner.must_spawn(ble_task(server, advertiser, app_context));
 
     #[cfg(feature = "trouble")]
     spawner.must_spawn(ble_run_task(sdc, app_context));
-
-    // {
-    //     let app_ctx = app_context.lock().await;
-    //     app_ctx.event_sender.send(AdsEvent::StartStream.into()).await;
-    // }
-    // Timer::after_secs(5).await;
-    // {
-    //     let app_ctx = app_context.lock().await;
-    //     app_ctx.event_sender.send(AdsEvent::StopStream.into()).await;
-    // }
 }

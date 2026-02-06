@@ -27,15 +27,12 @@ impl TryFrom<u8> for PowerEvent {
 
 pub struct PowerManager {
     count: u8,
-    #[allow(dead_code)]
     pwctl: Output<'static>,
 }
 
 impl PowerManager {
     pub fn new(pwctl_pin: Peri<'static, AnyPin>) -> Self {
-        #[cfg(feature = "sr2")]
-        let pwctl = Output::new(pwctl_pin, Level::Low, OutputDrive::Standard);
-        #[cfg(not(feature = "sr2"))]
+        // SR6: active-low en5v — start High (off)
         let pwctl = Output::new(pwctl_pin, Level::High, OutputDrive::Standard);
         Self { count: 0, pwctl }
     }
@@ -43,9 +40,7 @@ impl PowerManager {
         match event {
             PowerEvent::Enable => {
                 if self.count == 0 {
-                    #[cfg(feature = "sr2")]
-                    self.pwctl.set_high();
-                    #[cfg(feature = "sr3")]
+                    // SR6: pull low to enable 5V rail
                     self.pwctl.set_low();
                 }
                 self.count = self.count.wrapping_add(1);
@@ -54,9 +49,7 @@ impl PowerManager {
                 if self.count > 0 {
                     self.count = self.count.wrapping_sub(1);
                     if self.count <= 0 {
-                        #[cfg(feature = "sr2")]
-                        self.pwctl.set_low();
-                        #[cfg(feature = "sr3")]
+                        // SR6: pull high to disable 5V rail
                         self.pwctl.set_high();
                     }
                 }
