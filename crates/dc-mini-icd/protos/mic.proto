@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+
+package mic;
+
+message MicDataFrame {
+  uint64 ts = 1;
+  uint64 packetCounter = 2;
+  uint32 sampleRate = 3;
+  int32 predictor = 4;
+  uint32 stepIndex = 5;
+  bytes adpcmData = 6;
+}

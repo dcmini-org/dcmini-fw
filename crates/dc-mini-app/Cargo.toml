@@ -34,6 +34,7 @@ defmt = [
   "postcard-rpc/defmt",
   "ads1299/defmt",
   "trouble-host/defmt",
+  "spk0838-pdm/defmt",
 ]
 alloc = ["defmt/alloc"]
 usb = ["dc-mini-bsp/usb", "dep:embassy-usb"]
@@ -44,6 +45,7 @@ critical-section = ["cortex-m/critical-section-single-core"]
 sr6 = ["dc-mini-bsp/sr6"]
 
 [dependencies]
+audio-codec-algorithms = { workspace = true }
 cortex-m = { workspace = true }
 cortex-m-rt = { workspace = true }
 defmt = { workspace = true, optional = true }
@@ -93,7 +95,9 @@ dc-mini-bsp = { path = "../dc-mini-bsp" }
 dc-mini-icd = { path = "../dc-mini-icd" }
 ads1299 = { path = "../ads1299" }
 icm-45605 = { path = "../icm-45605/" }
+spk0838-pdm = { path = "../spk0838-pdm" }
 ws2812-nrf-pwm = { path = "../ws2812-nrf-pwm" }
+fixed = "1"
 cfg-if.workspace = true
 
 time = { workspace = true }

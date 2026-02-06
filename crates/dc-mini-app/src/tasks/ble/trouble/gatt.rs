@@ -1,4 +1,4 @@
-use super::{ads::*, session::*};
+use super::{ads::*, mic::*, session::*};
 use crate::prelude::*;
 use heapless::Vec;
 use trouble_host::prelude::*;
@@ -87,6 +87,7 @@ pub struct Server {
     pub device_info: DeviceInfoService,
     pub profile: ProfileService,
     pub ads: AdsService,
+    pub mic: MicService,
     pub session: SessionService,
 }
 
@@ -321,6 +322,73 @@ impl<'d> Server<'d> {
         // Update the profile manager with the modified config
         app_ctx.save_ads_config(ads_config).await;
     }
+
+    pub async fn handle_mic_read_event(
+        &self,
+        handle: u16,
+        app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+    ) {
+        let mut app_ctx = app_context.lock().await;
+        let mic_config = app_ctx
+            .profile_manager
+            .get_mic_config()
+            .await
+            .cloned()
+            .unwrap_or_default();
+
+        if handle == self.mic.gain_db.handle {
+            unwrap!(self.set(&self.mic.gain_db, &mic_config.gain_db));
+        } else if handle == self.mic.sample_rate.handle {
+            unwrap!(self.set(
+                &self.mic.sample_rate,
+                &(mic_config.sample_rate as u8)
+            ));
+        }
+    }
+
+    pub async fn handle_mic_write_event(
+        &self,
+        handle: u16,
+        app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+    ) {
+        let mut app_ctx = app_context.lock().await;
+        let mut mic_config = app_ctx
+            .profile_manager
+            .get_mic_config()
+            .await
+            .cloned()
+            .unwrap_or_default();
+
+        if handle == self.mic.gain_db.handle {
+            if let Ok(value) = self.get(&self.mic.gain_db) {
+                mic_config.gain_db = value;
+            }
+        } else if handle == self.mic.sample_rate.handle {
+            if let Ok(value) = self.get(&self.mic.sample_rate) {
+                mic_config.sample_rate = dc_mini_icd::MicSampleRate::from(value);
+            }
+        } else if handle == self.mic.command.handle {
+            if let Ok(value) = self.get(&self.mic.command) {
+                match value {
+                    0 => {
+                        app_ctx
+                            .event_sender
+                            .send(MicEvent::StartStream.into())
+                            .await
+                    }
+                    1 => {
+                        app_ctx
+                            .event_sender
+                            .send(MicEvent::StopStream.into())
+                            .await
+                    }
+                    _ => warn!("Unknown mic command: {}", value),
+                };
+            }
+        }
+
+        app_ctx.save_mic_config(mic_config).await;
+    }
 }
 
 /// A BLE GATT server event loop.
@@ -383,6 +451,15 @@ pub async fn gatt_server_task<P: PacketPool>(
                                     app_context,
                                 )
                                 .await;
+                        } else if handle >= server.mic.gain_db.handle
+                            && handle <= server.mic.command.handle
+                        {
+                            server
+                                .handle_mic_read_event(
+                                    handle,
+                                    app_context,
+                                )
+                                .await;
                         }
                     }
                     GattEvent::Write(event) => {
@@ -411,6 +488,15 @@ pub async fn gatt_server_task<P: PacketPool>(
                         {
                             server
                                 .handle_profile_write_event(
+                                    handle,
+                                    app_context,
+                                )
+                                .await;
+                        } else if handle >= server.mic.gain_db.handle
+                            && handle <= server.mic.command.handle
+                        {
+                            server
+                                .handle_mic_write_event(
                                     handle,
                                     app_context,
                                 )

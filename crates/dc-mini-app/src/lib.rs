@@ -96,6 +96,18 @@ impl AppContext {
             }
         }
     }
+    pub async fn save_mic_config(&mut self, config: prelude::MicConfig) {
+        match self.profile_manager.set_mic_config(config).await {
+            Ok(_) => {
+                self.event_sender
+                    .send(prelude::MicEvent::ConfigChanged.into())
+                    .await;
+            }
+            Err(e) => {
+                prelude::warn!("Failed to save MIC config: {:?}", e);
+            }
+        }
+    }
 }
 
 // Statics
@@ -161,8 +173,8 @@ pub mod prelude {
     pub use embassy_time::{Duration, Timer};
 
     pub use dc_mini_bsp::{
-        AdsResources, DCMini, ImuResources, SdCardResources, Spi3BusResources,
-        Twim1BusResources,
+        AdsResources, DCMini, ImuResources, MicResources, SdCardResources,
+        Spi3BusResources, Twim1BusResources,
     };
     pub use dc_mini_icd::{
         self as icd,

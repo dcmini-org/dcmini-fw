@@ -1,4 +1,5 @@
 use crate::tasks::ads::events::AdsEvent;
+use crate::tasks::mic::events::MicEvent;
 use crate::tasks::session::events::SessionEvent;
 use crate::{prelude::*, todo};
 use derive_more::From;
@@ -19,6 +20,7 @@ pub enum Event {
     ButtonPress(ButtonPress),
     TimerElapsed,
     ImuEvent(ImuEvent),
+    MicEvent(MicEvent),
     PowerEvent(PowerEvent),
 }
 
@@ -28,6 +30,7 @@ pub async fn orchestrate(
     ads_manager: AdsManager,
     mut session_manager: SessionManager,
     imu_manager: ImuManager,
+    mic_manager: MicManager,
     mut power_manager: PowerManager,
 ) {
     power_manager.handle_event(PowerEvent::Enable).await;
@@ -49,6 +52,7 @@ pub async fn orchestrate(
             },
             Event::TimerElapsed => todo!(),
             Event::ImuEvent(e) => imu_manager.handle_event(e).await,
+            Event::MicEvent(e) => mic_manager.handle_event(e).await,
             Event::PowerEvent(e) => {
                 power_manager.handle_event(e).await;
             }

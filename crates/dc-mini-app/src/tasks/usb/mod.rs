@@ -23,12 +23,14 @@ use postcard_rpc::{
 mod ads;
 mod battery;
 mod device_info;
+mod mic;
 mod profile;
 mod session;
 
 use ads::*;
 use battery::*;
 use device_info::*;
+use mic::*;
 use profile::*;
 use session::*;
 
@@ -73,6 +75,10 @@ define_dispatch! {
         | AdsResetConfigEndpoint    | async     | ads_reset_config              |
         | AdsGetConfigEndpoint      | async     | ads_get_config                |
         | AdsSetConfigEndpoint      | async     | ads_set_config                |
+        | MicStartEndpoint          | spawn     | mic_start_handler             |
+        | MicStopEndpoint           | async     | mic_stop_handler              |
+        | MicGetConfigEndpoint      | async     | mic_get_config                |
+        | MicSetConfigEndpoint      | async     | mic_set_config                |
         | BatteryGetLevelEndpoint   | async     | battery_get_level             |
         | DeviceInfoGetEndpoint     | async     | device_info_get               |
         | ProfileGetEndpoint        | async     | profile_get                   |

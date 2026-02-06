@@ -51,11 +51,18 @@ pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/ads.rs"));
 }
 
+pub mod mic_proto {
+    include!(concat!(env!("OUT_DIR"), "/mic.rs"));
+}
+
 mod ads;
 pub use ads::*;
 
 mod imu;
 pub use imu::*;
+
+mod mic;
+pub use mic::*;
 
 // Constants
 pub const MAX_PROFILES: u8 = 16;
@@ -120,6 +127,11 @@ endpoints! {
     | ProfileGetEndpoint        | ()                | u8                    | "profile/get"     |
     | ProfileSetEndpoint        | u8                | bool                  | "profile/set"     |
     | ProfileCommandEndpoint    | ProfileCommand    | bool                  | "profile/command" |
+    // Mic endpoints
+    | MicStartEndpoint          | ()                | MicConfig             | "mic/start"       |
+    | MicStopEndpoint           | ()                | ()                    | "mic/stop"        |
+    | MicGetConfigEndpoint      | ()                | MicConfig             | "mic/get_config"  |
+    | MicSetConfigEndpoint      | MicConfig         | bool                  | "mic/set_config"  |
     // Session endpoints
     | SessionGetStatusEndpoint  | ()                | bool                  | "session/status"  |
     | SessionGetIdEndpoint      | ()                | SessionId             | "session/id"      |
@@ -141,4 +153,5 @@ topics! {
     | TopicTy                   | MessageTy     | Path              | Cfg                           |
     | -------                   | ---------     | ----              | ---                           |
     | AdsTopic                  | AdsDataFrame  | "ads/data"        |                               |
+    | MicTopic                  | MicDataFrame  | "mic/data"        |                               |
 }

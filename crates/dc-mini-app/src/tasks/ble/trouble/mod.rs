@@ -4,6 +4,7 @@ pub mod battery;
 pub mod clock;
 pub mod device_info;
 pub mod gatt;
+pub mod mic;
 pub mod profile;
 pub mod session;
 
@@ -16,6 +17,7 @@ pub use battery::*;
 pub use clock::*;
 pub use device_info::*;
 pub use gatt::*;
+pub use mic::*;
 pub use profile::*;
 pub use session::*;
 
@@ -106,8 +108,9 @@ async fn app_task<'values, C: Controller>(
             Ok(conn) => {
                 let gatt = gatt_server_task(server, &conn, app_context);
                 let ads = ads_stream_notify(server, &conn);
-                futures::pin_mut!(gatt, ads);
-                embassy_futures::select::select(gatt, ads).await;
+                let mic = mic_stream_notify(server, &conn);
+                futures::pin_mut!(gatt, ads, mic);
+                embassy_futures::select::select3(gatt, ads, mic).await;
             }
             Err(e) => {
                 error!("Advertisement error: {:?}", e);

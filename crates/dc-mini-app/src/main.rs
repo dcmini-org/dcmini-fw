@@ -31,6 +31,9 @@ static I2C_BUS_MANAGER: StaticCell<I2cBusManager> = StaticCell::new();
 static IMU_RESOURCES: StaticCell<
     Mutex<CriticalSectionRawMutex, ImuResources>,
 > = StaticCell::new();
+static MIC_RESOURCES: StaticCell<
+    Mutex<CriticalSectionRawMutex, MicResources>,
+> = StaticCell::new();
 static APP_CONTEXT: StaticCell<Mutex<CriticalSectionRawMutex, AppContext>> =
     StaticCell::new();
 
@@ -95,6 +98,7 @@ async fn main(spawner: Spawner) {
     let i2c_bus_manager =
         I2C_BUS_MANAGER.init(I2cBusManager::new(board.twim1_bus_resources));
     let imu_resources = IMU_RESOURCES.init(Mutex::new(board.imu_resources));
+    let mic_resources = MIC_RESOURCES.init(Mutex::new(board.mic));
 
     spawner.must_spawn(watchdog_task(board.wdt));
 
@@ -276,6 +280,7 @@ async fn main(spawner: Spawner) {
         AdsManager::new(spi3_bus_resources, ads_resources, app_context);
     let imu_manager =
         ImuManager::new(i2c_bus_manager, imu_resources, app_context);
+    let mic_manager = MicManager::new(mic_resources, app_context);
     let session_manager = SessionManager::new(app_context, sd_card_resources);
 
     let _usbsel = {
@@ -287,6 +292,7 @@ async fn main(spawner: Spawner) {
         ads_manager.clone(),
         session_manager,
         imu_manager,
+        mic_manager,
         power_manager,
     ));
 

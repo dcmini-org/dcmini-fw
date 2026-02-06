@@ -1,6 +1,6 @@
 use super::data::*;
 use super::keys::{Setting, StorageKey};
-use dc_mini_icd::{AdsConfig, ImuConfig, SessionId};
+use dc_mini_icd::{AdsConfig, ImuConfig, MicConfig, SessionId};
 use embedded_storage_async::nor_flash::NorFlash;
 use sequential_storage::cache::NoCache;
 use sequential_storage::map::{MapConfig, MapStorage};
@@ -53,6 +53,7 @@ pub struct ProfileManager<Flash: NorFlash, const N: usize> {
     haptic_config: Option<HapticConfig>,
     neopixel_config: Option<NeopixelConfig>,
     ambient_light_config: Option<AmbientLightConfig>,
+    mic_config: Option<MicConfig>,
 }
 
 impl<Flash: NorFlash, const N: usize> ProfileManager<Flash, N> {
@@ -81,6 +82,7 @@ impl<Flash: NorFlash, const N: usize> ProfileManager<Flash, N> {
             haptic_config: None,
             neopixel_config: None,
             ambient_light_config: None,
+            mic_config: None,
         };
 
         manager.current_profile = match embassy_futures::block_on(
@@ -176,6 +178,10 @@ impl<Flash: NorFlash, const N: usize> ProfileManager<Flash, N> {
             self.ambient_light_config = None;
             self.get_ambient_light_config().await;
         }
+        if self.mic_config.is_some() {
+            self.mic_config = None;
+            self.get_mic_config().await;
+        }
         Ok(())
     }
 
@@ -189,4 +195,5 @@ impl<Flash: NorFlash, const N: usize> ProfileManager<Flash, N> {
         AmbientLightConfig,
         AmbientLightConfig
     );
+    config_accessors!(mic_config, MicConfig, MicConfig);
 }

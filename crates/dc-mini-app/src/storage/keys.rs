@@ -16,6 +16,7 @@ pub enum Setting {
     NeopixelConfig,
     AmbientLightConfig,
     SessionId,
+    MicConfig,
 }
 
 impl Setting {
@@ -27,6 +28,7 @@ impl Setting {
             Setting::NeopixelConfig => 0x03,
             Setting::AmbientLightConfig => 0x04,
             Setting::SessionId => 0x05,
+            Setting::MicConfig => 0x06,
         }
     }
 }

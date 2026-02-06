@@ -1,6 +1,6 @@
 use crate::board::{
-    AdsResources, ExternalFlashResources, ImuResources, SdCardResources,
-    Spi3BusResources, Twim1BusResources,
+    AdsResources, ExternalFlashResources, ImuResources, MicResources,
+    SdCardResources, Spi3BusResources, Twim1BusResources,
 };
 use ads1299::{Ads1299, AdsFrontend};
 use core::marker::PhantomData;
@@ -10,6 +10,7 @@ use embassy_nrf::{
     bind_interrupts,
     gpio::{Input, Level, Output, OutputDrive, Pull},
     interrupt::{self, InterruptExt},
+    pdm,
     peripherals, qspi, spim, twim,
 };
 use embassy_sync::{blocking_mutex::raw::RawMutex, mutex::Mutex};
@@ -70,6 +71,10 @@ bind_interrupts!(struct SpiIrq {
 
 bind_interrupts!(struct TwimIrqs {
     TWISPI1 => twim::InterruptHandler<peripherals::TWISPI1>;
+});
+
+bind_interrupts!(struct PdmIrqs {
+    PDM => pdm::InterruptHandler<peripherals::PDM>;
 });
 
 impl AdsResources {
@@ -162,6 +167,21 @@ impl ImuResources {
         embassy_time::Delay,
     > {
         Icm45605::new(device, embassy_time::Delay)
+    }
+}
+
+impl MicResources {
+    pub fn configure<'a>(
+        &'a mut self,
+        config: spk0838_pdm::Config,
+    ) -> spk0838_pdm::Spk0838<'a> {
+        spk0838_pdm::Spk0838::new(
+            self.pdm.reborrow(),
+            PdmIrqs,
+            self.clk.reborrow(),
+            self.din.reborrow(),
+            config,
+        )
     }
 }
 

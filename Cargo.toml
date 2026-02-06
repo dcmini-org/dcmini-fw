@@ -110,6 +110,7 @@ paste = "1"
 
 time = { version = "0.3", default-features = false }
 trallocator = "0.2"
+audio-codec-algorithms = { version = "0.7", default-features = false }
 prost = { version = "0.14", default-features = false, features = ["derive"] }
 
 
