@@ -798,11 +798,9 @@ impl BleClient {
 
     pub async fn get_mic_config(
         &self,
-    ) -> Result<icd::MicConfig, Box<dyn std::error::Error + Send + Sync>>
-    {
+    ) -> Result<icd::MicConfig, Box<dyn std::error::Error + Send + Sync>> {
         let gain_db =
-            self.read_characteristic(uuids::mic::GAIN_DB_UUID).await?[0]
-                as i8;
+            self.read_characteristic(uuids::mic::GAIN_DB_UUID).await?[0] as i8;
         let sample_rate = icd::MicSampleRate::from(
             self.read_characteristic(uuids::mic::SAMPLE_RATE_UUID).await?[0],
         );

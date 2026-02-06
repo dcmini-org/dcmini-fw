@@ -87,24 +87,48 @@ pub fn log_ads_frame(
 
                     // Log IMU accelerometer data if present
                     if let Some(val) = sample.accel_x {
-                        rec.log("imu/accel_x", &rerun::Scalars::new([val as f64])).unwrap();
+                        rec.log(
+                            "imu/accel_x",
+                            &rerun::Scalars::new([val as f64]),
+                        )
+                        .unwrap();
                     }
                     if let Some(val) = sample.accel_y {
-                        rec.log("imu/accel_y", &rerun::Scalars::new([val as f64])).unwrap();
+                        rec.log(
+                            "imu/accel_y",
+                            &rerun::Scalars::new([val as f64]),
+                        )
+                        .unwrap();
                     }
                     if let Some(val) = sample.accel_z {
-                        rec.log("imu/accel_z", &rerun::Scalars::new([val as f64])).unwrap();
+                        rec.log(
+                            "imu/accel_z",
+                            &rerun::Scalars::new([val as f64]),
+                        )
+                        .unwrap();
                     }
 
                     // Log IMU gyroscope data if present
                     if let Some(val) = sample.gyro_x {
-                        rec.log("imu/gyro_x", &rerun::Scalars::new([val as f64])).unwrap();
+                        rec.log(
+                            "imu/gyro_x",
+                            &rerun::Scalars::new([val as f64]),
+                        )
+                        .unwrap();
                     }
                     if let Some(val) = sample.gyro_y {
-                        rec.log("imu/gyro_y", &rerun::Scalars::new([val as f64])).unwrap();
+                        rec.log(
+                            "imu/gyro_y",
+                            &rerun::Scalars::new([val as f64]),
+                        )
+                        .unwrap();
                     }
                     if let Some(val) = sample.gyro_z {
-                        rec.log("imu/gyro_z", &rerun::Scalars::new([val as f64])).unwrap();
+                        rec.log(
+                            "imu/gyro_z",
+                            &rerun::Scalars::new([val as f64]),
+                        )
+                        .unwrap();
                     }
                 }
             }
@@ -127,7 +151,11 @@ pub fn get_sample_period_us(sample_rate: icd::SampleRate) -> f64 {
     1_000_000.0 / rate_hz
 }
 
-fn decode_adpcm_block(adpcm_data: &[u8], predictor: i16, step_index: u8) -> Vec<i16> {
+fn decode_adpcm_block(
+    adpcm_data: &[u8],
+    predictor: i16,
+    step_index: u8,
+) -> Vec<i16> {
     let mut state = AdpcmImaState { predictor, step_index };
     let mut pcm = Vec::with_capacity(adpcm_data.len() * 2);
     for &byte in adpcm_data {
@@ -141,7 +169,8 @@ pub fn log_mic_frame(
     rec: rerun::RecordingStream,
 ) -> Box<dyn Fn(MicDataFrames) + Send> {
     Box::new(move |frame: MicDataFrames| {
-        let (ts, sample_rate, predictor, step_index, adpcm_data) = match &frame {
+        let (ts, sample_rate, predictor, step_index, adpcm_data) = match &frame
+        {
             MicDataFrames::Icd(f) => {
                 (f.ts, f.sample_rate, f.predictor, f.step_index, &f.adpcm_data)
             }
@@ -150,7 +179,8 @@ pub fn log_mic_frame(
             }
         };
 
-        let pcm = decode_adpcm_block(adpcm_data, predictor as i16, step_index as u8);
+        let pcm =
+            decode_adpcm_block(adpcm_data, predictor as i16, step_index as u8);
         let sample_period_us = 1_000_000.0 / sample_rate as f64;
         let num_samples = pcm.len();
 

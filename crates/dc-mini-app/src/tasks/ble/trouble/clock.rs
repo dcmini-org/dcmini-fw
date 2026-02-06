@@ -11,8 +11,7 @@ pub async fn sync_time<'a>(
     conn: &Connection<'a, DefaultPacketPool>,
 ) {
     info!("[ble] synchronizing time");
-    let client =
-        unwrap!(GattClient::<_, _, 10>::new(stack, conn).await);
+    let client = unwrap!(GattClient::<_, _, 10>::new(stack, conn).await);
     match select(client.task(), async {
         let services =
             client.services_by_uuid(&Uuid::new_short(0x1805)).await?;

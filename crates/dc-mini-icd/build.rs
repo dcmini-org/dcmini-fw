@@ -11,7 +11,9 @@ fn main() {
     }
 
     config.btree_map(&["."]);
-    config.compile_protos(&["protos/ads.proto", "protos/mic.proto"], &["protos"]).unwrap();
+    config
+        .compile_protos(&["protos/ads.proto", "protos/mic.proto"], &["protos"])
+        .unwrap();
     let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
     println!("cargo:rustc-link-search={}", out.display());

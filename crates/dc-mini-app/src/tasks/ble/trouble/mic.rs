@@ -24,10 +24,7 @@ pub struct MicService {
         write
     )]
     pub sample_rate: u8,
-    #[characteristic(
-        uuid = "33000300-af46-43af-a0ba-4dbeb457f51c",
-        write
-    )]
+    #[characteristic(uuid = "33000300-af46-43af-a0ba-4dbeb457f51c", write)]
     pub command: u8,
 }
 
@@ -50,10 +47,8 @@ pub async fn mic_stream_notify<P: PacketPool>(
     server: &Server<'_>,
     conn: &GattConnection<'_, '_, P>,
 ) {
-    let notifier = TroubleNotifier {
-        handle: server.mic.data_stream.clone(),
-        conn,
-    };
+    let notifier =
+        TroubleNotifier { handle: server.mic.data_stream.clone(), conn };
     let mtu = conn.raw().att_mtu();
     info!("Mic ATT mtu = {:?}", mtu);
 

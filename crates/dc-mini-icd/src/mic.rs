@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum MicSampleRate {
-    Rate16000,  // 16 kHz (1.280 MHz CLK / RATIO80)
-    Rate12800,  // 12.8 kHz (1.032 MHz CLK / RATIO80) — DEFAULT frequency
-    Rate20000,  // 20 kHz (1.280 MHz CLK / RATIO64)
+    Rate16000, // 16 kHz (1.280 MHz CLK / RATIO80)
+    Rate12800, // 12.8 kHz (1.032 MHz CLK / RATIO80) — DEFAULT frequency
+    Rate20000, // 20 kHz (1.280 MHz CLK / RATIO64)
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone)]
@@ -20,10 +20,7 @@ pub struct MicConfig {
 
 impl Default for MicConfig {
     fn default() -> Self {
-        Self {
-            gain_db: 0,
-            sample_rate: MicSampleRate::Rate16000,
-        }
+        Self { gain_db: 0, sample_rate: MicSampleRate::Rate16000 }
     }
 }
 

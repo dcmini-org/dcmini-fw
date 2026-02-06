@@ -45,10 +45,7 @@ pub async fn recording_task(
     let sd_card = sd_resources.get_card();
 
     // Initialize SD card
-    info!(
-        "SD card initialized, size: {} bytes",
-        sd_card.num_bytes().unwrap()
-    );
+    info!("SD card initialized, size: {} bytes", sd_card.num_bytes().unwrap());
 
     // Create volume manager
     let volume_mgr = VolumeManager::new(sd_card, RealTimeSource);
@@ -60,9 +57,8 @@ pub async fn recording_task(
         .expect("Failed to get ADS measurement subscriber");
 
     // Initialize recording
-    let volume = volume_mgr
-        .open_volume(VolumeIdx(0))
-        .expect("Open volume failed.");
+    let volume =
+        volume_mgr.open_volume(VolumeIdx(0)).expect("Open volume failed.");
     let root_dir = volume.open_root_dir().expect("Failed to open root dir.");
 
     let mut filename: String<MAX_FILENAME_LEN> = String::new();
@@ -92,8 +88,7 @@ pub async fn recording_task(
             }
 
             // Check if file exists
-            if root_dir.find_directory_entry(filename.as_str()).is_err()
-            {
+            if root_dir.find_directory_entry(filename.as_str()).is_err() {
                 break;
             }
             file_num += 1;
@@ -112,8 +107,7 @@ pub async fn recording_task(
 
             filename.push_str(".dat").unwrap();
 
-            if root_dir.find_directory_entry(filename.as_str()).is_err()
-            {
+            if root_dir.find_directory_entry(filename.as_str()).is_err() {
                 break;
             }
             file_num += 1;

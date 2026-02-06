@@ -38,10 +38,7 @@ enum BusState {
     Unconfigured(Option<Twim1BusResources>),
     /// Bus is configured and ready for use
     Configured {
-        bus: &'static Mutex<
-            CriticalSectionRawMutex,
-            twim::Twim<'static>,
-        >,
+        bus: &'static Mutex<CriticalSectionRawMutex, twim::Twim<'static>>,
         destructor: BusDestructor,
         users: AtomicUsize,
     },
@@ -52,10 +49,7 @@ enum BusState {
 /// Automatically manages reference counting and triggers cleanup when dropped.
 pub struct BusHandle<'a> {
     /// Reference to the underlying bus for creating devices
-    bus: &'static Mutex<
-        CriticalSectionRawMutex,
-        twim::Twim<'static>,
-    >,
+    bus: &'static Mutex<CriticalSectionRawMutex, twim::Twim<'static>>,
     /// Guard that handles cleanup on drop
     _guard: UserCountGuard<'a>,
 }
@@ -64,11 +58,7 @@ impl<'a> BusHandle<'a> {
     /// Create an I2C device from this bus handle
     pub fn device(
         &self,
-    ) -> I2cDevice<
-        '_,
-        CriticalSectionRawMutex,
-        twim::Twim<'static>,
-    > {
+    ) -> I2cDevice<'_, CriticalSectionRawMutex, twim::Twim<'static>> {
         I2cDevice::new(self.bus)
     }
 }

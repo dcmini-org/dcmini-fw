@@ -49,10 +49,8 @@ impl MicPanel {
         )));
 
         if let Some(callback) = stream_callback {
-            panel.stream_task = Some(rt.spawn(Self::stream_data(
-                callback,
-                client.clone(),
-            )));
+            panel.stream_task =
+                Some(rt.spawn(Self::stream_data(callback, client.clone())));
         }
 
         panel
@@ -63,9 +61,7 @@ impl MicPanel {
         client: Arc<Mutex<Option<DeviceConnection>>>,
     ) {
         loop {
-            let connection = {
-                client.lock().unwrap().as_ref().cloned()
-            };
+            let connection = { client.lock().unwrap().as_ref().cloned() };
 
             if let Some(conn) = connection {
                 match conn {
@@ -126,9 +122,7 @@ impl MicPanel {
         client: Arc<Mutex<Option<DeviceConnection>>>,
     ) {
         while let Some(update) = config_rx.recv().await {
-            let connection = {
-                client.lock().unwrap().as_ref().cloned()
-            };
+            let connection = { client.lock().unwrap().as_ref().cloned() };
 
             if let Some(conn) = connection {
                 match conn {
@@ -272,7 +266,10 @@ impl MicPanel {
                     ui.label("Gain (dB):");
                     let mut gain = config.gain_db as f32;
                     if ui
-                        .add(egui::Slider::new(&mut gain, -20.0..=20.0).step_by(1.0))
+                        .add(
+                            egui::Slider::new(&mut gain, -20.0..=20.0)
+                                .step_by(1.0),
+                        )
                         .changed()
                     {
                         self.send_message(MicMessage::GainDb(gain as i8));

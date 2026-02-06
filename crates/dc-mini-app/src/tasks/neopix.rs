@@ -29,10 +29,31 @@ impl defmt::Format for NeopixEvent {
             NeopixEvent::PowerOn => defmt::write!(f, "PowerOn"),
             NeopixEvent::PowerOff => defmt::write!(f, "PowerOff"),
             NeopixEvent::Recording => defmt::write!(f, "Recording"),
-            NeopixEvent::Color(c) => defmt::write!(f, "Color({},{},{})", c.r, c.g, c.b),
-            NeopixEvent::Flash(c, d, dc) => defmt::write!(f, "Flash({},{},{}, {:?}, {:?})", c.r, c.g, c.b, d, dc),
-            NeopixEvent::FlashFor(c, d, n, dc) => defmt::write!(f, "FlashFor({},{},{}, {:?}, {}, {:?})", c.r, c.g, c.b, d, n, dc),
-            NeopixEvent::OnFor(c, d) => defmt::write!(f, "OnFor({},{},{}, {:?})", c.r, c.g, c.b, d),
+            NeopixEvent::Color(c) => {
+                defmt::write!(f, "Color({},{},{})", c.r, c.g, c.b)
+            }
+            NeopixEvent::Flash(c, d, dc) => defmt::write!(
+                f,
+                "Flash({},{},{}, {:?}, {:?})",
+                c.r,
+                c.g,
+                c.b,
+                d,
+                dc
+            ),
+            NeopixEvent::FlashFor(c, d, n, dc) => defmt::write!(
+                f,
+                "FlashFor({},{},{}, {:?}, {}, {:?})",
+                c.r,
+                c.g,
+                c.b,
+                d,
+                n,
+                dc
+            ),
+            NeopixEvent::OnFor(c, d) => {
+                defmt::write!(f, "OnFor({},{},{}, {:?})", c.r, c.g, c.b, d)
+            }
         }
     }
 }

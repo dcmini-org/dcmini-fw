@@ -148,7 +148,6 @@ impl AdsManager {
                         self.power_down(context.low_prio_spawner);
                     }
                 }
-
             }
             AdsEvent::PrintConfig => {
                 let mut context = self.app.lock().await;

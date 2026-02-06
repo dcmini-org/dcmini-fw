@@ -21,8 +21,9 @@ pub(crate) async fn mic_stream_notify<T: MicStreamNotifier>(
 ) {
     let mut mic_watcher =
         MIC_WATCH.dyn_receiver().expect("Failed to create mic watcher");
-    let mut sub =
-        MIC_STREAM_CH.dyn_subscriber().expect("Failed to create mic subscriber");
+    let mut sub = MIC_STREAM_CH
+        .dyn_subscriber()
+        .expect("Failed to create mic subscriber");
 
     // Wait a bit for GATT server MTU negotiation
     embassy_time::Timer::after_secs(1).await;

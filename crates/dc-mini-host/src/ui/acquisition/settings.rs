@@ -332,10 +332,7 @@ pub(super) fn show_leadoff_settings(
         ui.horizontal(|ui| {
             ui.label("Lead-Off Frequency:");
             egui::ComboBox::new("lead_off_freq", "")
-                .selected_text(format!(
-                    "{:?}",
-                    config.lead_off_frequency
-                ))
+                .selected_text(format!("{:?}", config.lead_off_frequency))
                 .show_ui(ui, |ui| {
                     for freq in [
                         icd::FLeadOff::Dc,

@@ -101,14 +101,15 @@ impl<'d> Spk0838<'d> {
     /// * `config` - Microphone configuration
     pub fn new<T: pdm::Instance>(
         pdm: Peri<'d, T>,
-        irq: impl interrupt::typelevel::Binding<T::Interrupt, pdm::InterruptHandler<T>> + 'd,
+        irq: impl interrupt::typelevel::Binding<
+                T::Interrupt,
+                pdm::InterruptHandler<T>,
+            > + 'd,
         clk: Peri<'d, impl Pin>,
         din: Peri<'d, impl Pin>,
         config: Config,
     ) -> Self {
-        Self {
-            pdm: Pdm::new(pdm, irq, clk, din, config.into_pdm_config()),
-        }
+        Self { pdm: Pdm::new(pdm, irq, clk, din, config.into_pdm_config()) }
     }
 
     /// Start the PDM clock, waking the microphone from sleep.

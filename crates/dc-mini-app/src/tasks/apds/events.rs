@@ -34,8 +34,11 @@ impl ApdsManager {
             ApdsEvent::ConfigChanged => {
                 if APDS_MEAS.load(Ordering::SeqCst) {
                     let mut app_ctx = self.app.lock().await;
-                    if let Some(apds_config) =
-                        app_ctx.profile_manager.get_apds_config().await.cloned()
+                    if let Some(apds_config) = app_ctx
+                        .profile_manager
+                        .get_apds_config()
+                        .await
+                        .cloned()
                     {
                         APDS_MEAS_SIG.signal(Some(apds_config));
                     }
@@ -51,9 +54,7 @@ impl ApdsManager {
             }
             ApdsEvent::StartStream => {
                 if APDS_MEAS.load(Ordering::SeqCst) {
-                    info!(
-                        "Tried to start APDS stream while already running."
-                    );
+                    info!("Tried to start APDS stream while already running.");
                 } else {
                     let mut app_ctx = self.app.lock().await;
                     let mut apds_config = app_ctx
@@ -76,9 +77,7 @@ impl ApdsManager {
             }
             ApdsEvent::ResetConfig => {
                 if APDS_MEAS.load(Ordering::SeqCst) {
-                    warn!(
-                        "Not allowed to reset config while APDS streaming."
-                    );
+                    warn!("Not allowed to reset config while APDS streaming.");
                     return;
                 }
 

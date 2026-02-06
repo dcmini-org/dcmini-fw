@@ -34,9 +34,7 @@ fn linker_data() -> &'static [u8] {
 }
 
 fn main() {
-    let hw_features = [
-        (cfg!(feature = "sr6"), HwVersion::SR6),
-    ];
+    let hw_features = [(cfg!(feature = "sr6"), HwVersion::SR6)];
 
     let enabled_hw: Vec<HwVersion> = hw_features
         .into_iter()

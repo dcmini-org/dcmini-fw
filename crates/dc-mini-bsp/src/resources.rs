@@ -10,8 +10,7 @@ use embassy_nrf::{
     bind_interrupts,
     gpio::{Input, Level, Output, OutputDrive, Pull},
     interrupt::{self, InterruptExt},
-    pdm,
-    peripherals, qspi, spim, twim,
+    pdm, peripherals, qspi, spim, twim,
 };
 use embassy_sync::{blocking_mutex::raw::RawMutex, mutex::Mutex};
 use embassy_time::Timer;
@@ -56,10 +55,8 @@ pub type PoweredAdsFrontend<'a, 'b, MutexType> = AdsFrontend<
     2,
 >;
 
-pub type Imu<'a, 'b, MutexType> = Icm45605<
-    I2cDevice<'a, MutexType, twim::Twim<'b>>,
-    embassy_time::Delay,
->;
+pub type Imu<'a, 'b, MutexType> =
+    Icm45605<I2cDevice<'a, MutexType, twim::Twim<'b>>, embassy_time::Delay>;
 
 /// Represents a structure for an external flash configuration using the QSPI protocol.
 pub type ExternalFlash<'d> = qspi::Qspi<'d>;
@@ -162,10 +159,8 @@ impl ImuResources {
     pub async fn configure_with_device<'a, 'b, MutexType: RawMutex>(
         &'a mut self,
         device: I2cDevice<'a, MutexType, twim::Twim<'b>>,
-    ) -> Icm45605<
-        I2cDevice<'a, MutexType, twim::Twim<'b>>,
-        embassy_time::Delay,
-    > {
+    ) -> Icm45605<I2cDevice<'a, MutexType, twim::Twim<'b>>, embassy_time::Delay>
+    {
         Icm45605::new(device, embassy_time::Delay)
     }
 }
@@ -262,11 +257,7 @@ impl SdCardResources {
     pub fn get_card<'a>(
         &'a mut self,
     ) -> SdCard<
-        ExclusiveDevice<
-            spim::Spim<'a>,
-            Output<'a>,
-            embassy_time::Delay,
-        >,
+        ExclusiveDevice<spim::Spim<'a>, Output<'a>, embassy_time::Delay>,
         embassy_time::Delay,
     > {
         let mut config = spim::Config::default();

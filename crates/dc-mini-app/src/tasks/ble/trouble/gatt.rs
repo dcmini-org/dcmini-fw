@@ -339,10 +339,8 @@ impl<'d> Server<'d> {
         if handle == self.mic.gain_db.handle {
             unwrap!(self.set(&self.mic.gain_db, &mic_config.gain_db));
         } else if handle == self.mic.sample_rate.handle {
-            unwrap!(self.set(
-                &self.mic.sample_rate,
-                &(mic_config.sample_rate as u8)
-            ));
+            unwrap!(self
+                .set(&self.mic.sample_rate, &(mic_config.sample_rate as u8)));
         }
     }
 
@@ -365,7 +363,8 @@ impl<'d> Server<'d> {
             }
         } else if handle == self.mic.sample_rate.handle {
             if let Ok(value) = self.get(&self.mic.sample_rate) {
-                mic_config.sample_rate = dc_mini_icd::MicSampleRate::from(value);
+                mic_config.sample_rate =
+                    dc_mini_icd::MicSampleRate::from(value);
             }
         } else if handle == self.mic.command.handle {
             if let Ok(value) = self.get(&self.mic.command) {
@@ -417,18 +416,12 @@ pub async fn gatt_server_task<P: PacketPool>(
                             && handle <= server.session.command.handle
                         {
                             server
-                                .handle_session_read_event(
-                                    handle,
-                                    app_context,
-                                )
+                                .handle_session_read_event(handle, app_context)
                                 .await;
                         } else if handle == server.battery.battery_level.handle
                         {
                             server
-                                .handle_battery_read_event(
-                                    handle,
-                                    app_context,
-                                )
+                                .handle_battery_read_event(handle, app_context)
                                 .await;
                         } else if handle
                             >= server.device_info.hardware_revision.handle
@@ -446,19 +439,13 @@ pub async fn gatt_server_task<P: PacketPool>(
                             && handle <= server.profile.command.handle
                         {
                             server
-                                .handle_profile_read_event(
-                                    handle,
-                                    app_context,
-                                )
+                                .handle_profile_read_event(handle, app_context)
                                 .await;
                         } else if handle >= server.mic.gain_db.handle
                             && handle <= server.mic.command.handle
                         {
                             server
-                                .handle_mic_read_event(
-                                    handle,
-                                    app_context,
-                                )
+                                .handle_mic_read_event(handle, app_context)
                                 .await;
                         }
                     }
@@ -468,10 +455,7 @@ pub async fn gatt_server_task<P: PacketPool>(
                             && handle <= server.ads.command.handle
                         {
                             server
-                                .handle_write_event(
-                                    handle,
-                                    app_context,
-                                )
+                                .handle_write_event(handle, app_context)
                                 .await;
                         } else if handle >= server.session.recording_id.handle
                             && handle <= server.session.command.handle
@@ -496,10 +480,7 @@ pub async fn gatt_server_task<P: PacketPool>(
                             && handle <= server.mic.command.handle
                         {
                             server
-                                .handle_mic_write_event(
-                                    handle,
-                                    app_context,
-                                )
+                                .handle_mic_write_event(handle, app_context)
                                 .await;
                         }
                     }

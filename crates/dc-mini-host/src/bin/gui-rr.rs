@@ -1,6 +1,7 @@
 use dc_mini_host::ui::DevicePanel;
 use rerun::external::{
-    eframe, egui, re_crash_handler, re_grpc_server, re_log, re_memory, re_viewer,
+    eframe, egui, re_crash_handler, re_grpc_server, re_log, re_memory,
+    re_viewer,
 };
 
 // Use memory allocator for Rerun
@@ -40,7 +41,8 @@ impl eframe::App for DcMiniApp {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let main_thread_token = re_viewer::MainThreadToken::i_promise_i_am_on_the_main_thread();
+    let main_thread_token =
+        re_viewer::MainThreadToken::i_promise_i_am_on_the_main_thread();
 
     // Direct calls using the `log` crate to stderr. Control with `RUST_LOG=debug` etc.
     re_log::setup_logging();

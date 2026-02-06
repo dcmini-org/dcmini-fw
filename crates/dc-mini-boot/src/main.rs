@@ -4,9 +4,9 @@
 use core::cell::RefCell;
 
 use cortex_m_rt::{entry, exception};
+use dc_mini_bsp::*;
 #[cfg(feature = "defmt")]
 use defmt_rtt as _;
-use dc_mini_bsp::*;
 use embassy_boot_nrf::*;
 use embassy_nrf::nvmc::Nvmc;
 use embassy_nrf::wdt::{self, HaltConfig, SleepConfig};

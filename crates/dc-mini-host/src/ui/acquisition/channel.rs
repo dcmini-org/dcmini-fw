@@ -42,7 +42,11 @@ pub(super) fn show_channel_config(
                     icd::Gain::X24,
                 ] {
                     if ui
-                        .selectable_value(&mut channel.gain, g, format!("{:?}", g))
+                        .selectable_value(
+                            &mut channel.gain,
+                            g,
+                            format!("{:?}", g),
+                        )
                         .clicked()
                     {
                         sender(Message::Gain((index as u8, channel.gain)));
@@ -67,7 +71,11 @@ pub(super) fn show_channel_config(
                     icd::Mux::RldDrn,
                 ] {
                     if ui
-                        .selectable_value(&mut channel.mux, m, format!("{:?}", m))
+                        .selectable_value(
+                            &mut channel.mux,
+                            m,
+                            format!("{:?}", m),
+                        )
                         .clicked()
                     {
                         sender(Message::Mux((index as u8, channel.mux)));
@@ -77,10 +85,7 @@ pub(super) fn show_channel_config(
     });
 
     if ui
-        .checkbox(
-            &mut channel.bias_sensp,
-            "Bias Sense on Positive Input",
-        )
+        .checkbox(&mut channel.bias_sensp, "Bias Sense on Positive Input")
         .on_hover_ui(|ui| {
             ui.label(
                 RichText::new(format!("BIAS_SENSP: BIASP{}", index))
@@ -102,10 +107,7 @@ pub(super) fn show_channel_config(
     }
 
     if ui
-        .checkbox(
-            &mut channel.bias_sensn,
-            "Bias Sense on Negative Input",
-        )
+        .checkbox(&mut channel.bias_sensn, "Bias Sense on Negative Input")
         .on_hover_ui(|ui| {
             ui.label(
                 RichText::new(format!("BIAS_SENSN: BIASN{}", index))
@@ -136,21 +138,12 @@ pub(super) fn show_channel_config(
                 RichText::new(format!("LOFF_SENSP: LOFFP{}", index))
                     .color(Color32::RED),
             );
-            ui.label(format!(
-                "☑: Enable Lead-off sensing on IN{}P",
-                index
-            ));
-            ui.label(format!(
-                "☐: Disable Lead-off sensing on IN{}P",
-                index
-            ));
+            ui.label(format!("☑: Enable Lead-off sensing on IN{}P", index));
+            ui.label(format!("☐: Disable Lead-off sensing on IN{}P", index));
         })
         .changed()
     {
-        sender(Message::LeadOffSensP((
-            index as u8,
-            channel.lead_off_sensp,
-        )));
+        sender(Message::LeadOffSensP((index as u8, channel.lead_off_sensp)));
     }
 
     if ui
@@ -163,21 +156,12 @@ pub(super) fn show_channel_config(
                 RichText::new(format!("LOFF_SENSN: LOFFN{}", index))
                     .color(Color32::RED),
             );
-            ui.label(format!(
-                "☑: Enable Lead-off sensing on IN{}N",
-                index
-            ));
-            ui.label(format!(
-                "☐: Disable Lead-off sensing on IN{}N",
-                index
-            ));
+            ui.label(format!("☑: Enable Lead-off sensing on IN{}N", index));
+            ui.label(format!("☐: Disable Lead-off sensing on IN{}N", index));
         })
         .changed()
     {
-        sender(Message::LeadOffSensN((
-            index as u8,
-            channel.lead_off_sensn,
-        )));
+        sender(Message::LeadOffSensN((index as u8, channel.lead_off_sensn)));
     }
 
     if ui
@@ -198,10 +182,7 @@ pub(super) fn show_channel_config(
         })
         .changed()
     {
-        sender(Message::LeadOffFlip((
-            index as u8,
-            channel.lead_off_flip,
-        )));
+        sender(Message::LeadOffFlip((index as u8, channel.lead_off_flip)));
     }
 
     if ui

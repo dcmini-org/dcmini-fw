@@ -47,11 +47,7 @@ pub async fn apds_task(
             let lux = sensor.calculate_lux_async(&rgb_data).await?;
 
             let color = apds9253::calculate_color_temperature(&rgb_data)
-                .unwrap_or(apds9253::ColorData {
-                    cct: 0,
-                    x: 0.0,
-                    y: 0.0,
-                });
+                .unwrap_or(apds9253::ColorData { cct: 0, x: 0.0, y: 0.0 });
 
             Ok(Some(ApdsDataFrame {
                 red: rgb_data.red,

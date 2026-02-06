@@ -12,10 +12,5 @@ pub fn to_driver_config(config: &MicConfig) -> spk0838_pdm::Config {
         MicSampleRate::Rate20000 => (Frequency::_1280K, Ratio::RATIO64),
     };
 
-    spk0838_pdm::Config {
-        gain_db,
-        frequency,
-        ratio,
-        ..Default::default()
-    }
+    spk0838_pdm::Config { gain_db, frequency, ratio, ..Default::default() }
 }

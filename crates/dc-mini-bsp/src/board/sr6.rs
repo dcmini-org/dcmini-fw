@@ -1,9 +1,9 @@
 use embassy_nrf::interrupt::Priority;
 use embassy_nrf::peripherals::{
     self, I2S, NVMC, P0_00, P0_02, P0_03, P0_11, P0_12, P0_27, P0_30, P0_31,
-    P1_01, P1_02, P1_03, P1_04, P1_05, P1_06, P1_07, P1_09, P1_11, P1_12,
-    PDM, PWM0, PWM1, PWM2, PWM3, QDEC, RNG, RTC2, SAADC, TIMER0, TIMER1,
-    TIMER2, TIMER3, TIMER4, TWISPI0, UARTE0, UARTE1, WDT,
+    P1_01, P1_02, P1_03, P1_04, P1_05, P1_06, P1_07, P1_09, P1_11, P1_12, PDM,
+    PWM0, PWM1, PWM2, PWM3, QDEC, RNG, RTC2, SAADC, TIMER0, TIMER1, TIMER2,
+    TIMER3, TIMER4, TWISPI0, UARTE0, UARTE1, WDT,
 };
 use embassy_nrf::Peri;
 
@@ -193,11 +193,7 @@ impl DCMini {
             vbus_src: p.P1_11,
             pwrbtn: p.P0_31,
             neopix: p.P0_11,
-            mic: MicResources {
-                pdm: p.PDM,
-                clk: p.P0_27,
-                din: p.P0_00,
-            },
+            mic: MicResources { pdm: p.PDM, clk: p.P0_27, din: p.P0_00 },
             apds_irq: p.P1_09,
             en5v: p.P0_30,
             haptrig: p.P1_02,

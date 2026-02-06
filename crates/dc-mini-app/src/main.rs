@@ -251,11 +251,7 @@ async fn main(spawner: Spawner) {
     }
 
     #[cfg(feature = "usb")]
-    spawner.must_spawn(usb_task(
-        spawner,
-        board.usb,
-        app_context,
-    ));
+    spawner.must_spawn(usb_task(spawner, board.usb, app_context));
 
     #[cfg(feature = "trouble")]
     spawner.must_spawn(ble_run_task(sdc, app_context));

@@ -42,10 +42,8 @@ pub type AppTx = WireTxImpl<MutexType, AppDriver>;
 type AppRx = WireRxImpl<AppDriver>;
 type AppServer = Server<AppTx, AppRx, WireRxBuf, DcMiniUsbApp>;
 
-type AppDriver = Driver<
-    'static,
-    embassy_nrf::usb::vbus_detect::HardwareVbusDetect,
->;
+type AppDriver =
+    Driver<'static, embassy_nrf::usb::vbus_detect::HardwareVbusDetect>;
 type AppStorage = WireStorage<MutexType, AppDriver, 256, 256, 64, 256>;
 type BufStorage = PacketBuffers<1024, 1024>;
 

@@ -186,7 +186,9 @@ impl UsbClient {
         Ok(config)
     }
 
-    pub async fn stop_mic_streaming(&self) -> Result<(), UsbError<Infallible>> {
+    pub async fn stop_mic_streaming(
+        &self,
+    ) -> Result<(), UsbError<Infallible>> {
         let res = self.client.send_resp::<MicStopEndpoint>(&()).await?;
         Ok(res)
     }

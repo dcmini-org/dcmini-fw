@@ -19,17 +19,10 @@ pub async fn mic_start_handler(
     let config = {
         let mut ctx = context.app.lock().await;
         ctx.event_sender.send(MicEvent::StartStream.into()).await;
-        ctx.profile_manager
-            .get_mic_config()
-            .await
-            .cloned()
-            .unwrap_or_default()
+        ctx.profile_manager.get_mic_config().await.cloned().unwrap_or_default()
     };
 
-    if sender
-        .reply::<MicStartEndpoint>(header.seq_no, &config)
-        .await
-        .is_err()
+    if sender.reply::<MicStartEndpoint>(header.seq_no, &config).await.is_err()
     {
         error!("Failed to reply, stopping mic");
         return;
@@ -55,11 +48,7 @@ pub async fn mic_get_config(
     _rqst: (),
 ) -> MicConfig {
     let mut ctx = context.app.lock().await;
-    ctx.profile_manager
-        .get_mic_config()
-        .await
-        .cloned()
-        .unwrap_or_default()
+    ctx.profile_manager.get_mic_config().await.cloned().unwrap_or_default()
 }
 
 pub async fn mic_set_config(
@@ -73,8 +62,9 @@ pub async fn mic_set_config(
 }
 
 async fn mic_stream_usb(sender: Sender<super::AppTx>, config: &MicConfig) {
-    let mut sub =
-        MIC_STREAM_CH.dyn_subscriber().expect("Failed to create mic subscriber");
+    let mut sub = MIC_STREAM_CH
+        .dyn_subscriber()
+        .expect("Failed to create mic subscriber");
     let mut mic_watcher =
         MIC_WATCH.dyn_receiver().expect("Failed to create mic watcher");
 
@@ -100,10 +90,7 @@ async fn mic_stream_usb(sender: Sender<super::AppTx>, config: &MicConfig) {
 
                 let seq: u8 = (packet_counter & 0xFF) as u8;
                 if let Err(_e) = sender
-                    .publish::<dc_mini_icd::MicTopic>(
-                        seq.into(),
-                        &frame,
-                    )
+                    .publish::<dc_mini_icd::MicTopic>(seq.into(), &frame)
                     .await
                 {
                     #[cfg(feature = "defmt")]

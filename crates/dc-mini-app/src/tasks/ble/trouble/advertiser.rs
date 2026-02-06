@@ -7,7 +7,10 @@ pub async fn advertise<'values, 'server, C: Controller>(
     name: &'values str,
     peripheral: &mut Peripheral<'values, C, DefaultPacketPool>,
     server: &'server Server<'values>,
-) -> Result<GattConnection<'values, 'server, DefaultPacketPool>, BleHostError<C::Error>> {
+) -> Result<
+    GattConnection<'values, 'server, DefaultPacketPool>,
+    BleHostError<C::Error>,
+> {
     let mut advertiser_data = [0; 31];
     let len = AdStructure::encode_slice(
         &[

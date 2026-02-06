@@ -75,19 +75,14 @@ async fn run(
     let mut resources: BleResources = HostResources::new();
     let stack = trouble_host::new(controller, &mut resources)
         .set_random_address(address);
-    let Host {
-        mut peripheral,
-        runner,
-        ..
-    } = stack.build();
+    let Host { mut peripheral, runner, .. } = stack.build();
 
-    let server = Server::new_with_config(GapConfig::Peripheral(
-        PeripheralConfig {
+    let server =
+        Server::new_with_config(GapConfig::Peripheral(PeripheralConfig {
             name: "dc-mini",
             appearance: &appearance::sensor::MULTI_SENSOR,
-        },
-    ))
-    .expect("Error creating Gatt Server");
+        }))
+        .expect("Error creating Gatt Server");
 
     info!("Starting BLE advertising and GATT service");
 

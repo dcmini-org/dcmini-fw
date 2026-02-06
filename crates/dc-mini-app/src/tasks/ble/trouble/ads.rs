@@ -206,10 +206,8 @@ pub async fn ads_stream_notify<P: PacketPool>(
     server: &Server<'_>,
     conn: &GattConnection<'_, '_, P>,
 ) {
-    let notifier = TroubleNotifier {
-        handle: server.ads.data_stream.clone(),
-        conn,
-    };
+    let notifier =
+        TroubleNotifier { handle: server.ads.data_stream.clone(), conn };
     let mtu = conn.raw().att_mtu();
     info!("Att mtu = {:?}", mtu);
 

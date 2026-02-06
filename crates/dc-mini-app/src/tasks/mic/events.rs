@@ -77,12 +77,9 @@ impl MicManager {
                             .save_mic_config(mic_config.clone().unwrap())
                             .await;
                     }
-                    app_ctx
-                        .low_prio_spawner
-                        .must_spawn(mic_single_sample_task(
-                            self.mic,
-                            mic_config.unwrap(),
-                        ));
+                    app_ctx.low_prio_spawner.must_spawn(
+                        mic_single_sample_task(self.mic, mic_config.unwrap()),
+                    );
                 }
             }
             MicEvent::ConfigChanged => {

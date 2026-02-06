@@ -3,8 +3,8 @@
 use embassy_nrf::{
     gpio::Pin,
     pwm::{
-        self, Config, Error, Prescaler, SequenceConfig,
-        SequenceLoad, SequencePwm, SingleSequenceMode, SingleSequencer,
+        self, Config, Error, Prescaler, SequenceConfig, SequenceLoad,
+        SequencePwm, SingleSequenceMode, SingleSequencer,
     },
     Peri,
 };
@@ -52,7 +52,10 @@ pub struct Ws2812<'d, const N: usize> {
 }
 
 impl<'d, const N: usize> Ws2812<'d, N> {
-    pub fn new(pwm: Peri<'d, impl pwm::Instance>, pin: Peri<'d, impl Pin>) -> Self {
+    pub fn new(
+        pwm: Peri<'d, impl pwm::Instance>,
+        pin: Peri<'d, impl Pin>,
+    ) -> Self {
         let mut config = Config::default();
         config.sequence_load = SequenceLoad::Common;
         config.prescaler = Prescaler::Div1;
@@ -72,9 +75,7 @@ impl<'d, const N: usize> Ws2812<'d, N> {
     }
 }
 
-impl<'d, const N: usize> SmartLedsWriteAsync
-    for Ws2812<'d, N>
-{
+impl<'d, const N: usize> SmartLedsWriteAsync for Ws2812<'d, N> {
     type Error = Error;
     type Color = RGB8;
 
