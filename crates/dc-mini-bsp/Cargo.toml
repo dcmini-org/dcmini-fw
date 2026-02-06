@@ -26,11 +26,13 @@ usb = []
 sr6 = []
 
 [dependencies]
+bus-manager = { workspace = true }
 embassy-nrf = { workspace = true }
 embassy-sync = { workspace = true }
 embassy-time = { workspace = true }
 embassy-executor = { workspace = true }
 embassy-embedded-hal = { workspace = true }
+grounded = "0.2"
 heapless = { workspace = true }
 defmt = { workspace = true, optional = true }
 nrf-sdc = { workspace = true, optional = true }

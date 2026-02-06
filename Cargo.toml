@@ -10,6 +10,7 @@ members = [
   "crates/spk0838-pdm",
   "crates/xtask",
   "crates/icm-45605",
+  "crates/bus-manager",
 ]
 default-members = ["crates/xtask"]
 resolver = "2"
@@ -104,6 +105,7 @@ postcard-schema = { version = "0.2", features = [
 panic-probe = { version = "1", features = ["print-defmt"] }
 panic-reset = { version = "0.1" }
 
+bus-manager = { path = "crates/bus-manager" }
 portable-atomic = { version = "1.6", features = ["critical-section"] }
 static_cell = { version = "2", features = ["nightly"] }
 paste = "1"

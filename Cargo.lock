@@ -1267,6 +1267,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5dd9dc738b7a8311c7ade152424974d8115f2cdad61e8dab8dac9f2362298510"
 
 [[package]]
+name = "bus-manager"
+version = "0.1.0"
+dependencies = [
+ "critical-section",
+ "defmt 1.0.1",
+ "embassy-sync",
+ "futures-test",
+ "grounded",
+ "portable-atomic",
+]
+
+[[package]]
 name = "byte-slice-cast"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2775,6 +2787,7 @@ dependencies = [
  "apds9253",
  "audio-codec-algorithms",
  "bt-hci",
+ "bus-manager",
  "cfg-if",
  "cortex-m",
  "cortex-m-rt",
@@ -2841,6 +2854,7 @@ name = "dc-mini-bsp"
 version = "0.1.0"
 dependencies = [
  "ads1299",
+ "bus-manager",
  "cfg-if",
  "defmt 1.0.1",
  "embassy-embedded-hal",
@@ -2850,6 +2864,7 @@ dependencies = [
  "embassy-time",
  "embedded-hal-bus",
  "embedded-sdmmc",
+ "grounded",
  "heapless 0.9.2",
  "icm-45605",
  "nrf-mpsl",
@@ -4268,6 +4283,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f90f7dce0722e95104fcb095585910c0977252f286e354b5e3bd38902cd99988"
 
 [[package]]
+name = "futures-test"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5961fb6311645f46e2cdc2964a8bfae6743fd72315eaec181a71ae3eb2467113"
+dependencies = [
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-macro",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+ "pin-project",
+]
+
+[[package]]
 name = "futures-util"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4546,6 +4577,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fdf242682df893b86f33a73828fb09ca4b2d3bb6cc95249707fc684d27484b91"
 dependencies = [
  "bitflags 2.10.0",
+]
+
+[[package]]
+name = "grounded"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a7c71ebd5d467418b46639b622912cd0338ce59766bd19130bffcbf9ac6df2c"
+dependencies = [
+ "portable-atomic",
 ]
 
 [[package]]

@@ -21,6 +21,7 @@ defmt = [
   "dep:defmt",
   "dep:defmt-rtt",
   "defmt/alloc",
+  "bus-manager/defmt",
   "embassy-embedded-hal/defmt",
   "embassy-executor/defmt",
   "embassy-nrf/defmt",
@@ -47,6 +48,7 @@ sr6 = ["dc-mini-bsp/sr6"]
 
 [dependencies]
 audio-codec-algorithms = { workspace = true }
+bus-manager = { workspace = true }
 cortex-m = { workspace = true }
 cortex-m-rt = { workspace = true }
 defmt = { workspace = true, optional = true }

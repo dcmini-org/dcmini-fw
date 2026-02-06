@@ -3,7 +3,7 @@ use crate::board::{
     SdCardResources, Spi3BusResources, Twim1BusResources,
 };
 use ads1299::{Ads1299, AdsFrontend};
-use core::marker::PhantomData;
+use bus_manager::BusFactory;
 use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
 use embassy_embedded_hal::shared_bus::asynch::spi::SpiDevice;
 use embassy_nrf::{
@@ -12,33 +12,64 @@ use embassy_nrf::{
     interrupt::{self, InterruptExt},
     pdm, peripherals, qspi, spim, twim,
 };
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::{blocking_mutex::raw::RawMutex, mutex::Mutex};
 use embassy_time::Timer;
 use embedded_hal_bus::spi::ExclusiveDevice;
 use embedded_sdmmc::SdCard;
+use grounded::uninit::GroundedArrayCell;
 use heapless::Vec;
 use icm_45605::Icm45605;
-use static_cell::ConstStaticCell;
 
-/// Helper for reconstructing resources when deconfiguring
-pub struct BusDestructor {
-    /// Phantom data for compile-time board selection
-    pub _phantom: PhantomData<()>,
-}
+/// Destructor token for recovering TWIM1 peripheral resources.
+pub struct Twim1Destructor;
 
-impl BusDestructor {
-    /// Reconstruct the original resources by stealing peripherals
-    ///
-    /// # Safety
-    /// This is safe because:
-    /// 1. We guarantee the bus is dropped before calling this
-    /// 2. We have exclusive access to the bus manager state
-    /// 3. No other code should be using these peripherals
-    pub fn into_resources(self) -> Twim1BusResources {
+/// Factory for creating the shared I2C bus from TWIM1 peripheral resources.
+pub struct Twim1Factory;
+
+/// DMA buffer for TWIM operations, stored in a sound `GroundedArrayCell`.
+static TWIM1_DMA_BUF: GroundedArrayCell<u8, 32> =
+    GroundedArrayCell::const_init();
+
+impl BusFactory for Twim1Factory {
+    type Bus = Mutex<CriticalSectionRawMutex, twim::Twim<'static>>;
+    type Resources = Twim1BusResources;
+    type Destructor = Twim1Destructor;
+    type Error = core::convert::Infallible;
+
+    fn create(
+        resources: Self::Resources,
+    ) -> Result<(Self::Bus, Self::Destructor), (Self::Error, Self::Resources)>
+    {
+        let config = twim::Config::default();
+        interrupt::TWISPI1.set_priority(interrupt::Priority::P3);
+
+        // SAFETY: We have exclusive access because the bus manager mutex is held
+        // during create, and this is only called when transitioning Idle→Active
+        // (no live references to this buffer exist). The static is `const_init`
+        // so it is already zero-initialized.
+        let buf: &'static mut [u8; 32] =
+            unsafe { &mut *(TWIM1_DMA_BUF.as_mut_ptr() as *mut [u8; 32]) };
+
+        let bus = Mutex::new(twim::Twim::new(
+            resources.twim,
+            TwimIrqs,
+            resources.sda,
+            resources.scl,
+            config,
+            buf,
+        ));
+
+        Ok((bus, Twim1Destructor))
+    }
+
+    fn recover(_destructor: Self::Destructor) -> Self::Resources {
+        // SAFETY: The bus has been dropped (BusManager guarantees users == 0 and
+        // drops the bus before calling recover). We reconstruct Peri wrappers
+        // via steal(), which is safe because no other code holds these peripherals.
         unsafe {
             Twim1BusResources {
                 twim: embassy_nrf::peripherals::TWISPI1::steal(),
-                // All boards use the same I2C pins
                 sda: embassy_nrf::peripherals::P0_04::steal(),
                 scl: embassy_nrf::peripherals::P0_06::steal(),
             }
@@ -186,8 +217,8 @@ impl Twim1BusResources {
     ) -> Mutex<MutexType, twim::Twim<'a>> {
         let config = twim::Config::default();
         interrupt::TWISPI1.set_priority(interrupt::Priority::P3);
-        static RAM_BUFFER: ConstStaticCell<[u8; 32]> =
-            ConstStaticCell::new([0; 32]);
+        static RAM_BUFFER: static_cell::ConstStaticCell<[u8; 32]> =
+            static_cell::ConstStaticCell::new([0; 32]);
 
         Mutex::new(twim::Twim::new(
             self.twim.reborrow(),
@@ -197,38 +228,6 @@ impl Twim1BusResources {
             config,
             RAM_BUFFER.take(),
         ))
-    }
-
-    /// Convert resources into a configured I2C bus
-    ///
-    /// This consumes the resources and returns an owned bus that can be shared.
-    pub fn into_bus(
-        self,
-    ) -> (
-        embassy_sync::mutex::Mutex<
-            embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
-            twim::Twim<'static>,
-        >,
-        BusDestructor,
-    ) {
-        let config = twim::Config::default();
-        interrupt::TWISPI1.set_priority(interrupt::Priority::P3);
-
-        // Static buffer for TWIM - use a regular static array that can be reused
-        static mut RAM_BUFFER: [u8; 32] = [0; 32];
-
-        let bus = embassy_sync::mutex::Mutex::new(twim::Twim::new(
-            self.twim, // Consumed, not borrowed
-            TwimIrqs,
-            self.sda, // Consumed, not borrowed
-            self.scl, // Consumed, not borrowed
-            config,
-            unsafe { &mut *core::ptr::addr_of_mut!(RAM_BUFFER) },
-        ));
-
-        let destructor = BusDestructor { _phantom: core::marker::PhantomData };
-
-        (bus, destructor)
     }
 }
 

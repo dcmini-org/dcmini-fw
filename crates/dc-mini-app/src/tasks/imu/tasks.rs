@@ -2,6 +2,7 @@ use super::*;
 use crate::prelude::*;
 use dc_mini_bsp::ImuResources;
 use dc_mini_icd::ImuConfig;
+use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
 use embassy_futures::select::{select, Either};
 use embassy_sync::mutex::Mutex;
 use portable_atomic::Ordering;
@@ -18,7 +19,7 @@ pub async fn imu_task(
     let handle = bus_manager.acquire().await.unwrap();
 
     let mut imu_resources = imu.lock().await;
-    let device = handle.device();
+    let device = I2cDevice::new(handle.bus());
     let mut imu = imu_resources.configure_with_device(device).await;
 
     // Initialize IMU

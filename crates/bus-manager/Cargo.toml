@@ -1,0 +1,20 @@
+[package]
+name = "bus-manager"
+version = "0.1.0"
+edition = "2021"
+license = "0BSD"
+publish = false
+
+[features]
+default = []
+defmt = ["dep:defmt"]
+
+[dependencies]
+embassy-sync = { workspace = true }
+grounded = "0.2"
+portable-atomic = { workspace = true }
+defmt = { workspace = true, optional = true }
+
+[dev-dependencies]
+futures-test = "0.3"
+critical-section = { version = "1", features = ["std"] }

@@ -2,6 +2,7 @@ use super::*;
 use crate::prelude::*;
 use apds9253::Apds9253;
 use dc_mini_icd::ApdsConfig;
+use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
 use embassy_futures::select::{select, Either};
 use portable_atomic::Ordering;
 
@@ -14,7 +15,7 @@ pub async fn apds_task(
 
     // Acquire bus handle - configures bus if needed
     let handle = bus_manager.acquire().await.unwrap();
-    let mut sensor = Apds9253::new(handle.device());
+    let mut sensor = Apds9253::new(I2cDevice::new(handle.bus()));
 
     // Initialize sensor with retry loop
     for i in 0..5 {
