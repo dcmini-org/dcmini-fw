@@ -309,11 +309,9 @@ impl eframe::App for ConverterApp {
                                 ui.text_edit_singleline(
                                     &mut self.metadata.electrode_config[i],
                                 );
-                                if ui.small("ⓘ").on_hover_text(
+                                ui.small("ⓘ").on_hover_text(
                                     "Enter electrode position (e.g., 'Fp1', 'C3-A2')\nValid positions include: Fp1, Fp2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T3, T4, T5, T6, Fz, Cz, Pz, etc."
-                                ).clicked() {
-                                    ui.memory_mut(|mem| mem.toggle_popup(ui.next_auto_id()));
-                                }
+                                );
                             });
                         }
                     });
@@ -363,12 +361,13 @@ impl eframe::App for ConverterApp {
 }
 
 fn main() -> Result<()> {
-    let mut native_options = re_viewer::native::eframe_options(None);
-    native_options.viewport = native_options
-        .viewport
-        .with_app_id("dc_convert_gui")
-        .with_inner_size([1200.0, 800.0])
-        .with_min_inner_size([800.0, 600.0]);
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_app_id("dc_convert_gui")
+            .with_inner_size([1200.0, 800.0])
+            .with_min_inner_size([800.0, 600.0]),
+        ..Default::default()
+    };
 
     eframe::run_native(
         "DC Mini File Converter",
