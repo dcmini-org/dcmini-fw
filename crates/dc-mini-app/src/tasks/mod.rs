@@ -16,6 +16,8 @@ pub mod neopix;
 pub mod power_control;
 pub mod session;
 
+#[cfg(feature = "demo")]
+pub mod demo;
 #[cfg(feature = "trouble")]
 pub mod ble;
 #[cfg(feature = "usb")]
@@ -26,6 +28,8 @@ pub use ads::*;
 pub use apds::*;
 #[cfg(feature = "trouble")]
 pub use ble::*;
+#[cfg(feature = "demo")]
+pub use demo::*;
 pub use blinky::*;
 pub use imu::*;
 pub use mic::*;

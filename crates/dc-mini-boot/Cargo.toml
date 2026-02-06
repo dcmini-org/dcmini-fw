@@ -23,6 +23,7 @@ trouble = []
 usb = []
 alloc = []
 critical-section = []
+demo = []
 # Hardware revision of board.
 sr6 = ["dc-mini-bsp/sr6"]
 

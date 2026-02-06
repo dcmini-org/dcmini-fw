@@ -259,4 +259,7 @@ async fn main(spawner: Spawner) {
 
     #[cfg(feature = "trouble")]
     spawner.must_spawn(ble_run_task(sdc, app_context));
+
+    #[cfg(feature = "demo")]
+    spawner.must_spawn(demo_task(sender));
 }
