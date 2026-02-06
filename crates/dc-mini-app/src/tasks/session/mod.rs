@@ -1,4 +1,4 @@
-pub mod events;
+pub(crate) mod events;
 mod tasks;
 
 pub use events::*;

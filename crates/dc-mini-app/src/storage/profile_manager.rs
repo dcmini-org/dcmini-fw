@@ -1,9 +1,9 @@
 use super::data::*;
 use super::keys::{Setting, StorageKey};
-use core::ops::Range;
 use dc_mini_icd::{AdsConfig, ImuConfig, SessionId};
 use embedded_storage_async::nor_flash::NorFlash;
 use sequential_storage::cache::NoCache;
+use sequential_storage::map::{MapConfig, MapStorage};
 use sequential_storage::Error;
 pub extern crate paste;
 
@@ -44,8 +44,7 @@ macro_rules! config_accessors {
 }
 
 pub struct ProfileManager<Flash: NorFlash, const N: usize> {
-    flash: Flash,
-    range: Range<u32>,
+    map: MapStorage<u16, Flash, NoCache>,
     buffer: [u8; N],
     current_profile: u8,
     session_id: Option<SessionId>,
@@ -65,14 +64,15 @@ impl<Flash: NorFlash, const N: usize> ProfileManager<Flash, N> {
             static __storage_end: u32;
         }
 
-        let range: Range<u32> = unsafe {
+        let range = unsafe {
             let start = &__storage_start as *const u32 as u32;
             let end = &__storage_end as *const u32 as u32;
             start..end
         };
+        let config = MapConfig::new(range);
+        let map = MapStorage::new(flash, config, NoCache::new());
         let mut manager = Self {
-            flash,
-            range,
+            map,
             buffer: [0; N],
             current_profile: 0,
             session_id: None,
@@ -98,14 +98,7 @@ impl<Flash: NorFlash, const N: usize> ProfileManager<Flash, N> {
         &mut self,
         key: u16,
     ) -> Result<Option<StorageData>, Error<Flash::Error>> {
-        sequential_storage::map::fetch_item(
-            &mut self.flash,
-            self.range.clone(),
-            &mut NoCache::new(),
-            &mut self.buffer,
-            &key,
-        )
-        .await
+        self.map.fetch_item(&mut self.buffer, &key).await
     }
 
     /// Saves data to persistent storage.
@@ -114,15 +107,7 @@ impl<Flash: NorFlash, const N: usize> ProfileManager<Flash, N> {
         key: u16,
         value: &StorageData,
     ) -> Result<(), Error<Flash::Error>> {
-        sequential_storage::map::store_item(
-            &mut self.flash,
-            self.range.clone(),
-            &mut NoCache::new(),
-            &mut self.buffer,
-            &key,
-            value,
-        )
-        .await
+        self.map.store_item(&mut self.buffer, &key, value).await
     }
 
     pub async fn get_current_profile(&self) -> u8 {

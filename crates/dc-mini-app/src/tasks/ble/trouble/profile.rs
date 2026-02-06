@@ -33,11 +33,11 @@ pub struct ProfileService {
         read,
         notify
     )]
-    current_profile: u8,
+    pub current_profile: u8,
 
     /// Profile Command (UUID: 0x32300002-af46-43af-a0ba-4dbeb457f51c)
     #[characteristic(uuid = "32300002-af46-43af-a0ba-4dbeb457f51c", write)]
-    command: u8,
+    pub command: u8,
 }
 
 impl<'d> Server<'d> {
@@ -57,7 +57,7 @@ impl<'d> Server<'d> {
         app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
     ) {
         let mut app_ctx = app_context.lock().await;
-        let evt_sender = app_ctx.event_sender;
+        let _evt_sender = app_ctx.event_sender;
 
         if handle == self.profile.command.handle {
             if let Ok(value) = self.get(&self.profile.command) {
@@ -72,12 +72,10 @@ impl<'d> Server<'d> {
                             );
                         }
                         ProfileCommand::Next => {
-                            let current = unwrap!(
-                                app_ctx
-                                    .profile_manager
-                                    .get_current_profile()
-                                    .await
-                            );
+                            let current = app_ctx
+                                .profile_manager
+                                .get_current_profile()
+                                .await;
                             unwrap!(
                                 app_ctx
                                     .profile_manager
@@ -88,12 +86,10 @@ impl<'d> Server<'d> {
                             );
                         }
                         ProfileCommand::Previous => {
-                            let current = unwrap!(
-                                app_ctx
-                                    .profile_manager
-                                    .get_current_profile()
-                                    .await
-                            );
+                            let current = app_ctx
+                                .profile_manager
+                                .get_current_profile()
+                                .await;
                             unwrap!(
                                 app_ctx
                                     .profile_manager
@@ -112,8 +108,8 @@ impl<'d> Server<'d> {
 
 /// Updates the profile characteristics
 pub async fn update_profile_characteristics(
-    server: &Server,
+    server: &Server<'_>,
     current_profile: u8,
 ) {
-    unwrap!(server.profile.current_profile.set(server, &current_profile));
+    unwrap!(server.set(&server.profile.current_profile, &current_profile));
 }

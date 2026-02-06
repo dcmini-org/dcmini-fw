@@ -17,7 +17,6 @@ categories = ["no-std", "embedded", "asynchronous", "hardware-support"]
   "embedded-hal-async/defmt-03",
   "dep:defmt",
   "device-driver/defmt-03",
-  "micromath/defmt",
 ]
 
 [dependencies]

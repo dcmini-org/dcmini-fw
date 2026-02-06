@@ -1,7 +1,7 @@
 use super::{gatt::Server, ATT_MTU};
 use crate::prelude::info;
-use crate::tasks::ads::ADS_MAX_CHANNELS;
 use crate::tasks::ble::ads_stream::{self, AdsStreamNotifier};
+use dc_mini_icd::ADS_MAX_CHANNELS;
 use heapless::Vec;
 use trouble_host::prelude::*;
 
@@ -185,31 +185,32 @@ pub struct AdsService {
     pub command: u8,
 }
 
-struct TroubleNotifier<'a, 'b, 'c> {
-    server: &'a Server<'c>,
-    conn: &'a Connection<'b>,
+/// Notifier that holds only the characteristic handle (Copy) and a borrow
+/// of the GattConnection. No reference to Server needed, avoiding coupled lifetimes.
+struct TroubleNotifier<'a, 'b, 'c, P: PacketPool> {
+    handle: Characteristic<Vec<u8, ATT_MTU>>,
+    conn: &'a GattConnection<'b, 'c, P>,
 }
 
-impl<'a, 'b, 'c> AdsStreamNotifier for TroubleNotifier<'a, 'b, 'c> {
+impl<P: PacketPool> AdsStreamNotifier for TroubleNotifier<'_, '_, '_, P> {
     async fn notify_data_stream(
         &self,
         data: &Vec<u8, ATT_MTU>,
     ) -> Result<(), super::Error> {
-        self.server
-            .ads
-            .data_stream
-            .notify(self.server, self.conn, data)
-            .await?;
+        self.handle.notify(self.conn, data).await?;
         Ok(())
     }
 }
 
-pub async fn ads_stream_notify<'a, 'b, 'c>(
-    server: &'a Server<'b>,
-    conn: &'a Connection<'c>,
+pub async fn ads_stream_notify<P: PacketPool>(
+    server: &Server<'_>,
+    conn: &GattConnection<'_, '_, P>,
 ) {
-    let notifier = TroubleNotifier { server, conn };
-    let mtu = conn.att_mtu();
+    let notifier = TroubleNotifier {
+        handle: server.ads.data_stream.clone(),
+        conn,
+    };
+    let mtu = conn.raw().att_mtu();
     info!("Att mtu = {:?}", mtu);
 
     ads_stream::ads_stream_notify(&notifier, mtu as usize).await

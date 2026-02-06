@@ -99,8 +99,9 @@ impl<'a> sequential_storage::map::Value<'a> for StorageData {
             .map(|slice| slice.len())
     }
 
-    fn deserialize_from(buffer: &'a [u8]) -> Result<Self, SerializationError> {
+    fn deserialize_from(buffer: &'a [u8]) -> Result<(Self, usize), SerializationError> {
         postcard::from_bytes(buffer)
+            .map(|v| (v, buffer.len()))
             .map_err(|_| SerializationError::BufferTooSmall)
     }
 }

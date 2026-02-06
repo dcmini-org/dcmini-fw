@@ -27,6 +27,7 @@ impl TryFrom<u8> for PowerEvent {
 
 pub struct PowerManager {
     count: u8,
+    #[allow(dead_code)]
     pwctl: Output<'static>,
 }
 

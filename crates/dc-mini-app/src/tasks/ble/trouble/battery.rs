@@ -9,7 +9,7 @@ pub struct BatteryService {
     /// Battery Level (UUID: 0x2A19)
     /// The current charge level of a battery in percentage from 0% to 100%
     #[characteristic(uuid = "2a19", read, notify)]
-    battery_level: u8,
+    pub battery_level: u8,
 }
 
 impl<'d> Server<'d> {
@@ -26,10 +26,10 @@ impl<'d> Server<'d> {
 
 /// Updates the battery level characteristic with the current value
 pub async fn update_battery_characteristics(
-    server: &Server,
+    server: &Server<'_>,
     battery_level: u8,
 ) {
     // Ensure battery level is within valid range (0-100)
     let level = battery_level.min(100);
-    unwrap!(server.battery.battery_level.set(server, &level));
+    unwrap!(server.set(&server.battery.battery_level, &level));
 }

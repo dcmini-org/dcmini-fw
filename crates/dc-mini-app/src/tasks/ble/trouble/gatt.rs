@@ -1,12 +1,6 @@
-use super::{ads::*, session::*, BleController};
-use super::{mpsl_task, runner_task, BleResources};
+use super::{ads::*, session::*};
 use crate::prelude::*;
-use dc_mini_bsp::ble::{
-    MultiprotocolServiceLayer, SoftdeviceController, SoftdeviceError,
-};
-use embassy_executor::Spawner;
 use heapless::Vec;
-use static_cell::StaticCell;
 use trouble_host::prelude::*;
 
 // Helper macro to handle single-field updates
@@ -97,54 +91,6 @@ pub struct Server {
 }
 
 impl<'d> Server<'d> {
-    pub fn start_gatt(
-        name: &'d str,
-        spawner: Spawner,
-        controller: BleController,
-        mpsl: &'static MultiprotocolServiceLayer<'_>,
-    ) -> Result<
-        (
-            &'static Self,
-            trouble_host::prelude::Peripheral<'d, BleController>,
-            &'static Stack<'static, SoftdeviceController<'static>>,
-        ),
-        BleHostError<SoftdeviceError>,
-    > {
-        spawner.must_spawn(mpsl_task(mpsl));
-
-        let address = Address::random([0x42, 0x5A, 0xE3, 0x1E, 0x83, 0xE7]);
-        info!("Our address = {:?}", address);
-
-        let resources = {
-            static RESOURCES: StaticCell<BleResources> = StaticCell::new();
-            RESOURCES.init(BleResources::new())
-        };
-        let stack = {
-            static STACK: StaticCell<Stack<'_, SoftdeviceController<'_>>> =
-                StaticCell::new();
-            STACK.init(
-                trouble_host::new(controller, resources)
-                    .set_random_address(address),
-            )
-        };
-        let host = stack.build();
-        let server = {
-            static SERVER: StaticCell<Server<'_>> = StaticCell::new();
-            SERVER.init(
-                Server::new_with_config(GapConfig::Peripheral(
-                    PeripheralConfig {
-                        name,
-                        appearance: &appearance::sensor::MULTI_SENSOR,
-                    },
-                ))
-                .expect("Error creating Gatt Server"),
-            )
-        };
-        info!("Starting Gatt Server");
-        spawner.must_spawn(runner_task(host.runner));
-        Ok((server, host.peripheral, stack))
-    }
-
     pub async fn handle_read_event(
         &self,
         handle: u16,
@@ -217,8 +163,6 @@ impl<'d> Server<'d> {
             handle_single_field_read!(self, single_shot, ads_config);
         } else if handle == self.ads.pd_loff_comp.handle {
             handle_single_field_read!(self, pd_loff_comp, ads_config);
-        } else if handle == self.battery.battery_level.handle {
-            handle_single_field_read!(self, battery_level, ads_config);
         } else if handle >= self.device_info.hardware_revision.handle
             && handle <= self.device_info.manufacturer_name.handle
         {
@@ -330,8 +274,6 @@ impl<'d> Server<'d> {
             handle_single_field_write!(self, single_shot, ads_config);
         } else if handle == self.ads.pd_loff_comp.handle {
             handle_single_field_write!(self, pd_loff_comp, ads_config);
-        } else if handle == self.battery.battery_level.handle {
-            handle_single_field_write!(self, battery_level, ads_config);
         } else if handle >= self.profile.current_profile.handle
             && handle <= self.profile.command.handle
         {
@@ -377,38 +319,38 @@ impl<'d> Server<'d> {
         }
 
         // Update the profile manager with the modified config
-        unwrap!(app_ctx.save_ads_config(ads_config).await);
+        app_ctx.save_ads_config(ads_config).await;
     }
 }
 
-/// A BLE GATT server
-pub async fn gatt_server_task(
+/// A BLE GATT server event loop.
+pub async fn gatt_server_task<P: PacketPool>(
     server: &Server<'_>,
-    conn: &Connection<'_>,
+    conn: &GattConnection<'_, '_, P>,
     app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
 ) {
     loop {
         match conn.next().await {
-            ConnectionEvent::Disconnected { reason } => {
+            GattConnectionEvent::Disconnected { reason } => {
                 info!("[gatt] Disconnected: {:?}", reason);
                 break;
             }
-            ConnectionEvent::Gatt { data } => {
-                match data.process(server).await {
-                    Ok(Some(GattEvent::Read(event))) => {
+            GattConnectionEvent::Gatt { event } => {
+                match &event {
+                    GattEvent::Read(event) => {
                         let handle = event.handle();
                         if handle >= server.ads.daisy_en.handle
                             && handle <= server.ads.command.handle
                         {
                             server
-                                .handle_read_event(event.handle(), app_context)
+                                .handle_read_event(handle, app_context)
                                 .await;
                         } else if handle >= server.session.recording_id.handle
                             && handle <= server.session.command.handle
                         {
                             server
                                 .handle_session_read_event(
-                                    event.handle(),
+                                    handle,
                                     app_context,
                                 )
                                 .await;
@@ -416,7 +358,7 @@ pub async fn gatt_server_task(
                         {
                             server
                                 .handle_battery_read_event(
-                                    event.handle(),
+                                    handle,
                                     app_context,
                                 )
                                 .await;
@@ -427,7 +369,7 @@ pub async fn gatt_server_task(
                         {
                             server
                                 .handle_device_info_read_event(
-                                    event.handle(),
+                                    handle,
                                     app_context,
                                 )
                                 .await;
@@ -437,20 +379,20 @@ pub async fn gatt_server_task(
                         {
                             server
                                 .handle_profile_read_event(
-                                    event.handle(),
+                                    handle,
                                     app_context,
                                 )
                                 .await;
                         }
                     }
-                    Ok(Some(GattEvent::Write(event))) => {
+                    GattEvent::Write(event) => {
                         let handle = event.handle();
                         if handle >= server.ads.daisy_en.handle
                             && handle <= server.ads.command.handle
                         {
                             server
                                 .handle_write_event(
-                                    event.handle(),
+                                    handle,
                                     app_context,
                                 )
                                 .await;
@@ -459,7 +401,7 @@ pub async fn gatt_server_task(
                         {
                             server
                                 .handle_session_write_event(
-                                    event.handle(),
+                                    handle,
                                     app_context,
                                 )
                                 .await;
@@ -469,18 +411,20 @@ pub async fn gatt_server_task(
                         {
                             server
                                 .handle_profile_write_event(
-                                    event.handle(),
+                                    handle,
                                     app_context,
                                 )
                                 .await;
                         }
                     }
-                    Ok(_) => {}
-                    Err(e) => {
-                        warn!("[gatt] error processing event: {:?}", e);
-                    }
+                    _ => {}
+                }
+                match event.accept() {
+                    Ok(reply) => reply.send().await,
+                    Err(e) => warn!("[gatt] error sending response: {:?}", e),
                 }
             }
+            _ => {}
         }
     }
     info!("Gatt server task finished");

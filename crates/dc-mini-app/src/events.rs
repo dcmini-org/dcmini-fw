@@ -2,6 +2,10 @@ use crate::tasks::ads::events::AdsEvent;
 use crate::tasks::session::events::SessionEvent;
 use crate::{prelude::*, todo};
 use derive_more::From;
+#[cfg(any(feature = "r6", feature = "sr1"))]
+use embassy_nrf::gpio::AnyPin;
+#[cfg(any(feature = "r6", feature = "sr1"))]
+use embassy_nrf::Peri;
 
 #[derive(Debug, From)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -65,9 +69,9 @@ pub async fn orchestrate(
             },
             Event::TimerElapsed => todo!(),
             Event::ImuEvent(e) => imu_manager.handle_event(e).await,
-            Event::PowerEvent(e) => {
+            Event::PowerEvent(_e) => {
                 #[cfg(any(feature = "sr2", feature = "sr3"))]
-                power_manager.handle_event(e).await;
+                power_manager.handle_event(_e).await;
             }
         }
     }

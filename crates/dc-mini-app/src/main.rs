@@ -48,7 +48,7 @@ async fn main(spawner: Spawner) {
     let board = DCMini::default();
 
     #[cfg(feature = "sr2")]
-    let mut power_manager = PowerManager::new(board.pwctl.into());
+    let power_manager = PowerManager::new(board.pwctl.into());
     #[cfg(feature = "sr3")]
     let mut power_manager = PowerManager::new(board.en5v.into());
 
@@ -72,13 +72,13 @@ async fn main(spawner: Spawner) {
     );
 
     #[cfg(feature = "trouble")]
-    let (server, peripheral, stack) = {
+    let sdc = {
         let (sdc, mpsl) = board
             .ble
             .init(board.timer0, board.rng)
             .expect("BLE stack failed to initialize");
-        Server::start_gatt("dc-mini", spawner, sdc, mpsl)
-            .expect("Failed to start GATT server")
+        spawner.must_spawn(mpsl_task(mpsl));
+        sdc
     };
 
     // Initialize the allocator BEFORE you use it
@@ -117,7 +117,7 @@ async fn main(spawner: Spawner) {
             vsys_voltage: 0.0,
             recording_status: false,
         },
-        #[cfg(any(feature = "trouble", feature = "softdevice"))]
+        #[cfg(feature = "softdevice")]
         ble_server: server,
     }));
     let spi3_bus_resources =
@@ -380,7 +380,7 @@ async fn main(spawner: Spawner) {
     spawner.must_spawn(ble_task(server, advertiser, app_context));
 
     #[cfg(feature = "trouble")]
-    spawner.must_spawn(ble_task(server, peripheral, stack, app_context));
+    spawner.must_spawn(ble_run_task(sdc, app_context));
 
     // {
     //     let app_ctx = app_context.lock().await;

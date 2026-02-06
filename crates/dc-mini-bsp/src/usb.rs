@@ -27,14 +27,14 @@ impl UsbDriverBuilder {
             pub fn init<'a>(
                 self,
                 vbus: &'static embassy_nrf::usb::vbus_detect::SoftwareVbusDetect,
-            ) -> Driver<'a, peripherals::USBD, &'static embassy_nrf::usb::vbus_detect::SoftwareVbusDetect> {
+            ) -> Driver<'a, &'static embassy_nrf::usb::vbus_detect::SoftwareVbusDetect> {
                 Driver::new(self.usbd, UsbIrqs, vbus)
             }
         }
         else if #[cfg(feature = "trouble")] {
             pub fn init<'a>(
                 self,
-            ) -> Driver<'a, peripherals::USBD, embassy_nrf::usb::vbus_detect::HardwareVbusDetect> {
+            ) -> Driver<'a, embassy_nrf::usb::vbus_detect::HardwareVbusDetect> {
                 Driver::new(
                     self.usbd,
                     UsbIrqs,
@@ -45,7 +45,7 @@ impl UsbDriverBuilder {
         else {
             pub fn init<'a>(
                 self,
-            ) -> Driver<'a, peripherals::USBD, embassy_nrf::usb::vbus_detect::HardwareVbusDetect> {
+            ) -> Driver<'a, embassy_nrf::usb::vbus_detect::HardwareVbusDetect> {
                 Driver::new(self.usbd, UsbIrqs, embassy_nrf::usb::vbus_detect::HardwareVbusDetect::new(UsbIrqs))
             }
         }

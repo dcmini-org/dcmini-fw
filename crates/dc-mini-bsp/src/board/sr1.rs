@@ -1,7 +1,7 @@
 use embassy_nrf::interrupt::Priority;
 use embassy_nrf::peripherals::{
     self, I2S, NVMC, P0_00, P0_27, P0_31, P1_02, P1_07, P1_09, P1_10, P1_11,
-    P1_13, PDM, PWM0, PWM1, PWM2, PWM3, QDEC, RNG, RTC1, RTC2, SAADC, TIMER0,
+    P1_13, PDM, PWM0, PWM1, PWM2, PWM3, QDEC, RNG, RTC2, SAADC, TIMER0,
     TIMER1, TIMER2, TIMER3, TIMER4, TWISPI0, UARTE0, UARTE1, WDT,
 };
 use embassy_nrf::Peri;
@@ -98,8 +98,6 @@ pub struct DCMini {
     pub twim1_bus_resources: Twim1BusResources,
     /// Peripherals for the Imu.
     pub imu_resources: ImuResources,
-    /// Real-Time Clock 1.
-    pub rtc1: Peri<'static, RTC1>,
     /// Real-Time Clock 2.
     pub rtc2: Peri<'static, RTC2>,
     /// Watchdog Timer.
@@ -172,7 +170,6 @@ impl DCMini {
             apds_irq: p.P1_07,
             pwctl: p.P1_13,
             haptrig: p.P1_02,
-            rtc1: p.RTC1,
             rtc2: p.RTC2,
             wdt: p.WDT,
             nvmc: p.NVMC,

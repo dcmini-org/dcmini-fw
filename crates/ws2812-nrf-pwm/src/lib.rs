@@ -3,7 +3,7 @@
 use embassy_nrf::{
     gpio::Pin,
     pwm::{
-        self, Config, Error, Instance, Prescaler, SequenceConfig,
+        self, Config, Error, Prescaler, SequenceConfig,
         SequenceLoad, SequencePwm, SingleSequenceMode, SingleSequencer,
     },
     Peri,
@@ -45,14 +45,14 @@ const BITS: [u16; 2] = [
 /// Total PWM period in ticks.
 const PWM_PERIOD: u16 = to_ticks(FRAME_NS) as u16;
 
-pub struct Ws2812<'d, T: Instance, const N: usize> {
-    seq_pwm: SequencePwm<'d, T>,
+pub struct Ws2812<'d, const N: usize> {
+    seq_pwm: SequencePwm<'d>,
     seq_words: [u16; N],
     seq_config: SequenceConfig,
 }
 
-impl<'d, T: Instance, const N: usize> Ws2812<'d, T, N> {
-    pub fn new(pwm: Peri<'d, T>, pin: Peri<'d, impl Pin>) -> Self {
+impl<'d, const N: usize> Ws2812<'d, N> {
+    pub fn new(pwm: Peri<'d, impl pwm::Instance>, pin: Peri<'d, impl Pin>) -> Self {
         let mut config = Config::default();
         config.sequence_load = SequenceLoad::Common;
         config.prescaler = Prescaler::Div1;
@@ -72,8 +72,8 @@ impl<'d, T: Instance, const N: usize> Ws2812<'d, T, N> {
     }
 }
 
-impl<'d, T: Instance, const N: usize> SmartLedsWriteAsync
-    for Ws2812<'d, T, N>
+impl<'d, const N: usize> SmartLedsWriteAsync
+    for Ws2812<'d, N>
 {
     type Error = Error;
     type Color = RGB8;

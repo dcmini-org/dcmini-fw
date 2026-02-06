@@ -14,7 +14,7 @@ default = []
 defmt = [
   "dep:defmt",
   "embassy-nrf/defmt",
-  "heapless/defmt-03",
+  "heapless/defmt",
   "nrf-sdc/defmt",
   "nrf-mpsl/defmt",
   "ads1299/defmt",

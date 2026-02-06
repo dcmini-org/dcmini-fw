@@ -47,14 +47,18 @@
           ]
           ++ lib.optionals stdenv.hostPlatform.isDarwin [
             # apple-sdk_15
-            # darwin.libiconv
           ]
-          ++ lib.optionals stdenv.hostPlatform.isLinux [ systemd libiconv ];
+          ++ lib.optionals stdenv.hostPlatform.isLinux [ systemd ];
 
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
           shellHook = ''
             export PATH=$PATH:''${CARGO_HOME:-~/.cargo}/bin
+
+            # Use macOS SDK for libiconv and other system libraries
+            if command -v xcrun &> /dev/null; then
+              export LIBRARY_PATH="$(xcrun --show-sdk-path)/usr/lib:''${LIBRARY_PATH:-}"
+            fi
 
             installed_tools=$(cargo install --list)
             # List of tools to check

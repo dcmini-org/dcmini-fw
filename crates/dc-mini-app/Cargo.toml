@@ -27,9 +27,8 @@ defmt = [
   "embassy-usb/defmt",
   "embassy-time/defmt",
   "embassy-time/defmt-timestamp-uptime",
-  "sequential-storage/defmt-03",
-  "heapless/defmt-03",
-  "rgb/defmt-03",
+  "sequential-storage/defmt",
+  "heapless/defmt",
   "dc-mini-bsp/defmt",
   "dc-mini-icd/defmt",
   "postcard-rpc/defmt",
@@ -39,7 +38,7 @@ defmt = [
 ]
 alloc = ["defmt/alloc"]
 usb = ["dc-mini-bsp/usb", "dep:embassy-usb"]
-trouble = ["dc-mini-bsp/trouble", "bt-hci", "trouble-host"]
+trouble = ["dc-mini-bsp/trouble", "bt-hci", "trouble-host", "nrf-sdc"]
 softdevice = ["nrf-softdevice", "nrf-softdevice-s140", "dc-mini-bsp/softdevice"]
 critical-section = ["cortex-m/critical-section-single-core"]
 
@@ -86,7 +85,7 @@ statig = { git = "https://github.com/mdeloof/statig", branch = "no_std_async", f
 nrf-softdevice = { workspace = true, optional = true }
 nrf-softdevice-s140 = { workspace = true, optional = true }
 trouble-host = { workspace = true, optional = true }
-nrf-sdc = { workspace = true }
+nrf-sdc = { workspace = true, optional = true }
 bt-hci = { workspace = true, optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 sequential-storage = { workspace = true }

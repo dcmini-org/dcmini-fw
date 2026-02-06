@@ -5,7 +5,7 @@
 
 use alloc::boxed::Box;
 use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
-use embassy_nrf::{peripherals, twim};
+use embassy_nrf::twim;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use portable_atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -40,7 +40,7 @@ enum BusState {
     Configured {
         bus: &'static Mutex<
             CriticalSectionRawMutex,
-            twim::Twim<'static, peripherals::TWISPI1>,
+            twim::Twim<'static>,
         >,
         destructor: BusDestructor,
         users: AtomicUsize,
@@ -54,7 +54,7 @@ pub struct BusHandle<'a> {
     /// Reference to the underlying bus for creating devices
     bus: &'static Mutex<
         CriticalSectionRawMutex,
-        twim::Twim<'static, peripherals::TWISPI1>,
+        twim::Twim<'static>,
     >,
     /// Guard that handles cleanup on drop
     _guard: UserCountGuard<'a>,
@@ -67,7 +67,7 @@ impl<'a> BusHandle<'a> {
     ) -> I2cDevice<
         '_,
         CriticalSectionRawMutex,
-        twim::Twim<'static, peripherals::TWISPI1>,
+        twim::Twim<'static>,
     > {
         I2cDevice::new(self.bus)
     }
@@ -214,11 +214,11 @@ impl I2cBusManager {
                         Box::from_raw(
                             bus as *const Mutex<
                                 CriticalSectionRawMutex,
-                                twim::Twim<'static, peripherals::TWISPI1>,
+                                twim::Twim<'static>,
                             >
                                 as *mut Mutex<
                                     CriticalSectionRawMutex,
-                                    twim::Twim<'static, peripherals::TWISPI1>,
+                                    twim::Twim<'static>,
                                 >,
                         )
                     };
@@ -263,17 +263,11 @@ impl I2cBusManager {
                                 Box::from_raw(
                                     bus as *const Mutex<
                                         CriticalSectionRawMutex,
-                                        twim::Twim<
-                                            'static,
-                                            peripherals::TWISPI1,
-                                        >,
+                                        twim::Twim<'static>,
                                     >
                                         as *mut Mutex<
                                             CriticalSectionRawMutex,
-                                            twim::Twim<
-                                                'static,
-                                                peripherals::TWISPI1,
-                                            >,
+                                            twim::Twim<'static>,
                                         >,
                                 )
                             };

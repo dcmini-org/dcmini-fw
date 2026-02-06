@@ -14,12 +14,12 @@ path = "src/lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = []
-defmt = ["dep:defmt", "heapless/defmt-03"]
+defmt = ["dep:defmt", "heapless/defmt"]
 
 [dependencies]
 bitflags = "2"
 embedded-hal = "1.0.0"
 embedded-hal-async = "1.0.0"
-defmt = { version = "0.3", optional = true }
+defmt = { version = "1", optional = true }
 byteorder = { version = "1.5", default-features = false }
-heapless = { version = "0.8" }
+heapless = { version = "0.9" }

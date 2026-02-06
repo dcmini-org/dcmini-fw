@@ -18,11 +18,12 @@ cfg_if::cfg_if! {
 
 #[derive(Debug, From)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub(self) enum Error {
+pub(crate) enum Error {
     HeaplessExtendFromSlice,
 
     #[cfg(feature = "trouble")]
     #[from]
+    #[allow(dead_code)]
     TroubleError(trouble_host::Error),
     #[cfg(feature = "softdevice")]
     #[from]

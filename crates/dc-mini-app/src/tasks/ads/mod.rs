@@ -1,5 +1,5 @@
-pub mod config;
-pub mod events;
+pub(crate) mod config;
+pub(crate) mod events;
 
 mod tasks; // Tasks module is private
 

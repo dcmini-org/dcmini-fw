@@ -1,7 +1,6 @@
 use crate::prelude::*;
 use dc_mini_bsp::usb::UsbDriverBuilder;
 use embassy_futures::join::join;
-use embassy_nrf::peripherals;
 use embassy_nrf::usb::Driver;
 use embassy_usb::Config;
 use static_cell::ConstStaticCell;
@@ -44,13 +43,11 @@ type AppServer = Server<AppTx, AppRx, WireRxBuf, DcMiniUsbApp>;
 #[cfg(feature = "softdevice")]
 type AppDriver = Driver<
     'static,
-    peripherals::USBD,
     &'static embassy_nrf::usb::vbus_detect::SoftwareVbusDetect,
 >;
 #[cfg(not(feature = "softdevice"))]
 type AppDriver = Driver<
     'static,
-    peripherals::USBD,
     embassy_nrf::usb::vbus_detect::HardwareVbusDetect,
 >;
 type AppStorage = WireStorage<MutexType, AppDriver, 256, 256, 64, 256>;
@@ -153,7 +150,7 @@ pub async fn usb_task(
     let config = usb_config();
 
     let (mut device, tx_impl, rx_impl) =
-        STORAGE.init(driver, config, pbufs.tx_buf.as_mut_slice());
+        STORAGE.init(driver, config, pbufs.tx_buf.as_mut_slice(), 64);
 
     let mut server: AppServer = Server::new(
         tx_impl,

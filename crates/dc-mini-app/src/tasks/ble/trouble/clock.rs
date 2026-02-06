@@ -1,18 +1,16 @@
 use crate::prelude::*;
-use dc_mini_bsp::ble::SoftdeviceController;
 use embassy_futures::select::select;
 use embassy_futures::select::Either;
 use embassy_time::Instant;
 use trouble_host::prelude::*;
 
-#[embassy_executor::task]
-pub async fn sync_time(
-    stack: &'static Stack<'static, SoftdeviceController<'static>>,
-    conn: Connection<'static>,
+pub async fn sync_time<'a, C: Controller, P: PacketPool>(
+    stack: &'a Stack<'a, C, P>,
+    conn: &Connection<'a, P>,
 ) {
     info!("[ble] synchronizing time");
     let client =
-        unwrap!(GattClient::<_, 10, ATT_MTU>::new(stack, &conn).await);
+        unwrap!(GattClient::<_, _, 10>::new(stack, conn).await);
     match select(client.task(), async {
         let services =
             client.services_by_uuid(&Uuid::new_short(0x1805)).await?;
@@ -30,10 +28,13 @@ pub async fn sync_time(
                         Instant::now().as_micros() as i64
                     );
                 crate::CLOCK.set(time_of_boot);
-                info!("Time synced to {:?}", defmt::Debug2Format(&time));
+                #[cfg(feature = "defmt")]
+                info!("Time synced to {:?}", ::defmt::Debug2Format(&time));
+                #[cfg(not(feature = "defmt"))]
+                info!("Time synced");
             }
         }
-        Ok::<(), BleHostError<nrf_sdc::Error>>(())
+        Ok::<(), BleHostError<C::Error>>(())
     })
     .await
     {

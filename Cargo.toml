@@ -23,16 +23,16 @@ defmt-rtt = { version = "1.0" }
 derive_more = { version = "2.0", default-features = false, features = ["from"] }
 
 embassy-boot = { version = "0.6" }
-embassy-boot-nrf = { version = "0.7" }
-embassy-embedded-hal = "0.4"
-embassy-executor = { version = "0.8", features = [
+embassy-boot-nrf = { version = "0.10" }
+embassy-embedded-hal = "0.5"
+embassy-executor = { version = "0.9", features = [
   # "task-arena-size-32768",
   "arch-cortex-m",
   "executor-thread",
   "executor-interrupt",
 ] }
 embassy-futures = { version = "0.1" }
-embassy-nrf = { version = "0.6", features = [
+embassy-nrf = { version = "0.9", features = [
   "nrf52840",
   "reset-pin-as-gpio",
   "time-driver-rtc1",
@@ -42,16 +42,16 @@ embassy-nrf = { version = "0.6", features = [
 ] }
 embassy-usb = { version = "0.5" }
 embassy-sync = { version = "0.7" }
-embassy-time = { version = "0.4", default-features = false, features = [
+embassy-time = { version = "0.5", default-features = false, features = [
   "tick-hz-32_768",
 ] }
 
-embedded-alloc = { version = "0.6", features = ["llff"] }
+embedded-alloc = { version = "0.7", features = ["llff"] }
 embedded-storage = "0.3"
 embedded-storage-async = "0.4"
 embedded-hal-bus = { version = "0.3", features = ["async"] }
 
-embedded-sdmmc = { version = "0.8", features = [
+embedded-sdmmc = { version = "0.9", features = [
   # "defmt-log",
 ], default-features = false }
 # embedded-io = { version = "0.5" }
@@ -61,9 +61,9 @@ futures = { version = "0.3", default-features = false, features = [
   "async-await",
   "alloc",
 ] }
-sequential-storage = { version = "5.0", features = ["heapless"] }
+sequential-storage = { version = "7.1", features = ["heapless"] }
 
-heapless = { version = "0.8", features = ["serde"] }
+heapless = { version = "0.9", features = ["serde"] }
 
 smart-leds = "0.4"
 smart-leds-trait = "0.3"
@@ -77,18 +77,18 @@ apds9253 = { git = "https://github.com/pperanich/apds9253-rs", branch = "main", 
 ] }
 
 
-nrf-sdc = { version = "0.2", default-features = false, features = [
+nrf-sdc = { version = "0.4", default-features = false, features = [
   "nrf52840",
   "peripheral",
 ] }
-nrf-mpsl = { version = "0.2", default-features = false, features = [
+nrf-mpsl = { version = "0.3", default-features = false, features = [
   "critical-section-impl",
   "nrf52840",
 ] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 # BLE dependencies
-bt-hci = { version = "0.3", default-features = false }
-trouble-host = { version = "0.2", features = ["gatt", "derive", "peripheral"] }
+bt-hci = { version = "0.7", default-features = false }
+trouble-host = { version = "0.5", features = ["gatt", "derive", "peripheral"] }
 nrf-softdevice = { version = "0.1", features = [
   "ble-peripheral",
   "ble-gatt-server",
@@ -106,11 +106,11 @@ syn = "2.0"
 quote = "1.0"
 
 postcard = { version = "1", features = ["alloc"] }
-postcard-rpc = { version = "0.11", features = ["embassy-usb-0_5-server"] }
+postcard-rpc = { version = "0.12", features = ["embassy-usb-0_5-server"] }
 postcard-schema = { version = "0.2", features = [
   "derive",
   "alloc",
-  "heapless-v0_8",
+  "heapless-v0_9",
 ] }
 
 panic-probe = { version = "1", features = ["print-defmt"] }
@@ -122,37 +122,37 @@ paste = "1"
 
 time = { version = "0.3", default-features = false }
 trallocator = "0.2"
-prost = { version = "0.13", default-features = false, features = ["derive"] }
+prost = { version = "0.14", default-features = false, features = ["derive"] }
 
 
 [patch.crates-io]
-embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-boot = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-boot-nrf = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-usb = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-usb-driver = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-time = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-time-driver = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-time-queue-utils = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-embassy-embedded-hal = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
-
-# embedded-sdmmc = { git = "https://github.com/rust-embedded-community/embedded-sdmmc-rs", branch = "develop" }
-embedded-sdmmc = { git = "https://github.com/Be-ing/embedded-sdmmc-rs", branch = "bisync" }
-postcard-rpc = { git = "https://github.com/jamesmunns/postcard-rpc.git", branch = "main" }
-postcard-schema = { git = "https://github.com/jamesmunns/postcard.git", branch = "main" }
-sequential-storage = { git = "https://github.com/tweedegolf/sequential-storage.git", branch = "master" }
-nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice.git", branch = "master" }
-nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice.git", branch = "master" }
-nrf-softdevice-mbr = { git = "https://github.com/embassy-rs/nrf-softdevice.git", branch = "master" }
+# embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+# embassy-boot = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+# embassy-boot-nrf = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+# embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+# embassy-usb = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+# embassy-usb-driver = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+# embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+# embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+# embassy-time = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+# embassy-time-driver = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+# embassy-time-queue-utils = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+# embassy-embedded-hal = { git = "https://github.com/embassy-rs/embassy.git", branch = "main" }
+#
+# # embedded-sdmmc = { git = "https://github.com/rust-embedded-community/embedded-sdmmc-rs", branch = "develop" }
+# embedded-sdmmc = { git = "https://github.com/Be-ing/embedded-sdmmc-rs", branch = "bisync" }
+# postcard-rpc = { git = "https://github.com/jamesmunns/postcard-rpc.git", branch = "main" }
+# postcard-schema = { git = "https://github.com/jamesmunns/postcard.git", branch = "main" }
+# sequential-storage = { git = "https://github.com/tweedegolf/sequential-storage.git", branch = "master" }
+# nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice.git", branch = "master" }
+# nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice.git", branch = "master" }
+# nrf-softdevice-mbr = { git = "https://github.com/embassy-rs/nrf-softdevice.git", branch = "master" }
 nrf-sdc = { git = "https://github.com/alexmoon/nrf-sdc.git", branch = "main" }
 nrf-mpsl = { git = "https://github.com/alexmoon/nrf-sdc.git", branch = "main" }
-bt-hci = { git = "https://github.com/embassy-rs/bt-hci.git", branch = "main" }
+# bt-hci = { git = "https://github.com/embassy-rs/bt-hci.git", branch = "main" }
 trouble-host = { git = "https://github.com/embassy-rs/trouble.git", branch = "main" }
-micromath = { git = "https://github.com/tarcieri/micromath", branch = "main" }
-bluest = { git = "https://github.com/alexmoon/bluest", branch = "main" }
+# micromath = { git = "https://github.com/tarcieri/micromath", branch = "main" }
+# bluest = { git = "https://github.com/alexmoon/bluest", branch = "main" }
 
 [profile.dev]
 opt-level = 3

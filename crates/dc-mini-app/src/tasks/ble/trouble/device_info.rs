@@ -8,15 +8,15 @@ use trouble_host::prelude::*;
 pub struct DeviceInfoService {
     /// Hardware Revision String (UUID: 0x2A27)
     #[characteristic(uuid = "2a27", read)]
-    hardware_revision: heapless::String<32>,
+    pub hardware_revision: heapless::String<32>,
 
     /// Software Revision String (UUID: 0x2A28)
     #[characteristic(uuid = "2a28", read)]
-    software_revision: heapless::String<32>,
+    pub software_revision: heapless::String<32>,
 
     /// Manufacturer Name String (UUID: 0x2A29)
     #[characteristic(uuid = "2a29", read)]
-    manufacturer_name: heapless::String<32>,
+    pub manufacturer_name: heapless::String<32>,
 }
 
 impl<'d> Server<'d> {
@@ -36,16 +36,16 @@ impl<'d> Server<'d> {
 
 /// Updates the device information characteristics
 pub async fn update_device_info_characteristics(
-    server: &Server,
+    server: &Server<'_>,
     hardware_rev: &str,
     software_rev: &str,
     manufacturer: &str,
 ) {
-    let hw_rev = heapless::String::from(hardware_rev);
-    let sw_rev = heapless::String::from(software_rev);
-    let mfg = heapless::String::from(manufacturer);
+    let hw_rev = heapless::String::<32>::try_from(hardware_rev).unwrap();
+    let sw_rev = heapless::String::<32>::try_from(software_rev).unwrap();
+    let mfg = heapless::String::<32>::try_from(manufacturer).unwrap();
 
-    unwrap!(server.device_info.hardware_revision.set(server, &hw_rev));
-    unwrap!(server.device_info.software_revision.set(server, &sw_rev));
-    unwrap!(server.device_info.manufacturer_name.set(server, &mfg));
+    unwrap!(server.set(&server.device_info.hardware_revision, &hw_rev));
+    unwrap!(server.set(&server.device_info.software_revision, &sw_rev));
+    unwrap!(server.set(&server.device_info.manufacturer_name, &mfg));
 }

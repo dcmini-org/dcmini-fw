@@ -9,9 +9,7 @@ use dc_mini_bsp::SdCardResources;
 // use dc_mini_icd::AdsConfig;
 use embassy_futures::select::{select3, Either3};
 use embassy_time::Instant;
-use embedded_sdmmc::asynchronous::{
-    Mode, TimeSource, Timestamp, VolumeIdx, VolumeManager,
-};
+use embedded_sdmmc::{Mode, TimeSource, Timestamp, VolumeIdx, VolumeManager};
 use heapless::String;
 use portable_atomic::Ordering;
 use prost::Message;
@@ -60,7 +58,7 @@ pub async fn recording_task(
     // Initialize SD card
     info!(
         "SD card initialized, size: {} bytes",
-        sd_card.num_bytes().await.unwrap()
+        sd_card.num_bytes().unwrap()
     );
 
     // Create volume manager
@@ -75,7 +73,6 @@ pub async fn recording_task(
     // Initialize recording
     let volume = volume_mgr
         .open_volume(VolumeIdx(0))
-        .await
         .expect("Open volume failed.");
     let root_dir = volume.open_root_dir().expect("Failed to open root dir.");
 
@@ -106,7 +103,7 @@ pub async fn recording_task(
             }
 
             // Check if file exists
-            if root_dir.find_directory_entry(filename.as_str()).await.is_err()
+            if root_dir.find_directory_entry(filename.as_str()).is_err()
             {
                 break;
             }
@@ -126,7 +123,7 @@ pub async fn recording_task(
 
             filename.push_str(".dat").unwrap();
 
-            if root_dir.find_directory_entry(filename.as_str()).await.is_err()
+            if root_dir.find_directory_entry(filename.as_str()).is_err()
             {
                 break;
             }
@@ -135,7 +132,6 @@ pub async fn recording_task(
     }
     let file = root_dir
         .open_file_in_dir(filename.as_str(), Mode::ReadWriteCreateOrAppend)
-        .await
         .expect("Failed to open file.");
 
     let batch_sz: usize = 100;
@@ -163,8 +159,8 @@ pub async fn recording_task(
                     out_buffer.clear();
                     message.encode(&mut out_buffer).unwrap();
                     let size = out_buffer.len() as u32;
-                    file.write(&size.to_le_bytes()).await.unwrap();
-                    file.write(out_buffer.as_slice()).await.unwrap();
+                    file.write(&size.to_le_bytes()).unwrap();
+                    file.write(out_buffer.as_slice()).unwrap();
                     message.samples.clear();
                     packet_counter += 1;
                     message.packet_counter = packet_counter;
@@ -184,6 +180,6 @@ pub async fn recording_task(
         }
     }
     // Probably need to also write any data that is still in the buffer out here.
-    file.flush().await.unwrap();
+    file.flush().unwrap();
     SESSION_ACTIVE.store(false, Ordering::SeqCst);
 }

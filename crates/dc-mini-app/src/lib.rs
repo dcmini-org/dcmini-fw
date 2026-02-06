@@ -65,8 +65,6 @@ pub static CLOCK: clock::Clock = clock::Clock::new();
 
 #[cfg(feature = "softdevice")]
 pub type BleServer = tasks::ble::Server;
-#[cfg(feature = "trouble")]
-pub type BleServer = tasks::ble::Server<'static>;
 
 pub struct State {
     pub usb_powered: bool,
@@ -82,7 +80,7 @@ pub struct AppContext {
     pub event_sender: EventSender,
     pub profile_manager: AppProfileManager,
     pub state: State,
-    #[cfg(any(feature = "softdevice", feature = "trouble"))]
+    #[cfg(feature = "softdevice")]
     pub ble_server: &'static BleServer,
 }
 

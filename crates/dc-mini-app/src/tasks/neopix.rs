@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use embassy_nrf::gpio::AnyPin;
 use embassy_nrf::peripherals;
-use embassy_nrf::pwm::{Error as PwmError, Instance};
+use embassy_nrf::pwm::Error as PwmError;
 use embassy_nrf::Peri;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Instant, Timer};
@@ -12,7 +12,6 @@ pub static NEOPIX_CHAN: Channel<CriticalSectionRawMutex, NeopixEvent, 4> =
     Channel::new();
 
 #[derive(Debug)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum NeopixEvent {
     PowerOn,
     PowerOff,
@@ -21,6 +20,21 @@ pub enum NeopixEvent {
     Flash(RGB8, Duration, Option<u8>), // Color, blink interval, duty cycle (0-100)
     FlashFor(RGB8, Duration, u32, Option<u8>), // Color, blink interval, number of cycles, duty cycle
     OnFor(RGB8, Duration),                     // Color and duration to stay on
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for NeopixEvent {
+    fn format(&self, f: defmt::Formatter) {
+        match self {
+            NeopixEvent::PowerOn => defmt::write!(f, "PowerOn"),
+            NeopixEvent::PowerOff => defmt::write!(f, "PowerOff"),
+            NeopixEvent::Recording => defmt::write!(f, "Recording"),
+            NeopixEvent::Color(c) => defmt::write!(f, "Color({},{},{})", c.r, c.g, c.b),
+            NeopixEvent::Flash(c, d, dc) => defmt::write!(f, "Flash({},{},{}, {:?}, {:?})", c.r, c.g, c.b, d, dc),
+            NeopixEvent::FlashFor(c, d, n, dc) => defmt::write!(f, "FlashFor({},{},{}, {:?}, {}, {:?})", c.r, c.g, c.b, d, n, dc),
+            NeopixEvent::OnFor(c, d) => defmt::write!(f, "OnFor({},{},{}, {:?})", c.r, c.g, c.b, d),
+        }
+    }
 }
 
 const BRIGHTNESS: u8 = 10;
@@ -64,9 +78,9 @@ impl NeopixState {
         (on_time, off_time)
     }
 
-    async fn update<'a, T: Instance>(
+    async fn update<'a>(
         &mut self,
-        ws: &mut Ws2812<'a, T, 25>,
+        ws: &mut Ws2812<'a, 25>,
     ) -> Result<(), PwmError> {
         // Check if we've reached the end time for timed operations
         if let Some(end_time) = self.end_time {
@@ -190,7 +204,7 @@ pub async fn neopix_task(
     pin: Peri<'static, AnyPin>,
 ) {
     let receiver = NEOPIX_CHAN.receiver();
-    let mut ws: Ws2812<'_, _, 25> = Ws2812::new(pwm, pin);
+    let mut ws: Ws2812<'_, 25> = Ws2812::new(pwm, pin);
     let mut state = NeopixState::new();
     state.handle_event(NeopixEvent::PowerOn);
     unwrap!(state.update(&mut ws).await);

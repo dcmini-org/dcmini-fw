@@ -181,7 +181,7 @@ async fn ads_stream_usb(sender: Sender<super::AppTx>) {
             let frame =
                 AdsDataFrame { ts: Instant::now().as_micros(), samples };
 
-            if let Err(e) = sender
+            if let Err(_e) = sender
                 .publish::<dc_mini_icd::AdsTopic>(
                     packet_counter.into(),
                     &frame,
@@ -191,7 +191,7 @@ async fn ads_stream_usb(sender: Sender<super::AppTx>) {
                 #[cfg(feature = "defmt")]
                 warn!(
                     "Failed to publish ADS data: {:?}",
-                    defmt::Debug2Format(&e)
+                    defmt::Debug2Format(&_e)
                 );
             }
 

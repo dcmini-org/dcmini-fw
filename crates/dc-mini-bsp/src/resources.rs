@@ -15,7 +15,7 @@ use embassy_nrf::{
 use embassy_sync::{blocking_mutex::raw::RawMutex, mutex::Mutex};
 use embassy_time::Timer;
 use embedded_hal_bus::spi::ExclusiveDevice;
-use embedded_sdmmc::asynchronous::SdCard;
+use embedded_sdmmc::SdCard;
 use heapless::Vec;
 use icm_45605::Icm45605;
 use static_cell::ConstStaticCell;
@@ -47,7 +47,7 @@ impl BusDestructor {
 }
 
 pub type PoweredAdsFrontend<'a, 'b, MutexType> = AdsFrontend<
-    SpiDevice<'a, MutexType, spim::Spim<'b, peripherals::SPI3>, Output<'a>>,
+    SpiDevice<'a, MutexType, spim::Spim<'b>, Output<'a>>,
     Output<'a>,
     Output<'a>,
     Output<'a>,
@@ -56,12 +56,12 @@ pub type PoweredAdsFrontend<'a, 'b, MutexType> = AdsFrontend<
 >;
 
 pub type Imu<'a, 'b, MutexType> = Icm45605<
-    I2cDevice<'a, MutexType, twim::Twim<'b, peripherals::TWISPI1>>,
+    I2cDevice<'a, MutexType, twim::Twim<'b>>,
     embassy_time::Delay,
 >;
 
 /// Represents a structure for an external flash configuration using the QSPI protocol.
-pub type ExternalFlash<'d> = qspi::Qspi<'d, peripherals::QSPI>;
+pub type ExternalFlash<'d> = qspi::Qspi<'d>;
 
 bind_interrupts!(struct SpiIrq {
     SPIM3 => spim::InterruptHandler<peripherals::SPI3>;
@@ -75,7 +75,7 @@ bind_interrupts!(struct TwimIrqs {
 impl AdsResources {
     pub async fn configure<'a, 'b, MutexType: RawMutex>(
         &'a mut self,
-        bus: &'a Mutex<MutexType, spim::Spim<'b, peripherals::SPI3>>,
+        bus: &'a Mutex<MutexType, spim::Spim<'b>>,
     ) -> PoweredAdsFrontend<'a, 'b, MutexType> {
         let start = Output::new(
             self.start.reborrow(),
@@ -116,9 +116,9 @@ impl AdsResources {
             Ok(_) => {
                 let _ = ads_vec.push(primary_ads);
             }
-            Err(e) => {
+            Err(_e) => {
                 #[cfg(feature = "defmt")]
-                defmt::warn!("On-board ADS not detected! {:?}", e);
+                defmt::warn!("On-board ADS not detected! {:?}", _e);
             }
         }
 
@@ -135,9 +135,9 @@ impl AdsResources {
             Ok(_) => {
                 let _ = ads_vec.push(daisy_ads);
             }
-            Err(e) => {
+            Err(_e) => {
                 #[cfg(feature = "defmt")]
-                defmt::warn!("Daisy ADS not detected! {:?}", e);
+                defmt::warn!("Daisy ADS not detected! {:?}", _e);
             }
         }
 
@@ -148,7 +148,7 @@ impl AdsResources {
 impl ImuResources {
     pub async fn configure<'a, 'b, MutexType: RawMutex>(
         &'a mut self,
-        bus: &'a Mutex<MutexType, twim::Twim<'b, peripherals::TWISPI1>>,
+        bus: &'a Mutex<MutexType, twim::Twim<'b>>,
     ) -> Imu<'a, 'b, MutexType> {
         Icm45605::new(I2cDevice::new(bus), embassy_time::Delay)
     }
@@ -156,9 +156,9 @@ impl ImuResources {
     /// Configure IMU with an existing I2cDevice (for use with bus manager)
     pub async fn configure_with_device<'a, 'b, MutexType: RawMutex>(
         &'a mut self,
-        device: I2cDevice<'a, MutexType, twim::Twim<'b, peripherals::TWISPI1>>,
+        device: I2cDevice<'a, MutexType, twim::Twim<'b>>,
     ) -> Icm45605<
-        I2cDevice<'a, MutexType, twim::Twim<'b, peripherals::TWISPI1>>,
+        I2cDevice<'a, MutexType, twim::Twim<'b>>,
         embassy_time::Delay,
     > {
         Icm45605::new(device, embassy_time::Delay)
@@ -168,7 +168,7 @@ impl ImuResources {
 impl Twim1BusResources {
     pub fn get_bus<'a, MutexType: RawMutex>(
         &'a mut self,
-    ) -> Mutex<MutexType, twim::Twim<'a, peripherals::TWISPI1>> {
+    ) -> Mutex<MutexType, twim::Twim<'a>> {
         let config = twim::Config::default();
         interrupt::TWISPI1.set_priority(interrupt::Priority::P3);
         static RAM_BUFFER: ConstStaticCell<[u8; 32]> =
@@ -192,7 +192,7 @@ impl Twim1BusResources {
     ) -> (
         embassy_sync::mutex::Mutex<
             embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
-            twim::Twim<'static, peripherals::TWISPI1>,
+            twim::Twim<'static>,
         >,
         BusDestructor,
     ) {
@@ -220,7 +220,7 @@ impl Twim1BusResources {
 impl Spi3BusResources {
     pub fn get_bus<'a, MutexType: RawMutex>(
         &'a mut self,
-    ) -> Mutex<MutexType, spim::Spim<'a, peripherals::SPI3>> {
+    ) -> Mutex<MutexType, spim::Spim<'a>> {
         let mut config = spim::Config::default();
         config.mode = spim::MODE_1;
         config.frequency = spim::Frequency::M4;
@@ -243,7 +243,7 @@ impl SdCardResources {
         &'a mut self,
     ) -> SdCard<
         ExclusiveDevice<
-            spim::Spim<'a, peripherals::SPI2>,
+            spim::Spim<'a>,
             Output<'a>,
             embassy_time::Delay,
         >,

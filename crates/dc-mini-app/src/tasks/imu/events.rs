@@ -1,8 +1,10 @@
+#[cfg(not(feature = "r6"))]
 use super::*;
 use crate::prelude::*;
 use dc_mini_bsp::ImuResources;
 use derive_more::From;
 use embassy_sync::mutex::Mutex;
+#[cfg(not(feature = "r6"))]
 use portable_atomic::Ordering;
 
 #[derive(Debug, From)]
@@ -36,8 +38,11 @@ impl TryFrom<u8> for ImuEvent {
 
 #[derive(Clone)]
 pub struct ImuManager {
+    #[allow(dead_code)]
     bus_manager: &'static I2cBusManager,
+    #[allow(dead_code)]
     imu: &'static Mutex<CriticalSectionRawMutex, ImuResources>,
+    #[allow(dead_code)]
     app: &'static Mutex<CriticalSectionRawMutex, AppContext>,
 }
 
