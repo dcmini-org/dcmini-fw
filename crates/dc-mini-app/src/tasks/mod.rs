@@ -10,6 +10,7 @@ use embassy_time::Instant;
 pub mod ads;
 pub mod apds;
 pub mod blinky;
+pub mod dfu;
 pub mod imu;
 pub mod mic;
 pub mod neopix;

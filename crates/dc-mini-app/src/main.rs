@@ -16,7 +16,9 @@ use panic_probe as _;
 #[cfg(not(feature = "defmt"))]
 use panic_reset as _;
 
+use dc_mini_app::tasks::dfu::DfuResources;
 use dc_mini_app::{init_event_channel, prelude::*, FW_VERSION};
+use embassy_nrf::nvmc::Nvmc;
 
 static ADS_RESOURCES: StaticCell<
     Mutex<CriticalSectionRawMutex, AdsResources>,
@@ -36,13 +38,55 @@ static MIC_RESOURCES: StaticCell<
 > = StaticCell::new();
 static APP_CONTEXT: StaticCell<Mutex<CriticalSectionRawMutex, AppContext>> =
     StaticCell::new();
+static DFU_RESOURCES: StaticCell<DfuResources> = StaticCell::new();
+static EXT_FLASH_RES: StaticCell<dc_mini_bsp::ExternalFlashResources> =
+    StaticCell::new();
 
 // Application main entry point. The spawner can be used to start async tasks.
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     info!("In main!");
     // First we initialize our board.
-    let board = DCMini::default();
+    let mut board = DCMini::default();
+
+    // Phase 0: Confirm boot to prevent rollback on next reset.
+    // Temporarily init QSPI + NVMC to set boot state, then drop them
+    // so the peripherals remain available for later use.
+    {
+        use core::cell::RefCell;
+        use embassy_boot::{BlockingFirmwareUpdater, FirmwareUpdaterConfig};
+        use embassy_sync::blocking_mutex::Mutex as BlockingMutex;
+
+        let ext_flash = board.external_flash.configure();
+        let ext_flash =
+            BlockingMutex::<NoopRawMutex, _>::new(RefCell::new(ext_flash));
+        // Safety: NVMC is not used by anything else at this early init stage.
+        let nvmc =
+            unsafe { Nvmc::new(embassy_nrf::peripherals::NVMC::steal()) };
+        let nvmc = BlockingMutex::<NoopRawMutex, _>::new(RefCell::new(nvmc));
+
+        let config =
+            FirmwareUpdaterConfig::from_linkerfile_blocking(&ext_flash, &nvmc);
+        let mut aligned = [0u8; 4];
+        let mut updater = BlockingFirmwareUpdater::new(config, &mut aligned);
+        match updater.mark_booted() {
+            Ok(()) => info!("Firmware boot confirmed (mark_booted ok)"),
+            Err(_e) => warn!("mark_booted failed"),
+        }
+        // ext_flash and nvmc dropped here, QSPI/NVMC peripherals freed.
+    }
+
+    // Initialize persistent DFU resources for firmware updates (BLE + USB).
+    // ExternalFlashResources moved to StaticCell so QSPI gets 'static lifetime.
+    let ext_flash_res = EXT_FLASH_RES.init(board.external_flash);
+    let dfu_qspi = ext_flash_res.configure();
+    // Safety: This NVMC instance only writes to BOOTLOADER_STATE (0x6000..0x7000).
+    // The ProfileManager's NVMC writes to STORAGE (0xFE000..0x100000).
+    // Non-overlapping regions, serialized by hardware.
+    let dfu_nvmc = unsafe { embassy_nrf::peripherals::NVMC::steal() };
+    let dfu_nvmc = Nvmc::new(dfu_nvmc);
+    let dfu_resources =
+        DFU_RESOURCES.init(DfuResources::new(dfu_qspi, dfu_nvmc));
 
     let mut power_manager = PowerManager::new(board.en5v.into());
 
@@ -270,10 +314,15 @@ async fn main(spawner: Spawner) {
     }
 
     #[cfg(feature = "usb")]
-    spawner.must_spawn(usb_task(spawner, board.usb, app_context));
+    spawner.must_spawn(usb_task(
+        spawner,
+        board.usb,
+        app_context,
+        dfu_resources,
+    ));
 
     #[cfg(feature = "trouble")]
-    spawner.must_spawn(ble_run_task(sdc, app_context));
+    spawner.must_spawn(ble_run_task(sdc, app_context, dfu_resources));
 
     #[cfg(feature = "demo")]
     spawner.must_spawn(demo_task(sender));

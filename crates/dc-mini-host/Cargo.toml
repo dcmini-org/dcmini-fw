@@ -52,3 +52,6 @@ name = "dat2edf"
 
 [[bin]]
 name = "dc-convert-gui"
+
+[[bin]]
+name = "dfu"

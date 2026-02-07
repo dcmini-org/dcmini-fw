@@ -2,8 +2,10 @@ use dc_mini_icd::{
     AdsConfig, AdsGetConfigEndpoint, AdsResetConfigEndpoint,
     AdsSetConfigEndpoint, AdsStartEndpoint, AdsStopEndpoint,
     BatteryGetLevelEndpoint, BatteryLevel, DeviceInfo, DeviceInfoGetEndpoint,
-    MicConfig, MicGetConfigEndpoint, MicSetConfigEndpoint, MicStartEndpoint,
-    MicStopEndpoint, ProfileCommand, ProfileCommandEndpoint,
+    DfuAbortEndpoint, DfuBegin, DfuBeginEndpoint, DfuFinishEndpoint,
+    DfuProgress, DfuResult, DfuStatusEndpoint, DfuWriteChunk,
+    DfuWriteEndpoint, MicConfig, MicGetConfigEndpoint, MicSetConfigEndpoint,
+    MicStartEndpoint, MicStopEndpoint, ProfileCommand, ProfileCommandEndpoint,
     ProfileGetEndpoint, ProfileSetEndpoint, SessionGetIdEndpoint,
     SessionGetStatusEndpoint, SessionId, SessionSetIdEndpoint,
     SessionStartEndpoint, SessionStopEndpoint,
@@ -212,6 +214,110 @@ impl UsbClient {
 
     pub fn is_connected(&self) -> bool {
         !self.client.is_closed()
+    }
+
+    // DFU Service Methods
+    pub async fn dfu_begin(
+        &self,
+        firmware_size: u32,
+    ) -> Result<DfuResult, UsbError<Infallible>> {
+        let result = self
+            .client
+            .send_resp::<DfuBeginEndpoint>(&DfuBegin { firmware_size })
+            .await?;
+        Ok(result)
+    }
+
+    pub async fn dfu_write(
+        &self,
+        offset: u32,
+        data: &[u8],
+    ) -> Result<DfuResult, UsbError<Infallible>> {
+        let chunk = DfuWriteChunk {
+            offset,
+            data: heapless::Vec::from_slice(data).unwrap(),
+        };
+        let result = self.client.send_resp::<DfuWriteEndpoint>(&chunk).await?;
+        Ok(result)
+    }
+
+    pub async fn dfu_finish(&self) -> Result<DfuResult, UsbError<Infallible>> {
+        let result = self.client.send_resp::<DfuFinishEndpoint>(&()).await?;
+        Ok(result)
+    }
+
+    pub async fn dfu_abort(&self) -> Result<DfuResult, UsbError<Infallible>> {
+        let result = self.client.send_resp::<DfuAbortEndpoint>(&()).await?;
+        Ok(result)
+    }
+
+    pub async fn dfu_status(
+        &self,
+    ) -> Result<DfuProgress, UsbError<Infallible>> {
+        let status = self.client.send_resp::<DfuStatusEndpoint>(&()).await?;
+        Ok(status)
+    }
+
+    /// Perform a full DFU transfer of the given firmware binary.
+    /// Sends the firmware in chunks and prints progress.
+    pub async fn dfu_upload(
+        &self,
+        firmware: &[u8],
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        const CHUNK_SIZE: usize = 256;
+
+        println!("Starting DFU: {} bytes", firmware.len());
+        let begin_result = self.dfu_begin(firmware.len() as u32).await?;
+        if !begin_result.success {
+            return Err(
+                format!("DFU begin failed: {}", begin_result.message).into()
+            );
+        }
+        println!("DFU partition erased");
+
+        let mut offset = 0u32;
+        for chunk in firmware.chunks(CHUNK_SIZE) {
+            let result = self.dfu_write(offset, chunk).await?;
+            if !result.success {
+                let _ = self.dfu_abort().await;
+                return Err(format!(
+                    "DFU write failed at offset {}: {}",
+                    offset, result.message
+                )
+                .into());
+            }
+            offset += chunk.len() as u32;
+            if offset % (64 * 1024) == 0 || offset as usize == firmware.len() {
+                println!(
+                    "  Progress: {}/{} bytes ({:.1}%)",
+                    offset,
+                    firmware.len(),
+                    offset as f64 / firmware.len() as f64 * 100.0
+                );
+            }
+        }
+
+        println!("Firmware transfer complete, finishing DFU...");
+        let finish_result = self.dfu_finish().await;
+        // The device will reset, so connection may drop before we get a response
+        match finish_result {
+            Ok(result) => {
+                if result.success {
+                    println!("DFU finish acknowledged. Device will reset.");
+                } else {
+                    return Err(format!(
+                        "DFU finish failed: {}",
+                        result.message
+                    )
+                    .into());
+                }
+            }
+            Err(_) => {
+                println!("Device is resetting (connection lost as expected).");
+            }
+        }
+
+        Ok(())
     }
 }
 

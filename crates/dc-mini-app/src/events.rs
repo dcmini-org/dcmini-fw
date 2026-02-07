@@ -15,6 +15,16 @@ pub enum ButtonPress {
 
 #[derive(Debug, From)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum DfuEvent {
+    Started,
+    Progress(u8),
+    Complete,
+    Failed,
+    Aborted,
+}
+
+#[derive(Debug, From)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Event {
     AdsEvent(AdsEvent),
     ApdsEvent(ApdsEvent),
@@ -24,6 +34,7 @@ pub enum Event {
     ImuEvent(ImuEvent),
     MicEvent(MicEvent),
     PowerEvent(PowerEvent),
+    DfuEvent(DfuEvent),
 }
 
 #[embassy_executor::task]
@@ -59,6 +70,9 @@ pub async fn orchestrate(
             Event::MicEvent(e) => mic_manager.handle_event(e).await,
             Event::PowerEvent(e) => {
                 power_manager.handle_event(e).await;
+            }
+            Event::DfuEvent(e) => {
+                info!("DFU event: {:?}", e);
             }
         }
     }

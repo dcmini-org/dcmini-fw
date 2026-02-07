@@ -28,7 +28,7 @@ micromath = { version = "2.1", features = [
 ] }
 cfg-if = "1.0"
 defmt = { version = "1.0", optional = true }
-device-driver = { version = "1.0" }
+device-driver = { version = "1.0", default-features = false, features = ["dsl", "yaml"] }
 embedded-hal = "1.0"
 embedded-hal-async = "1.0"
 heapless = "0.9"

@@ -3,6 +3,7 @@ pub mod advertiser;
 pub mod battery;
 pub mod clock;
 pub mod device_info;
+pub mod dfu;
 pub mod gatt;
 pub mod mic;
 pub mod profile;
@@ -26,6 +27,7 @@ use super::Error;
 use crate::prelude::{
     error, info, AppContext, CriticalSectionRawMutex, Mutex,
 };
+use crate::tasks::dfu::DfuResources;
 
 /// Size of L2CAP packets (ATT MTU is this - 4)
 // const L2CAP_MTU: usize = 251;
@@ -68,6 +70,7 @@ async fn ble_runner(mut runner: Runner<'_, BleController, DefaultPacketPool>) {
 async fn run(
     controller: BleController,
     app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+    dfu_resources: &'static DfuResources,
 ) {
     let address = Address::random([0x42, 0x5A, 0xE3, 0x1E, 0x83, 0xE7]);
     info!("Our address = {:?}", address);
@@ -89,7 +92,8 @@ async fn run(
     // Use a scope to ensure `server` is dropped before `resources`.
     // The join runs forever (app_loop is infinite), so in practice
     // this drop ordering only matters for compiler verification.
-    let app_loop = app_task(&server, &mut peripheral, app_context);
+    let app_loop =
+        app_task(&server, &mut peripheral, app_context, dfu_resources);
     let _ = embassy_futures::join::join(ble_runner(runner), app_loop).await;
 }
 
@@ -97,15 +101,23 @@ async fn app_task<'values>(
     server: &Server<'values>,
     peripheral: &mut Peripheral<'values, BleController, DefaultPacketPool>,
     app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+    dfu_resources: &'static DfuResources,
 ) {
     loop {
         match advertise("dc-mini", peripheral, server).await {
             Ok(conn) => {
-                let gatt = gatt_server_task(server, &conn, app_context);
+                let gatt = gatt_server_task(
+                    server,
+                    &conn,
+                    app_context,
+                    dfu_resources,
+                );
                 let ads = ads_stream_notify(server, &conn);
                 let mic = mic_stream_notify(server, &conn);
                 futures::pin_mut!(gatt, ads, mic);
                 embassy_futures::select::select3(gatt, ads, mic).await;
+                // Release DFU lock if connection drops mid-transfer
+                dfu_resources.finish();
             }
             Err(e) => {
                 error!("Advertisement error: {:?}", e);
@@ -119,6 +131,7 @@ async fn app_task<'values>(
 pub async fn ble_run_task(
     controller: BleController,
     app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+    dfu_resources: &'static DfuResources,
 ) {
-    run(controller, app_context).await;
+    run(controller, app_context, dfu_resources).await;
 }

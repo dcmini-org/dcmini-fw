@@ -16,3 +16,9 @@ __storage_start = ORIGIN(STORAGE);
 __storage_end = ORIGIN(STORAGE) + LENGTH(STORAGE);
 __external_storage = ORIGIN(EXTERNAL_STORAGE);
 
+__bootloader_state_start = ORIGIN(BOOTLOADER_STATE);
+__bootloader_state_end = ORIGIN(BOOTLOADER_STATE) + LENGTH(BOOTLOADER_STATE);
+
+__bootloader_dfu_start = ORIGIN(DFU);
+__bootloader_dfu_end = ORIGIN(DFU) + LENGTH(DFU);
+

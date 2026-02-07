@@ -1,6 +1,9 @@
-use super::{ads::*, mic::*, session::*};
+use super::{ads::*, dfu::*, mic::*, session::*};
+use crate::events::DfuEvent;
 use crate::prelude::*;
+use crate::tasks::dfu::{DfuPartition, DfuResources};
 use heapless::Vec;
+use nrf_dfu_target::prelude::DfuStatus;
 use trouble_host::prelude::*;
 
 // Helper macro to handle single-field updates
@@ -89,6 +92,7 @@ pub struct Server {
     pub ads: AdsService,
     pub mic: MicService,
     pub session: SessionService,
+    pub dfu: NrfDfuService,
 }
 
 impl<'d> Server<'d> {
@@ -388,6 +392,53 @@ impl<'d> Server<'d> {
 
         app_ctx.save_mic_config(mic_config).await;
     }
+
+    /// Handle a DFU write (control or packet characteristic).
+    ///
+    /// On the first DFU write per connection, acquires the DFU lock and checks
+    /// that no recording is active. Returns `None` if the handle isn't a DFU
+    /// characteristic or if the write was rejected.
+    pub async fn handle_dfu_write<P: PacketPool>(
+        &self,
+        handle: u16,
+        target: &mut Target,
+        partition: &mut DfuPartition<'_>,
+        conn: &GattConnection<'_, '_, P>,
+        app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+        dfu_resources: &'static DfuResources,
+        dfu_started: &mut bool,
+    ) -> Option<DfuStatus> {
+        if handle != self.dfu.control.handle
+            && handle != self.dfu.packet.handle
+        {
+            return None;
+        }
+
+        // On first DFU write, acquire lock and check recording
+        if !*dfu_started {
+            let recording = {
+                let app_ctx = app_context.lock().await;
+                app_ctx.state.recording_status
+            };
+            if recording {
+                warn!("[ble-dfu] Rejected: recording active");
+                return None;
+            }
+            if !dfu_resources.try_start() {
+                warn!("[ble-dfu] Rejected: DFU already active");
+                return None;
+            }
+            *dfu_started = true;
+            let app_ctx = app_context.lock().await;
+            app_ctx.event_sender.send(DfuEvent::Started.into()).await;
+        }
+
+        if handle == self.dfu.control.handle {
+            handle_dfu_control(self, target, partition, conn).await
+        } else {
+            handle_dfu_packet(self, target, partition, conn).await
+        }
+    }
 }
 
 /// A BLE GATT server event loop.
@@ -395,7 +446,14 @@ pub async fn gatt_server_task<P: PacketPool>(
     server: &Server<'_>,
     conn: &GattConnection<'_, '_, P>,
     app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+    dfu_resources: &'static DfuResources,
 ) {
+    // Per-connection DFU state
+    let dfu_size = crate::tasks::dfu::DFU_PARTITION_SIZE;
+    let mut dfu_target: Target = Target::new(dfu_size, fw_info(), hw_info());
+    let mut dfu_partition = dfu_resources.dfu_partition();
+    let mut dfu_started = false;
+
     loop {
         match conn.next().await {
             GattConnectionEvent::Disconnected { reason } => {
@@ -403,6 +461,7 @@ pub async fn gatt_server_task<P: PacketPool>(
                 break;
             }
             GattConnectionEvent::Gatt { event } => {
+                let mut dfu_status = None;
                 match &event {
                     GattEvent::Read(event) => {
                         let handle = event.handle();
@@ -451,6 +510,18 @@ pub async fn gatt_server_task<P: PacketPool>(
                     }
                     GattEvent::Write(event) => {
                         let handle = event.handle();
+                        dfu_status = server
+                            .handle_dfu_write(
+                                handle,
+                                &mut dfu_target,
+                                &mut dfu_partition,
+                                conn,
+                                app_context,
+                                dfu_resources,
+                                &mut dfu_started,
+                            )
+                            .await;
+
                         if handle >= server.ads.daisy_en.handle
                             && handle <= server.ads.command.handle
                         {
@@ -490,9 +561,35 @@ pub async fn gatt_server_task<P: PacketPool>(
                     Ok(reply) => reply.send().await,
                     Err(e) => warn!("[gatt] error sending response: {:?}", e),
                 }
+
+                // Handle DFU completion after sending the GATT response
+                if let Some(DfuStatus::DoneReset) = dfu_status {
+                    info!("[dfu] Transfer complete, marking updated");
+                    {
+                        let app_ctx = app_context.lock().await;
+                        app_ctx
+                            .event_sender
+                            .send(DfuEvent::Complete.into())
+                            .await;
+                    }
+                    match dfu_resources.mark_updated() {
+                        Ok(()) => {
+                            info!("[dfu] Marked updated, resetting in 4s");
+                            embassy_time::Timer::after_secs(4).await;
+                            cortex_m::peripheral::SCB::sys_reset();
+                        }
+                        Err(_e) => {
+                            warn!("[dfu] Failed to mark updated");
+                        }
+                    }
+                }
             }
             _ => {}
         }
+    }
+    if dfu_started {
+        let app_ctx = app_context.lock().await;
+        app_ctx.event_sender.send(DfuEvent::Aborted.into()).await;
     }
     info!("Gatt server task finished");
 }

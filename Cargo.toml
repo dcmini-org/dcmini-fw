@@ -70,15 +70,13 @@ heapless = { version = "0.9", features = ["serde"] }
 smart-leds = "0.4"
 smart-leds-trait = "0.3"
 ws2812-spi = "0.5"
-npm1300 = { git = "https://github.com/pperanich/npm1300-rs", branch = "add-ldsw-ibatt", features = [
-  "defmt-03",
-] }
-apds9253 = { git = "https://github.com/pperanich/apds9253-rs", branch = "main", features = [
-  "defmt-03",
+npm1300 = { git = "https://github.com/pperanich/npm1300-rs", branch = "add-ldsw-ibatt", default-features = false }
+apds9253 = { git = "https://github.com/pperanich/apds9253-rs", branch = "main", default-features = false, features = [
   "async",
 ] }
 
 
+nrf-dfu-target = { version = "0.3", default-features = false }
 nrf-sdc = { version = "0.4", default-features = false, features = [
   "nrf52840",
   "peripheral",

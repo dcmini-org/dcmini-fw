@@ -23,6 +23,7 @@ use postcard_rpc::{
 mod ads;
 mod battery;
 mod device_info;
+mod dfu;
 mod mic;
 mod profile;
 mod session;
@@ -30,6 +31,7 @@ mod session;
 use ads::*;
 use battery::*;
 use device_info::*;
+use dfu::*;
 use mic::*;
 use profile::*;
 use session::*;
@@ -54,6 +56,7 @@ static STORAGE: AppStorage = AppStorage::new();
 
 pub struct Context {
     pub app: &'static Mutex<MutexType, AppContext>,
+    pub dfu: &'static crate::tasks::dfu::DfuResources,
 }
 
 define_dispatch! {
@@ -87,6 +90,11 @@ define_dispatch! {
         | SessionSetIdEndpoint      | async     | session_set_id                |
         | SessionStartEndpoint      | async     | session_start                 |
         | SessionStopEndpoint       | async     | session_stop                  |
+        | DfuBeginEndpoint          | async     | dfu_begin                     |
+        | DfuWriteEndpoint          | async     | dfu_write                     |
+        | DfuFinishEndpoint         | async     | dfu_finish                    |
+        | DfuAbortEndpoint          | async     | dfu_abort                     |
+        | DfuStatusEndpoint         | async     | dfu_status                    |
     };
     topics_in: {
         list: TOPICS_IN_LIST;
@@ -102,12 +110,13 @@ define_dispatch! {
 // Structs
 pub struct SpawnCtx {
     pub app: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+    pub dfu: &'static crate::tasks::dfu::DfuResources,
 }
 
 impl SpawnContext for Context {
     type SpawnCtxt = SpawnCtx;
     fn spawn_ctxt(&mut self) -> Self::SpawnCtxt {
-        SpawnCtx { app: self.app }
+        SpawnCtx { app: self.app, dfu: self.dfu }
     }
 }
 
@@ -133,8 +142,9 @@ pub async fn usb_task(
     spawner: Spawner,
     usbd: UsbDriverBuilder,
     app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+    dfu_resources: &'static crate::tasks::dfu::DfuResources,
 ) {
-    let context = Context { app: app_context };
+    let context = Context { app: app_context, dfu: dfu_resources };
     let dispatcher = DcMiniUsbApp::new(context, spawner.into());
     let vkk = dispatcher.min_key_len();
 

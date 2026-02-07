@@ -35,11 +35,15 @@ defmt = [
   "postcard-rpc/defmt",
   "ads1299/defmt",
   "trouble-host/defmt",
+  "nrf-dfu-target/defmt",
   "spk0838-pdm/defmt",
+  "npm1300/defmt-03",
+  "apds9253/defmt-03",
+  "icm-45605/defmt",
 ]
 alloc = ["defmt/alloc"]
 usb = ["dc-mini-bsp/usb", "dep:embassy-usb"]
-trouble = ["dc-mini-bsp/trouble", "bt-hci", "trouble-host", "nrf-sdc"]
+trouble = ["dc-mini-bsp/trouble", "bt-hci", "trouble-host", "nrf-sdc", "nrf-dfu-target"]
 critical-section = ["cortex-m/critical-section-single-core"]
 demo = []
 
@@ -51,6 +55,7 @@ audio-codec-algorithms = { workspace = true }
 bus-manager = { workspace = true }
 cortex-m = { workspace = true }
 cortex-m-rt = { workspace = true }
+embassy-boot = { workspace = true }
 defmt = { workspace = true, optional = true }
 defmt-rtt = { workspace = true, optional = true }
 derive_more = { workspace = true }
@@ -84,6 +89,7 @@ statig = { git = "https://github.com/mdeloof/statig", branch = "no_std_async", f
 ] }
 trouble-host = { workspace = true, optional = true }
 nrf-sdc = { workspace = true, optional = true }
+nrf-dfu-target = { workspace = true, optional = true }
 bt-hci = { workspace = true, optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 sequential-storage = { workspace = true }

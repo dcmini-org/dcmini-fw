@@ -111,6 +111,49 @@ impl TryFrom<u8> for ProfileCommand {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SessionId(pub String<MAX_ID_LEN>);
 
+// DFU types
+/// Begin a DFU transfer with the total firmware size.
+#[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct DfuBegin {
+    pub firmware_size: u32,
+}
+
+/// Write a chunk of firmware data at the given offset.
+#[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct DfuWriteChunk {
+    pub offset: u32,
+    pub data: heapless::Vec<u8, 512>,
+}
+
+/// Result of a DFU operation.
+#[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct DfuResult {
+    pub success: bool,
+    pub message: String<64>,
+}
+
+/// Current DFU progress state.
+#[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum DfuProgressState {
+    Idle,
+    Receiving,
+    Complete,
+    Error,
+}
+
+/// DFU progress report.
+#[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct DfuProgress {
+    pub state: DfuProgressState,
+    pub offset: u32,
+    pub total_size: u32,
+}
+
 endpoints! {
     list = ENDPOINT_LIST;
     omit_std = true;
@@ -141,6 +184,12 @@ endpoints! {
     | SessionSetIdEndpoint      | SessionId         | bool                  | "session/set_id"  |
     | SessionStartEndpoint      | ()                | bool                  | "session/start"   |
     | SessionStopEndpoint       | ()                | bool                  | "session/stop"    |
+    // DFU endpoints
+    | DfuBeginEndpoint          | DfuBegin          | DfuResult             | "dfu/begin"       |
+    | DfuWriteEndpoint          | DfuWriteChunk     | DfuResult             | "dfu/write"       |
+    | DfuFinishEndpoint         | ()                | DfuResult             | "dfu/finish"      |
+    | DfuAbortEndpoint          | ()                | DfuResult             | "dfu/abort"       |
+    | DfuStatusEndpoint         | ()                | DfuProgress           | "dfu/status"      |
 }
 
 topics! {
