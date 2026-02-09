@@ -1,10 +1,11 @@
 use super::*;
 use crate::prelude::*;
 use dc_mini_icd::MicConfig;
-use embassy_futures::select::{select, Either};
+use embassy_nrf::pdm::SamplerState;
 use embassy_sync::mutex::Mutex;
-use fixed::types::I7F1;
 use portable_atomic::Ordering;
+
+const MIC_STARTUP_SETTLE_MS: u64 = 10;
 
 #[embassy_executor::task]
 pub async fn mic_stream_task(
@@ -14,45 +15,65 @@ pub async fn mic_stream_task(
     MIC_STREAMING.store(true, Ordering::SeqCst);
 
     let mut mic_resources = mic.lock().await;
-    let driver_config = to_driver_config(&config);
-    let mut spk = mic_resources.configure(driver_config);
-
-    // Start PDM clock and allow microphone startup time
-    spk.start().await;
-    Timer::after_millis(10).await;
-
     let publisher = MIC_STREAM_CH
         .publisher()
         .expect("This is the only expected publisher of MIC data.");
 
-    let mut buf = [0i16; MIC_BUF_SAMPLES];
+    let mut active_config = config;
 
-    loop {
-        match select(MIC_STREAM_SIG.wait(), spk.sample(&mut buf)).await {
-            Either::First(sig) => {
-                if let Some(new_config) = sig {
-                    // Reconfigure gain at runtime
-                    let gain = I7F1::from_num(new_config.gain_db);
-                    spk.set_gain(gain);
-                    MIC_STREAM_SIG.reset();
-                } else {
-                    // None means stop
-                    break;
-                }
-            }
-            Either::Second(Ok(())) => {
-                if let Err(_) = publisher.try_publish(buf) {
+    'stream: loop {
+        let mut spk = mic_resources.configure(to_driver_config_with_channel(
+            &active_config,
+            DEFAULT_MIC_CHANNEL,
+        ));
+        let mut stop_requested = false;
+        let mut next_config: Option<MicConfig> = None;
+        let mut bufs = [[0i16; MIC_BUF_SAMPLES]; 2];
+
+        info!("Mic streaming using {:?} edge", DEFAULT_MIC_CHANNEL);
+
+        let run_result = spk
+            .run_sampler(&mut bufs, |buf| {
+                if publisher.try_publish(*buf).is_err() {
                     warn!("Failed to publish mic data! Subscriber back pressure!");
                 }
-            }
-            Either::Second(Err(e)) => {
-                error!("Error sampling microphone: {:?}", e);
-                break;
-            }
+
+                if let Some(sig) = MIC_STREAM_SIG.try_take() {
+                    if let Some(new_config) = sig {
+                        next_config = Some(new_config);
+                    } else {
+                        stop_requested = true;
+                    }
+                    return SamplerState::Stopped;
+                }
+
+                SamplerState::Sampled
+            })
+            .await;
+
+        if let Err(e) = run_result {
+            error!("Error sampling microphone: {:?}", e);
+            break;
         }
+
+        if let Some(new_config) = next_config {
+            // Gain and sample-rate updates are applied by restarting the
+            // continuous sampler with the updated configuration.
+            active_config = new_config;
+            continue 'stream;
+        }
+
+        if stop_requested {
+            break;
+        }
+
+        // Should not happen in normal operation; avoid spinning forever.
+        break;
     }
 
-    spk.stop().await;
+    info!("Mic stream stopped");
+
+    // Drop any stale stop/reconfigure request when the stream exits.
     MIC_STREAM_SIG.reset();
     MIC_STREAMING.store(false, Ordering::SeqCst);
 }
@@ -63,12 +84,14 @@ pub async fn mic_single_sample_task(
     config: MicConfig,
 ) {
     let mut mic_resources = mic.lock().await;
-    let driver_config = to_driver_config(&config);
-    let mut spk = mic_resources.configure(driver_config);
+    let mut spk = mic_resources.configure(to_driver_config_with_channel(
+        &config,
+        DEFAULT_MIC_CHANNEL,
+    ));
 
     // Start PDM clock and allow microphone startup time
     spk.start().await;
-    Timer::after_millis(10).await;
+    Timer::after_millis(MIC_STARTUP_SETTLE_MS).await;
 
     let mut buf = [0i16; MIC_BUF_SAMPLES];
     match spk.sample(&mut buf).await {

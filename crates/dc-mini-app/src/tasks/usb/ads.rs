@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use crate::tasks::ads::ADS_MEAS_CH;
 use crate::tasks::ads::ADS_WATCH;
+use crate::tasks::imu::IMU_DATA_WATCH;
 use ads1299::AdsData;
 use dc_mini_icd::AdsConfig;
 use dc_mini_icd::{AdsDataFrame, AdsSample};
@@ -122,8 +123,35 @@ fn convert_sample(samples: alloc::sync::Arc<Vec<AdsData, 2>>) -> AdsSample {
         gpio_shift += 4; // Shift by 4 bits (1 nibble per GPIO)
     }
 
-    // Return the constructed AdsSample
-    AdsSample { lead_off_positive, lead_off_negative, gpio, data }
+    // Return the constructed AdsSample, attaching the latest IMU sample if
+    // one has been published.
+    if let Some(current_imu) = IMU_DATA_WATCH.try_get() {
+        AdsSample {
+            lead_off_positive,
+            lead_off_negative,
+            gpio,
+            data,
+            accel_x: Some(current_imu.accel_x),
+            accel_y: Some(current_imu.accel_y),
+            accel_z: Some(current_imu.accel_z),
+            gyro_x: Some(current_imu.gyro_x),
+            gyro_y: Some(current_imu.gyro_y),
+            gyro_z: Some(current_imu.gyro_z),
+        }
+    } else {
+        AdsSample {
+            lead_off_positive,
+            lead_off_negative,
+            gpio,
+            data,
+            accel_x: None,
+            accel_y: None,
+            accel_z: None,
+            gyro_x: None,
+            gyro_y: None,
+            gyro_z: None,
+        }
+    }
 }
 
 /// Collects samples until the batch interval is reached or streaming is stopped
