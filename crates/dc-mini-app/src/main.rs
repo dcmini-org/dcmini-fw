@@ -273,15 +273,20 @@ async fn main(spawner: Spawner) {
     #[cfg(feature = "demo")]
     spawner.must_spawn(demo_task(sender));
 
-    for _ in 0..10 {
-        Timer::after_secs(10).await;
-        match npm1300.measure_ntc().await {
-            Ok(temp) => {
-                info!("NPM1300 NTC meaurement = {:?} degrees Celsius", temp);
-            }
-            Err(e) => {
-                info!("Error making NTC measurment: {:?}", e);
-            }
-        }
+    {
+        let app_ctx = app_context.lock().await;
+        app_ctx.event_sender.send(ImuEvent::StartStream.into()).await;
+    }
+
+    loop {
+        Timer::after_secs(100).await;
+        // match npm1300.measure_ntc().await {
+        //     Ok(temp) => {
+        //         info!("NPM1300 NTC meaurement = {:?} degrees Celsius", temp);
+        //     }
+        //     Err(e) => {
+        //         info!("Error making NTC measurment: {:?}", e);
+        //     }
+        // }
     }
 }

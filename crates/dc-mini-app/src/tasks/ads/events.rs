@@ -97,6 +97,10 @@ impl AdsManager {
                 } else {
                     ADS_MEAS_SIG.signal(None);
                     let app_ctx = self.app.lock().await;
+                    app_ctx
+                        .event_sender
+                        .send(ImuEvent::StopStream.into())
+                        .await;
                     self.power_down(app_ctx.low_prio_spawner);
                     ADS_WATCH.sender().send(false);
                 }
@@ -118,6 +122,10 @@ impl AdsManager {
                     app_ctx.high_prio_spawner.must_spawn(ads_measure_task(
                         self.bus, self.ads, ads_config,
                     ));
+                    app_ctx
+                        .event_sender
+                        .send(ImuEvent::StartStream.into())
+                        .await;
                     ADS_WATCH.sender().send(true);
                 };
             }

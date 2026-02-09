@@ -4,8 +4,8 @@ use device_driver::AsyncRegisterInterface;
 use embedded_hal_async::{delay, i2c};
 use heapless::Vec;
 
-// const ADDR: u8 = 0b1101000; // AP_AD0 = 0
-const ADDR: u8 = 0b1101001; // AP_AD0 = 1
+const ADDR: u8 = 0b1101000; // AP_AD0 = 0
+                            // const ADDR: u8 = 0b1101001; // AP_AD0 = 1
 
 #[derive(derive_more::From, Debug, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
