@@ -15,10 +15,18 @@ use static_cell::StaticCell;
 #[cfg(feature = "usb")]
 use embassy_nrf::usb;
 
-/// Default memory allocation for SDC BLE controller in bytes.
-/// - Minimum 2168 bytes,
-/// - maximum associated with [task-arena-size](https://docs.embassy.dev/embassy-executor/git/cortex-m/index.html)
-const SDC_MEMORY_SIZE: usize = 1448; // bytes
+/// How many outgoing L2CAP buffers per link
+const L2CAP_TXQ: u8 = 3;
+
+/// How many incoming L2CAP buffers per link
+const L2CAP_RXQ: u8 = 3;
+
+/// L2CAP packet MTU — must match trouble-host's DefaultPacketPool::MTU (251).
+const L2CAP_MTU: u16 = 251;
+
+/// Memory allocation for SDC BLE controller in bytes.
+/// Must be large enough to accommodate the configured buffer sizes and connection count.
+const SDC_MEMORY_SIZE: usize = 4720;
 
 /// SDC BLE Controller Builder.
 pub struct BleControllerBuilder<'d> {
@@ -152,6 +160,6 @@ fn build_sdc<'d, const N: usize>(
         .support_adv()
         .support_peripheral()
         .peripheral_count(1)?
-        // .buffer_cfg(128 as u8, 128 as u8, L2CAP_TXQ, L2CAP_RXQ)? // this is missing
+        .buffer_cfg(L2CAP_MTU, L2CAP_MTU, L2CAP_TXQ, L2CAP_RXQ)?
         .build(p, rng, mpsl, mem)
 }
