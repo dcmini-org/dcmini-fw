@@ -49,6 +49,10 @@ pub async fn mic_stream_notify<P: PacketPool>(
 ) {
     let notifier =
         TroubleNotifier { handle: server.mic.data_stream.clone(), conn };
+
+    // Wait for ATT MTU exchange to complete before querying the negotiated value.
+    embassy_time::Timer::after_secs(1).await;
+
     let mtu = conn.raw().att_mtu();
     info!("Mic ATT mtu = {:?}", mtu);
 

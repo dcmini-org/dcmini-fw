@@ -25,9 +25,6 @@ pub(crate) async fn mic_stream_notify<T: MicStreamNotifier>(
         .dyn_subscriber()
         .expect("Failed to create mic subscriber");
 
-    // Wait a bit for GATT server MTU negotiation
-    embassy_time::Timer::after_secs(1).await;
-
     let mut encoder = AdpcmEncoder::new();
     let mut packet_counter: u64 = 0;
     let mut adpcm_buf = [0u8; MIC_BUF_SAMPLES / 2];

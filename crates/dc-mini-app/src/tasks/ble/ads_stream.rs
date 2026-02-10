@@ -6,7 +6,7 @@ use ads1299::AdsData;
 use embassy_futures::select::{select, Either};
 use embassy_sync::pubsub::DynSubscriber;
 use embassy_sync::watch::DynReceiver;
-use embassy_time::{Instant, Timer};
+use embassy_time::Instant;
 use heapless::Vec;
 use prost::Message;
 
@@ -145,8 +145,6 @@ pub(crate) async fn ads_stream_notify<T: AdsStreamNotifier>(
         ADS_WATCH.dyn_receiver().expect("fixme: better error message.");
     let mut sub =
         ADS_MEAS_CH.dyn_subscriber().expect("Failed to create subscriber.");
-
-    Timer::after_secs(1).await; // Wait for GATT server MTU negotiation
 
     let mut packet_counter = 0;
     let mut max_samples = 0;

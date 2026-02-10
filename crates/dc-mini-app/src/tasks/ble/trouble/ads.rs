@@ -208,6 +208,10 @@ pub async fn ads_stream_notify<P: PacketPool>(
 ) {
     let notifier =
         TroubleNotifier { handle: server.ads.data_stream.clone(), conn };
+
+    // Wait for ATT MTU exchange to complete before querying the negotiated value.
+    embassy_time::Timer::after_secs(1).await;
+
     let mtu = conn.raw().att_mtu();
     info!("Att mtu = {:?}", mtu);
 

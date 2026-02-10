@@ -16,17 +16,18 @@ use static_cell::StaticCell;
 use embassy_nrf::usb;
 
 /// How many outgoing L2CAP buffers per link
-const L2CAP_TXQ: u8 = 3;
+const L2CAP_TXQ: u8 = 4;
 
 /// How many incoming L2CAP buffers per link
-const L2CAP_RXQ: u8 = 3;
+const L2CAP_RXQ: u8 = 4;
 
-/// L2CAP packet MTU — must match trouble-host's DefaultPacketPool::MTU (251).
+/// HCI ACL data buffer size — max LL payload with DLE (251 bytes).
+/// trouble-host handles fragmentation/reassembly of larger L2CAP PDUs above this.
 const L2CAP_MTU: u16 = 251;
 
 /// Memory allocation for SDC BLE controller in bytes.
 /// Must be large enough to accommodate the configured buffer sizes and connection count.
-const SDC_MEMORY_SIZE: usize = 4720;
+const SDC_MEMORY_SIZE: usize = 5600;
 
 /// SDC BLE Controller Builder.
 pub struct BleControllerBuilder<'d> {
@@ -159,6 +160,8 @@ fn build_sdc<'d, const N: usize>(
     sdc::Builder::new()?
         .support_adv()
         .support_peripheral()
+        .support_dle_peripheral()
+        .support_le_2m_phy()
         .peripheral_count(1)?
         .buffer_cfg(L2CAP_MTU, L2CAP_MTU, L2CAP_TXQ, L2CAP_RXQ)?
         .build(p, rng, mpsl, mem)

@@ -29,13 +29,9 @@ use crate::prelude::{
 };
 use crate::tasks::dfu::DfuResources;
 
-/// Size of L2CAP packets (ATT MTU is this - 4)
-// const L2CAP_MTU: usize = 251;
-
-pub const MTU: usize = 381;
-// Aligned to 4 bytes + 3 bytes for header
-pub const ATT_MTU: usize = MTU + 3;
-pub const L2CAP_MTU: usize = ATT_MTU + 4;
+/// Maximum ATT MTU supported by this device.
+/// Derived from TROUBLE_HOST_DEFAULT_PACKET_POOL_MTU (531) - 4 byte L2CAP header.
+pub const ATT_MTU: usize = 527;
 
 /// Max number of connections
 const CONNECTIONS_MAX: usize = 1;
