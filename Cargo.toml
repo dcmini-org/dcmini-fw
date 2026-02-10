@@ -76,6 +76,10 @@ apds9253 = { git = "https://github.com/pperanich/apds9253-rs", branch = "main", 
   "defmt-03",
   "async",
 ] }
+drv260x = { git = "https://github.com/pperanich/drv260x-rs", branch = "main", features = [
+  "drv2605l",
+  "async",
+] }
 
 
 nrf-sdc = { version = "0.4", default-features = false, features = [

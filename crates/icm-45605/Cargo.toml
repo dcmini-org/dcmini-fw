@@ -7,7 +7,7 @@ description = "Embedded driver for the TDK ICM-45605 IMU."
 documentation = "https://docs.rs/icm-45605"
 repository = "https://github.com/iscoe/dc-mini-sw"
 license = "Apache-2.0"
-keywords = ["embedded-hal-driver", "drv2605l", "haptic"]
+keywords = ["embedded-hal-driver"]
 categories = ["no-std", "embedded", "asynchronous", "hardware-support"]
 
 [features]

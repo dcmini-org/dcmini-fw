@@ -54,6 +54,10 @@ pub struct SdCardResources {
     pub spim: Peri<'static, peripherals::SPI2>,
 }
 
+pub struct HapticResources {
+    pub trig: Peri<'static, P1_02>,
+}
+
 pub struct MicResources {
     pub pdm: Peri<'static, PDM>,
     pub clk: Peri<'static, P0_27>,
@@ -96,8 +100,8 @@ pub struct DCMini {
     /// Power enable for 5V rail
     /// pull low to turn on 5V rail.
     pub en5v: Peri<'static, P0_30>,
-    /// Haptics engine trigger
-    pub haptrig: Peri<'static, P1_02>,
+    /// Haptic driver resources
+    pub haptic_resources: HapticResources,
 
     // USB Select, set default pull-up,
     // down when we want to use usb that
@@ -196,7 +200,7 @@ impl DCMini {
             mic: MicResources { pdm: p.PDM, clk: p.P0_27, din: p.P0_00 },
             apds_irq: p.P1_09,
             en5v: p.P0_30,
-            haptrig: p.P1_02,
+            haptic_resources: HapticResources { trig: p.P1_02 },
             usbsel: p.P1_01,
             nrf_gpio1: p.P1_03,
             nrf_gpio2: p.P1_06,

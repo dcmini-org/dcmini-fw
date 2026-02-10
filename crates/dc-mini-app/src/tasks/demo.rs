@@ -4,6 +4,7 @@ use crate::tasks::apds::APDS_DATA_WATCH;
 use crate::tasks::imu::IMU_DATA_WATCH;
 use crate::tasks::mic::{MIC_BUF_SAMPLES, MIC_STREAM_CH};
 use crate::tasks::neopix::{NeopixEvent, NEOPIX_CHAN};
+use drv260x::{Effect, WaveformEntry};
 use embassy_futures::select::{select, Either};
 use futures::pin_mut;
 use smart_leds::colors;
@@ -172,7 +173,44 @@ pub async fn demo_task(sender: EventSender) {
     sender.send(MicEvent::StopStream.into()).await;
     Timer::after_secs(1).await;
 
-    // 6. Done — green flash
+    // 6. Haptic effects
+    info!("[Demo] Haptic — single effects");
+    for (name, effect) in [
+        ("StrongClick", Effect::StrongClick100),
+        ("SharpClick", Effect::SharpClick100),
+        ("SoftBump", Effect::SoftBump100),
+        ("DoubleClick", Effect::DoubleClick100),
+        ("TripleClick", Effect::TripleClick100),
+        ("Alert", Effect::Alert1000ms),
+    ] {
+        info!("[Demo][Haptic] Playing {}", name);
+        sender
+            .send(
+                HapticEvent::Play(HapticCommand::PlayEffect(effect)).into(),
+            )
+            .await;
+        Timer::after_millis(1500).await;
+    }
+
+    info!("[Demo] Haptic — waveform sequence");
+    let mut seq: heapless::Vec<WaveformEntry, 8> = heapless::Vec::new();
+    let _ = seq.push(WaveformEntry::from(Effect::StrongClick100));
+    let _ = seq.push(WaveformEntry::wait(20)); // 200ms pause
+    let _ = seq.push(WaveformEntry::from(Effect::SharpClick60));
+    let _ = seq.push(WaveformEntry::wait(10)); // 100ms pause
+    let _ = seq.push(WaveformEntry::from(Effect::PulsingStrong1_100));
+    let _ = seq.push(WaveformEntry::stop());
+    sender
+        .send(
+            HapticEvent::Play(HapticCommand::PlaySequence(seq)).into(),
+        )
+        .await;
+    Timer::after_secs(3).await;
+
+    sender.send(HapticEvent::Stop.into()).await;
+    Timer::after_secs(1).await;
+
+    // 7. Done — green flash
     info!("--- Demo complete ---");
     NEOPIX_CHAN
         .send(NeopixEvent::FlashFor(

@@ -10,6 +10,7 @@ use embassy_time::Instant;
 pub mod ads;
 pub mod apds;
 pub mod blinky;
+pub mod haptic;
 pub mod imu;
 pub mod mic;
 pub mod neopix;
@@ -26,6 +27,7 @@ pub mod usb;
 // Re-exports
 pub use ads::*;
 pub use apds::*;
+pub use haptic::*;
 #[cfg(feature = "trouble")]
 pub use ble::*;
 pub use blinky::*;

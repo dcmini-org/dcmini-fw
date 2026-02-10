@@ -35,6 +35,7 @@ defmt = [
   "ads1299/defmt",
   "trouble-host/defmt",
   "spk0838-pdm/defmt",
+  "drv260x/defmt-03",
 ]
 alloc = ["defmt/alloc"]
 usb = ["dc-mini-bsp/usb", "dep:embassy-usb"]
@@ -90,6 +91,7 @@ smart-leds = { workspace = true }
 ws2812-spi = { workspace = true }
 npm1300 = { workspace = true }
 apds9253 = { workspace = true }
+drv260x = { workspace = true }
 rgb = "0.8"
 
 dc-mini-bsp = { path = "../dc-mini-bsp" }
