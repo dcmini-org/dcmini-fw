@@ -20,6 +20,7 @@ defmt = [
   "ads1299/defmt",
   "icm-45605/defmt",
   "spk0838-pdm/defmt",
+  "drv260x/defmt-03",
 ]
 trouble = ["nrf-sdc", "nrf-mpsl"]
 usb = []
@@ -44,4 +45,5 @@ embedded-sdmmc = { workspace = true }
 ads1299 = { path = "../ads1299/" }
 icm-45605 = { path = "../icm-45605/" }
 spk0838-pdm = { path = "../spk0838-pdm/" }
+drv260x = { workspace = true }
 cfg-if.workspace = true

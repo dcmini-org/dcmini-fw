@@ -2796,6 +2796,7 @@ dependencies = [
  "defmt 1.0.1",
  "defmt-rtt",
  "derive_more",
+ "drv260x",
  "embassy-boot",
  "embassy-embedded-hal",
  "embassy-executor",
@@ -2859,6 +2860,7 @@ dependencies = [
  "bus-manager",
  "cfg-if",
  "defmt 1.0.1",
+ "drv260x",
  "embassy-embedded-hal",
  "embassy-executor",
  "embassy-nrf",
@@ -3166,6 +3168,18 @@ name = "dpi"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
+
+[[package]]
+name = "drv260x"
+version = "0.1.0"
+source = "git+https://github.com/pperanich/drv260x-rs?branch=main#0081983c56a28e36b2422558cdf8d37284149367"
+dependencies = [
+ "cfg-if",
+ "defmt 1.0.1",
+ "device-driver",
+ "embedded-hal 1.0.0",
+ "embedded-hal-async",
+]
 
 [[package]]
 name = "dtoa"

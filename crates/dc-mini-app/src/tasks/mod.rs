@@ -11,6 +11,7 @@ pub mod ads;
 pub mod apds;
 pub mod blinky;
 pub mod dfu;
+pub mod haptic;
 pub mod imu;
 pub mod mic;
 pub mod neopix;
@@ -32,6 +33,7 @@ pub use ble::*;
 pub use blinky::*;
 #[cfg(feature = "demo")]
 pub use demo::*;
+pub use haptic::*;
 pub use imu::*;
 pub use mic::*;
 pub use neopix::*;

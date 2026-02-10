@@ -185,8 +185,8 @@ pub mod prelude {
     pub use embassy_time::{Duration, Timer};
 
     pub use dc_mini_bsp::{
-        AdsResources, DCMini, ImuResources, MicResources, SdCardResources,
-        Spi3BusResources, Twim1BusResources,
+        AdsResources, DCMini, HapticResources, ImuResources, MicResources,
+        SdCardResources, Spi3BusResources, Twim1BusResources,
     };
     pub use dc_mini_icd::{
         self as icd,

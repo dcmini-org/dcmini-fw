@@ -40,10 +40,17 @@ defmt = [
   "npm1300/defmt-03",
   "apds9253/defmt-03",
   "icm-45605/defmt",
+  "drv260x/defmt-03",
 ]
 alloc = ["defmt/alloc"]
 usb = ["dc-mini-bsp/usb", "dep:embassy-usb"]
-trouble = ["dc-mini-bsp/trouble", "bt-hci", "trouble-host", "nrf-sdc", "nrf-dfu-target"]
+trouble = [
+  "dc-mini-bsp/trouble",
+  "bt-hci",
+  "trouble-host",
+  "nrf-sdc",
+  "nrf-dfu-target",
+]
 critical-section = ["cortex-m/critical-section-single-core"]
 demo = []
 
@@ -98,6 +105,7 @@ smart-leds = { workspace = true }
 ws2812-spi = { workspace = true }
 npm1300 = { workspace = true }
 apds9253 = { workspace = true }
+drv260x = { workspace = true }
 rgb = "0.8"
 
 dc-mini-bsp = { path = "../dc-mini-bsp" }
