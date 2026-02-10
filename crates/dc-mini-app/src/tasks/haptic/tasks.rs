@@ -1,6 +1,7 @@
 use super::*;
 use crate::prelude::*;
 use drv260x::Drv260x;
+use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
 use portable_atomic::Ordering;
 
 #[embassy_executor::task]
@@ -9,7 +10,7 @@ pub async fn haptic_task(bus_manager: &'static I2cBusManager) {
 
     // Acquire bus handle - configures bus if needed
     let handle = bus_manager.acquire().await.unwrap();
-    let mut haptic = Drv260x::new(handle.device());
+    let mut haptic = Drv260x::new(I2cDevice::new(handle.bus()));
 
     // Initialize with retry loop
     for i in 0..5 {
