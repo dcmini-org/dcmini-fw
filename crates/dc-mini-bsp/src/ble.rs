@@ -27,7 +27,7 @@ const L2CAP_MTU: u16 = 251;
 
 /// Memory allocation for SDC BLE controller in bytes.
 /// Must be large enough to accommodate the configured buffer sizes and connection count.
-const SDC_MEMORY_SIZE: usize = 5600;
+const SDC_MEMORY_SIZE: usize = 3336;
 
 /// SDC BLE Controller Builder.
 pub struct BleControllerBuilder<'d> {
