@@ -30,8 +30,9 @@ use crate::prelude::{
 use crate::tasks::dfu::DfuResources;
 
 /// Maximum ATT MTU supported by this device.
-/// Derived from TROUBLE_HOST_DEFAULT_PACKET_POOL_MTU (531) - 4 byte L2CAP header.
-pub const ATT_MTU: usize = 527;
+/// Derived from TROUBLE_HOST_DEFAULT_PACKET_POOL_MTU (251) - 4 byte L2CAP header.
+/// This ensures every notification fits in a single DLE ACL packet (251 bytes).
+pub const ATT_MTU: usize = 247;
 
 /// Max number of connections
 const CONNECTIONS_MAX: usize = 1;
