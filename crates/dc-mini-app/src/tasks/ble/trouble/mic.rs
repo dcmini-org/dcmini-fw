@@ -49,8 +49,14 @@ pub async fn mic_stream_notify<P: PacketPool>(
 ) {
     let notifier =
         TroubleNotifier { handle: server.mic.data_stream.clone(), conn };
-    let mtu = conn.raw().att_mtu();
-    info!("Mic ATT mtu = {:?}", mtu);
 
-    mic_stream::mic_stream_notify(&notifier, mtu as usize).await
+    // Wait for ATT MTU exchange to complete before querying the negotiated value.
+    embassy_time::Timer::after_secs(1).await;
+
+    let att_mtu = conn.raw().att_mtu() as usize;
+    // Subtract ATT notification header (1 opcode + 2 handle) to get max value size.
+    let mtu = att_mtu - 3;
+    info!("Mic ATT mtu = {}, max notify value = {}", att_mtu, mtu);
+
+    mic_stream::mic_stream_notify(&notifier, mtu).await
 }

@@ -1,8 +1,13 @@
 use dc_mini_host::ui::DevicePanel;
+use rerun::blueprint::{
+    Blueprint, BlueprintPanel, ContainerLike, SelectionPanel, TimePanel,
+    TimeSeriesView, Vertical,
+};
 use rerun::external::{
     eframe, egui, re_crash_handler, re_grpc_server, re_log, re_memory,
-    re_viewer,
+    re_sdk_types::blueprint::components::PanelState, re_viewer,
 };
+use rerun::SeriesLines;
 
 // Use memory allocator for Rerun
 #[global_allocator]
@@ -37,6 +42,47 @@ impl eframe::App for DcMiniApp {
         // Show the Rerun Viewer in the remaining space
         self.rerun_app.update(ctx, frame);
     }
+}
+
+fn create_blueprint() -> Blueprint {
+    let line_defaults = SeriesLines::update_fields().with_widths([2.0]);
+
+    Blueprint::new(Vertical::new(vec![
+        ContainerLike::from(
+            TimeSeriesView::new("ADS")
+                .with_origin("/ads")
+                .with_defaults(&line_defaults),
+        ),
+        ContainerLike::from(
+            TimeSeriesView::new("Accelerometer")
+                .with_origin("/imu")
+                .with_contents([
+                    "$origin/accel_x",
+                    "$origin/accel_y",
+                    "$origin/accel_z",
+                ])
+                .with_defaults(&line_defaults),
+        ),
+        ContainerLike::from(
+            TimeSeriesView::new("Gyroscope")
+                .with_origin("/imu")
+                .with_contents([
+                    "$origin/gyro_x",
+                    "$origin/gyro_y",
+                    "$origin/gyro_z",
+                ])
+                .with_defaults(&line_defaults),
+        ),
+        ContainerLike::from(
+            TimeSeriesView::new("Microphone")
+                .with_origin("/mic")
+                .with_defaults(&line_defaults),
+        ),
+    ]))
+    .with_auto_views(false)
+    .with_blueprint_panel(BlueprintPanel::from_state(PanelState::Collapsed))
+    .with_selection_panel(SelectionPanel::from_state(PanelState::Collapsed))
+    .with_time_panel(TimePanel::new().with_state(PanelState::Collapsed))
 }
 
 #[tokio::main]
@@ -89,6 +135,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Create recording stream connected to the local gRPC server
             let recording = rerun::RecordingStreamBuilder::new("dc_mini_host")
+                .with_blueprint(create_blueprint())
                 .connect_grpc()?;
 
             let handle = tokio::runtime::Handle::current();

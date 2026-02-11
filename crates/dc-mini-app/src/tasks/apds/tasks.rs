@@ -37,13 +37,11 @@ pub async fn apds_task(
         match select(APDS_MEAS_SIG.wait(), async {
             Timer::after_millis(poll_delay_ms).await;
 
-            match sensor.is_data_ready_async().await {
-                Ok(true) => {}
-                Ok(false) => return Ok(None),
+            let rgb_data = match sensor.read_rgb_data_async().await {
+                Ok(data) => data,
+                Err(apds9253::Error::NotReady) => return Ok(None),
                 Err(e) => return Err(e),
-            }
-
-            let rgb_data = sensor.read_rgb_data_async().await?;
+            };
 
             let lux = sensor.calculate_lux_async(&rgb_data).await?;
 

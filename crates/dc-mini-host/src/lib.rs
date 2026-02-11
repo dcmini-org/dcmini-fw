@@ -60,6 +60,52 @@ pub fn log_ads_frame(
                         )
                         .unwrap();
                     }
+
+                    // Log IMU accelerometer data if present
+                    if let Some(val) = sample.accel_x {
+                        rec.log(
+                            "imu/accel_x",
+                            &rerun::Scalars::new([val as f64]),
+                        )
+                        .unwrap();
+                    }
+                    if let Some(val) = sample.accel_y {
+                        rec.log(
+                            "imu/accel_y",
+                            &rerun::Scalars::new([val as f64]),
+                        )
+                        .unwrap();
+                    }
+                    if let Some(val) = sample.accel_z {
+                        rec.log(
+                            "imu/accel_z",
+                            &rerun::Scalars::new([val as f64]),
+                        )
+                        .unwrap();
+                    }
+
+                    // Log IMU gyroscope data if present
+                    if let Some(val) = sample.gyro_x {
+                        rec.log(
+                            "imu/gyro_x",
+                            &rerun::Scalars::new([val as f64]),
+                        )
+                        .unwrap();
+                    }
+                    if let Some(val) = sample.gyro_y {
+                        rec.log(
+                            "imu/gyro_y",
+                            &rerun::Scalars::new([val as f64]),
+                        )
+                        .unwrap();
+                    }
+                    if let Some(val) = sample.gyro_z {
+                        rec.log(
+                            "imu/gyro_z",
+                            &rerun::Scalars::new([val as f64]),
+                        )
+                        .unwrap();
+                    }
                 }
             }
             AdsDataFrames::Proto(frame) => {

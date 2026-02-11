@@ -15,6 +15,7 @@ use postcard_rpc::{
     host_client::{HostClient, HostErr},
     standard_icd::{WireError, ERROR_PATH},
 };
+use std::fmt;
 use std::convert::Infallible;
 
 pub struct UsbClient {
@@ -26,6 +27,17 @@ pub enum UsbError<E> {
     Comms(HostErr<WireError>),
     Endpoint(E),
 }
+
+impl<E: fmt::Display> fmt::Display for UsbError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Comms(err) => write!(f, "USB communication error: {err}"),
+            Self::Endpoint(err) => write!(f, "USB endpoint error: {err}"),
+        }
+    }
+}
+
+impl<E: fmt::Debug + fmt::Display> std::error::Error for UsbError<E> {}
 
 impl<E> From<HostErr<WireError>> for UsbError<E> {
     fn from(value: HostErr<WireError>) -> Self {

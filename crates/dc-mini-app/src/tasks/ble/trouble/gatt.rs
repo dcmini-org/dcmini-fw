@@ -462,7 +462,13 @@ pub async fn gatt_server_task<P: PacketPool>(
             }
             GattConnectionEvent::Gatt { event } => {
                 let mut dfu_status = None;
-                match &event {
+
+                // For reads: populate attribute values BEFORE accept() so
+                // the response contains the correct data.
+                // For writes: just capture the handle. The written value is
+                // only committed to the attribute store by accept(), so
+                // write handlers must run AFTER accept().
+                let write_handle = match &event {
                     GattEvent::Read(event) => {
                         let handle = event.handle();
                         if handle >= server.ads.daisy_en.handle
@@ -507,59 +513,65 @@ pub async fn gatt_server_task<P: PacketPool>(
                                 .handle_mic_read_event(handle, app_context)
                                 .await;
                         }
+                        None
                     }
-                    GattEvent::Write(event) => {
-                        let handle = event.handle();
-                        dfu_status = server
-                            .handle_dfu_write(
-                                handle,
-                                &mut dfu_target,
-                                &mut dfu_partition,
-                                conn,
-                                app_context,
-                                dfu_resources,
-                                &mut dfu_started,
-                            )
-                            .await;
+                    GattEvent::Write(event) => Some(event.handle()),
+                    _ => None,
+                };
 
-                        if handle >= server.ads.daisy_en.handle
-                            && handle <= server.ads.command.handle
-                        {
-                            server
-                                .handle_write_event(handle, app_context)
-                                .await;
-                        } else if handle >= server.session.recording_id.handle
-                            && handle <= server.session.command.handle
-                        {
-                            server
-                                .handle_session_write_event(
-                                    handle,
-                                    app_context,
-                                )
-                                .await;
-                        } else if handle
-                            >= server.profile.current_profile.handle
-                            && handle <= server.profile.command.handle
-                        {
-                            server
-                                .handle_profile_write_event(
-                                    handle,
-                                    app_context,
-                                )
-                                .await;
-                        } else if handle >= server.mic.gain_db.handle
-                            && handle <= server.mic.command.handle
-                        {
-                            server
-                                .handle_mic_write_event(handle, app_context)
-                                .await;
-                        }
-                    }
-                    _ => {}
-                }
+                // Accept the event: sends read responses and commits
+                // written values to the attribute store.
                 match event.accept() {
                     Ok(reply) => reply.send().await,
                     Err(e) => warn!("[gatt] error sending response: {:?}", e),
+                }
+
+                // Process write handlers now that the value is in the store.
+                if let Some(handle) = write_handle {
+                    dfu_status = server
+                        .handle_dfu_write(
+                            handle,
+                            &mut dfu_target,
+                            &mut dfu_partition,
+                            conn,
+                            app_context,
+                            dfu_resources,
+                            &mut dfu_started,
+                        )
+                        .await;
+
+                    if handle >= server.ads.daisy_en.handle
+                        && handle <= server.ads.command.handle
+                    {
+                        server
+                            .handle_write_event(handle, app_context)
+                            .await;
+                    } else if handle >= server.session.recording_id.handle
+                        && handle <= server.session.command.handle
+                    {
+                        server
+                            .handle_session_write_event(
+                                handle,
+                                app_context,
+                            )
+                            .await;
+                    } else if handle
+                        >= server.profile.current_profile.handle
+                        && handle <= server.profile.command.handle
+                    {
+                        server
+                            .handle_profile_write_event(
+                                handle,
+                                app_context,
+                            )
+                            .await;
+                    } else if handle >= server.mic.gain_db.handle
+                        && handle <= server.mic.command.handle
+                    {
+                        server
+                            .handle_mic_write_event(handle, app_context)
+                            .await;
+                    }
                 }
 
                 // Handle DFU completion after sending the GATT response

@@ -142,6 +142,12 @@ pub struct AdsSample {
     pub lead_off_negative: u32,
     pub gpio: u32,
     pub data: Vec<i32>,
+    pub accel_x: Option<f32>,
+    pub accel_y: Option<f32>,
+    pub accel_z: Option<f32>,
+    pub gyro_x: Option<f32>,
+    pub gyro_y: Option<f32>,
+    pub gyro_z: Option<f32>,
 }
 
 #[derive(Serialize, Deserialize, Schema, Debug, PartialEq)]

@@ -1,6 +1,6 @@
 use crate::board::{
-    AdsResources, ExternalFlashResources, ImuResources, MicResources,
-    SdCardResources, Spi3BusResources, Twim1BusResources,
+    AdsResources, ExternalFlashResources, HapticResources, ImuResources,
+    MicResources, SdCardResources, Spi3BusResources, Twim1BusResources,
 };
 use ads1299::{Ads1299, AdsFrontend};
 use bus_manager::BusFactory;
@@ -88,6 +88,9 @@ pub type PoweredAdsFrontend<'a, 'b, MutexType> = AdsFrontend<
 
 pub type Imu<'a, 'b, MutexType> =
     Icm45605<I2cDevice<'a, MutexType, twim::Twim<'b>>, embassy_time::Delay>;
+
+pub type Haptic<'a, 'b, MutexType> =
+    drv260x::Drv260x<I2cDevice<'a, MutexType, twim::Twim<'b>>>;
 
 /// Represents a structure for an external flash configuration using the QSPI protocol.
 pub type ExternalFlash<'d> = qspi::Qspi<'d>;
@@ -193,6 +196,15 @@ impl ImuResources {
     ) -> Icm45605<I2cDevice<'a, MutexType, twim::Twim<'b>>, embassy_time::Delay>
     {
         Icm45605::new(device, embassy_time::Delay)
+    }
+}
+
+impl HapticResources {
+    pub fn configure_with_device<'a, 'b, MutexType: RawMutex>(
+        &'a mut self,
+        device: I2cDevice<'a, MutexType, twim::Twim<'b>>,
+    ) -> Haptic<'a, 'b, MutexType> {
+        drv260x::Drv260x::new(device)
     }
 }
 

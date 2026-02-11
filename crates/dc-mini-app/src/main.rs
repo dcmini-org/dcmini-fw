@@ -270,6 +270,7 @@ async fn main(spawner: Spawner) {
     let imu_manager =
         ImuManager::new(i2c_bus_manager, imu_resources, app_context);
     let apds_manager = ApdsManager::new(i2c_bus_manager, app_context);
+    let haptic_manager = HapticManager::new(i2c_bus_manager, app_context);
     let mic_manager = MicManager::new(mic_resources, app_context);
     let session_manager = SessionManager::new(app_context, sd_card_resources);
 
@@ -284,6 +285,7 @@ async fn main(spawner: Spawner) {
         session_manager,
         imu_manager,
         mic_manager,
+        haptic_manager,
         power_manager,
     ));
 
@@ -327,15 +329,20 @@ async fn main(spawner: Spawner) {
     #[cfg(feature = "demo")]
     spawner.must_spawn(demo_task(sender));
 
-    for _ in 0..10 {
-        Timer::after_secs(10).await;
-        match npm1300.measure_ntc().await {
-            Ok(temp) => {
-                info!("NPM1300 NTC meaurement = {:?} degrees Celsius", temp);
-            }
-            Err(e) => {
-                info!("Error making NTC measurment: {:?}", e);
-            }
-        }
+    {
+        let app_ctx = app_context.lock().await;
+        app_ctx.event_sender.send(ImuEvent::StartStream.into()).await;
+    }
+
+    loop {
+        Timer::after_secs(100).await;
+        // match npm1300.measure_ntc().await {
+        //     Ok(temp) => {
+        //         info!("NPM1300 NTC meaurement = {:?} degrees Celsius", temp);
+        //     }
+        //     Err(e) => {
+        //         info!("Error making NTC measurment: {:?}", e);
+        //     }
+        // }
     }
 }

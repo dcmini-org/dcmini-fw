@@ -44,6 +44,18 @@ struct PyAdsSample {
     pub gpio: u32,
     #[pyo3(get)]
     pub data: Vec<i32>,
+    #[pyo3(get)]
+    pub accel_x: Option<f32>,
+    #[pyo3(get)]
+    pub accel_y: Option<f32>,
+    #[pyo3(get)]
+    pub accel_z: Option<f32>,
+    #[pyo3(get)]
+    pub gyro_x: Option<f32>,
+    #[pyo3(get)]
+    pub gyro_y: Option<f32>,
+    #[pyo3(get)]
+    pub gyro_z: Option<f32>,
 }
 
 impl From<AdsSample> for PyAdsSample {
@@ -53,6 +65,12 @@ impl From<AdsSample> for PyAdsSample {
             lead_off_negative: sample.lead_off_negative,
             gpio: sample.gpio,
             data: sample.data,
+            accel_x: sample.accel_x,
+            accel_y: sample.accel_y,
+            accel_z: sample.accel_z,
+            gyro_x: sample.gyro_x,
+            gyro_y: sample.gyro_y,
+            gyro_z: sample.gyro_z,
         }
     }
 }
@@ -90,6 +108,12 @@ impl From<AdsDataFrame> for PyAdsDataFrame {
                     lead_off_negative: sample.lead_off_negative,
                     gpio: sample.gpio,
                     data: sample.data.clone(),
+                    accel_x: sample.accel_x,
+                    accel_y: sample.accel_y,
+                    accel_z: sample.accel_z,
+                    gyro_x: sample.gyro_x,
+                    gyro_y: sample.gyro_y,
+                    gyro_z: sample.gyro_z,
                 }
             })
             .collect();

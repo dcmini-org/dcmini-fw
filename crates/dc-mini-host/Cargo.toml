@@ -13,6 +13,9 @@ postcard-schema = { version = "0.2", features = ["derive", "use-std"] }
 tokio = { version = "1.37.0", features = ["rt-multi-thread", "macros", "time"] }
 rerun = { version = "0.29", default-features = false, features = ["native_viewer", "sdk", "server"] }
 bluest = "0.6"
+# Workaround: objc2-foundation's NSUUID encoding is declared as [16C] but
+# the runtime's __NSConcreteUUID reports '*'. See https://github.com/madsmtm/objc2/issues/671
+objc2 = { version = "0.6", features = ["disable-encoding-assertions"] }
 postcard = "1.1"
 futures-lite = "2.6"
 tracing = "0.1"

@@ -1,5 +1,6 @@
 use crate::tasks::ads::events::AdsEvent;
 use crate::tasks::apds::events::ApdsEvent;
+use crate::tasks::haptic::events::HapticEvent;
 use crate::tasks::mic::events::MicEvent;
 use crate::tasks::session::events::SessionEvent;
 use crate::{prelude::*, todo};
@@ -33,6 +34,7 @@ pub enum Event {
     TimerElapsed,
     ImuEvent(ImuEvent),
     MicEvent(MicEvent),
+    HapticEvent(HapticEvent),
     PowerEvent(PowerEvent),
     DfuEvent(DfuEvent),
 }
@@ -45,6 +47,7 @@ pub async fn orchestrate(
     mut session_manager: SessionManager,
     imu_manager: ImuManager,
     mic_manager: MicManager,
+    haptic_manager: HapticManager,
     mut power_manager: PowerManager,
 ) {
     power_manager.handle_event(PowerEvent::Enable).await;
@@ -68,6 +71,7 @@ pub async fn orchestrate(
             Event::TimerElapsed => todo!(),
             Event::ImuEvent(e) => imu_manager.handle_event(e).await,
             Event::MicEvent(e) => mic_manager.handle_event(e).await,
+            Event::HapticEvent(e) => haptic_manager.handle_event(e).await,
             Event::PowerEvent(e) => {
                 power_manager.handle_event(e).await;
             }

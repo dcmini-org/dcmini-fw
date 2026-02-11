@@ -74,6 +74,10 @@ npm1300 = { git = "https://github.com/pperanich/npm1300-rs", branch = "add-ldsw-
 apds9253 = { git = "https://github.com/pperanich/apds9253-rs", branch = "main", default-features = false, features = [
   "async",
 ] }
+drv260x = { git = "https://github.com/pperanich/drv260x-rs", branch = "main", features = [
+  "drv2605l",
+  "async",
+] }
 
 
 nrf-dfu-target = { version = "0.3", default-features = false }
@@ -87,8 +91,8 @@ nrf-mpsl = { version = "0.3", default-features = false, features = [
 ] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 # BLE dependencies
-bt-hci = { version = "0.7", default-features = false }
-trouble-host = { version = "0.5", features = ["gatt", "derive", "peripheral"] }
+bt-hci = { version = "0.8", default-features = false }
+trouble-host = { version = "0.6", features = ["gatt", "derive", "peripheral"] }
 syn = "2.0"
 quote = "1.0"
 

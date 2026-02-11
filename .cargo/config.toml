@@ -1,5 +1,6 @@
 [env]
 DEFMT_LOG = "trace"
+TROUBLE_HOST_DEFAULT_PACKET_POOL_MTU = "251"
 
 [alias]
 xrun = "run --quiet --package xtask -- run"
