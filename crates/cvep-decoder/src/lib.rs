@@ -8,6 +8,8 @@
 //! mean-centering.
 
 mod banks;
+mod cca_accumulator;
+mod cca_update_policy;
 mod cumulative_cca;
 mod cumulative_umm;
 mod decoder;
@@ -21,6 +23,8 @@ mod urcca;
 pub use banks::{
     EtRcaBank, ProjectedCorrelationBank, RccaBank, UmmCodebook, UrCcaBank,
 };
+pub use cca_accumulator::CcaDecisionAccumulator;
+pub use cca_update_policy::CumulativeCcaUpdatePolicy;
 pub use cumulative_cca::{CumulativeCcaDecoder, CumulativeCcaStateSnapshot};
 pub use cumulative_umm::{
     CumulativeUmmDecoder, CumulativeUmmStateSnapshot, UmmConfidenceModel,
@@ -58,7 +62,8 @@ mod tests {
         let mut idx = 0;
         while idx < WINDOW {
             let t = bank.templates()[0][idx];
-            decoder.push([((t * 64.0) as i32) + 900, ((t * 16.0) as i32) - 200]);
+            decoder
+                .push([((t * 64.0) as i32) + 900, ((t * 16.0) as i32) - 200]);
             idx += 1;
         }
 
@@ -81,7 +86,10 @@ mod tests {
         let mut idx = 0;
         while idx < WINDOW {
             let t = bank.templates()[1][idx];
-            decoder.push([((t * 28.0) as i32) - 300, ((t * -56.0) as i32) + 1200]);
+            decoder.push([
+                ((t * 28.0) as i32) - 300,
+                ((t * -56.0) as i32) + 1200,
+            ]);
             idx += 1;
         }
 
@@ -91,7 +99,8 @@ mod tests {
 
     #[test]
     fn preprocessing_identity_section_passes_signal() {
-        let identity = SosCascade::<1>::from_scipy_rows([[1.0, 0.0, 0.0, 1.0, 0.0, 0.0]]);
+        let identity =
+            SosCascade::<1>::from_scipy_rows([[1.0, 0.0, 0.0, 1.0, 0.0, 0.0]]);
         let mut filter = ChannelPreprocessor::<2, 1>::shared(identity);
         let out0 = filter.process_frame([1.25, -0.5]);
         let out1 = filter.process_frame([2.0, 3.5]);
@@ -101,8 +110,10 @@ mod tests {
 
     #[test]
     fn preprocessing_keeps_channel_state_separate() {
-        let leaky = SosSection::from_scipy_row([0.5, 0.0, 0.0, 1.0, -0.5, 0.0]);
-        let mut filter = ChannelPreprocessor::<2, 1>::shared(SosCascade::new([leaky]));
+        let leaky =
+            SosSection::from_scipy_row([0.5, 0.0, 0.0, 1.0, -0.5, 0.0]);
+        let mut filter =
+            ChannelPreprocessor::<2, 1>::shared(SosCascade::new([leaky]));
         let first = filter.process_frame([2.0, 0.0]);
         let second = filter.process_frame([0.0, 4.0]);
         assert_eq!(first[0], 1.0);

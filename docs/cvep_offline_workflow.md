@@ -210,6 +210,60 @@ The exporters:
 - reports holdout accuracy for both PyntBCI's predictor and an exact projected
   correlation reimplementation.
 
+## CCA Benchmark And Sliding Windows
+
+The zero-training CCA path now has a dedicated benchmark flow separate from the
+projected-correlation bank exporters.
+
+Benchmark Python reference CCA against the Rust CCA runtime:
+
+```bash
+uv run --script crates/cvep-decoder/scripts/benchmark_cca_vs_rust.py \
+  --datasets Thielen2021 \
+  --subjects 1 \
+  --fold-index 0 \
+  --target-fs 180 250 \
+  --window-step-seconds 0.25 \
+  --algorithms instantaneous_cca cumulative_cca
+```
+
+This path:
+
+- reuses the same raw dataset loader and chronological fold splits as
+  [benchmark_pyntbci_vs_rust.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/scripts/benchmark_pyntbci_vs_rust.py)
+- uses PyntBCI `urCCA` behavior as the host-side reference for both
+  instantaneous and cumulative CCA
+- exports a Rust fixture containing full encodings, float trials, and quantized
+  integer trials
+- compares Python reference accuracy against both the Rust exact float path and
+  the Rust fixed integer path
+- writes JSON, CSV, and HTML outputs under
+  [crates/cvep-decoder/data](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data)
+
+Benchmark repeated short-window CCA with within-trial score accumulation:
+
+```bash
+uv run --script crates/cvep-decoder/scripts/benchmark_cca_sliding_windows.py \
+  --datasets Thielen2021 \
+  --subjects 1 \
+  --fold-index 0 \
+  --target-fs 250 \
+  --window-seconds-grid 1.0 4.0 \
+  --step-seconds 0.5
+```
+
+This sliding-window path:
+
+- evaluates causal repeated inference over fixed windows
+- realigns the CCA encoding bank to the window start within the trial
+- reports both:
+  - `instantaneous_window`
+  - `instantaneous_accumulated`
+- treats score accumulation as a within-trial evidence combination rule rather
+  than as cumulative cross-trial adaptation
+- writes JSON, CSV, and HTML summaries under
+  [crates/cvep-decoder/data](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data)
+
 ## UMM Export And Benchmark
 
 The UMM path uses host-side epoch-feature extraction rather than projected

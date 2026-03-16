@@ -31,3 +31,8 @@ required-features = ["host-tools"]
 name = "umm_benchmark"
 path = "src/bin/umm_benchmark.rs"
 required-features = ["host-tools"]
+
+[[bin]]
+name = "cca_benchmark"
+path = "src/bin/cca_benchmark.rs"
+required-features = ["host-tools"]
