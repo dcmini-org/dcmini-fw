@@ -7,6 +7,7 @@ members = [
   "crates/dc-mini-icd",
   "crates/dc-mini-host",
   "crates/dc-mini-host-py",
+  "crates/dc-mini-host-unity",
   "crates/ws2812-nrf-pwm",
   "crates/spk0838-pdm",
   "crates/xtask",
