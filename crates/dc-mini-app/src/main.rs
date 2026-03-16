@@ -270,6 +270,8 @@ async fn main(spawner: Spawner) {
     let imu_manager =
         ImuManager::new(i2c_bus_manager, imu_resources, app_context);
     let apds_manager = ApdsManager::new(i2c_bus_manager, app_context);
+    #[cfg(feature = "cvep")]
+    let cvep_manager = CvepManager::new(app_context);
     let haptic_manager = HapticManager::new(i2c_bus_manager, app_context);
     let mic_manager = MicManager::new(mic_resources, app_context);
     let session_manager = SessionManager::new(app_context, sd_card_resources);
@@ -282,6 +284,8 @@ async fn main(spawner: Spawner) {
         receiver,
         ads_manager.clone(),
         apds_manager,
+        #[cfg(feature = "cvep")]
+        cvep_manager,
         session_manager,
         imu_manager,
         mic_manager,

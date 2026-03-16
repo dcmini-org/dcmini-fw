@@ -1,0 +1,33 @@
+[package]
+name = "cvep-decoder"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = []
+host-tools = ["dep:serde", "dep:serde_json"]
+
+[dependencies]
+libm = "0.2"
+serde = { workspace = true, optional = true }
+serde_json = { version = "1", optional = true }
+
+[[bin]]
+name = "projected_correlation_benchmark"
+path = "src/bin/projected_correlation_benchmark.rs"
+required-features = ["host-tools"]
+
+[[bin]]
+name = "preprocessing_fixture"
+path = "src/bin/preprocessing_fixture.rs"
+required-features = ["host-tools"]
+
+[[bin]]
+name = "umm_benchmark"
+path = "src/bin/umm_benchmark.rs"
+required-features = ["host-tools"]

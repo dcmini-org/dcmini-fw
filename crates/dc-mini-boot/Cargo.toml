@@ -24,6 +24,7 @@ usb = []
 alloc = []
 critical-section = []
 demo = []
+cvep = []
 # Hardware revision of board.
 sr6 = ["dc-mini-bsp/sr6"]
 

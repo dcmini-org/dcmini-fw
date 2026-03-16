@@ -67,6 +67,9 @@ pub use mic::*;
 mod apds;
 pub use apds::*;
 
+mod cvep;
+pub use cvep::*;
+
 // Constants
 pub const MAX_PROFILES: u8 = 16;
 pub const MAX_ID_LEN: usize = 4;
@@ -184,6 +187,11 @@ endpoints! {
     | SessionSetIdEndpoint      | SessionId         | bool                  | "session/set_id"  |
     | SessionStartEndpoint      | ()                | bool                  | "session/start"   |
     | SessionStopEndpoint       | ()                | bool                  | "session/stop"    |
+    // CVEP endpoints
+    | CvepStartEndpoint         | ()                | CvepConfig            | "cvep/start"      |
+    | CvepStopEndpoint          | ()                | bool                  | "cvep/stop"       |
+    | CvepGetStatusEndpoint     | ()                | bool                  | "cvep/status"     |
+    | CvepGetConfigEndpoint     | ()                | CvepConfig            | "cvep/config"     |
     // DFU endpoints
     | DfuBeginEndpoint          | DfuBegin          | DfuResult             | "dfu/begin"       |
     | DfuWriteEndpoint          | DfuWriteChunk     | DfuResult             | "dfu/write"       |
@@ -206,4 +214,5 @@ topics! {
     | -------                   | ---------     | ----              | ---                           |
     | AdsTopic                  | AdsDataFrame  | "ads/data"        |                               |
     | MicTopic                  | MicDataFrame  | "mic/data"        |                               |
+    | CvepTopic                 | CvepDecision  | "cvep/decision"   |                               |
 }

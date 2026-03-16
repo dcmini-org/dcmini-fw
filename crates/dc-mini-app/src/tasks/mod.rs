@@ -10,6 +10,8 @@ use embassy_time::Instant;
 pub mod ads;
 pub mod apds;
 pub mod blinky;
+#[cfg(feature = "cvep")]
+pub mod cvep;
 pub mod dfu;
 pub mod haptic;
 pub mod imu;
@@ -31,6 +33,8 @@ pub use apds::*;
 #[cfg(feature = "trouble")]
 pub use ble::*;
 pub use blinky::*;
+#[cfg(feature = "cvep")]
+pub use cvep::*;
 #[cfg(feature = "demo")]
 pub use demo::*;
 pub use haptic::*;

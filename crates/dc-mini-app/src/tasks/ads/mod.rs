@@ -27,7 +27,7 @@ pub(self) static ADS_PWDN_SIG: Signal<CriticalSectionRawMutex, ()> =
     Signal::new();
 
 pub const ADS_CAP: usize = 100;
-pub const ADS_SUBS: usize = 3;
+pub const ADS_SUBS: usize = 4;
 pub type MutexType = CriticalSectionRawMutex;
 pub type AdsCh<T> =
     PubSubChannel<CriticalSectionRawMutex, T, ADS_CAP, ADS_SUBS, 1>;

@@ -10,8 +10,9 @@ use futures::pin_mut;
 use smart_leds::colors;
 
 async fn log_ads_for_seconds(seconds: u64) {
-    let mut sub =
-        ADS_MEAS_CH.subscriber().expect("Failed to create ADS demo subscriber");
+    let mut sub = ADS_MEAS_CH
+        .subscriber()
+        .expect("Failed to create ADS demo subscriber");
 
     for _ in 0..seconds {
         let tick = Timer::after_secs(1);
@@ -58,12 +59,7 @@ async fn log_imu_for_seconds(seconds: u64) {
             let gz_mdps = (data.gyro_z * 1000.0) as i32;
             info!(
                 "[Demo][IMU] accel_mg=({},{},{}), gyro_mdps=({},{},{})",
-                ax_mg,
-                ay_mg,
-                az_mg,
-                gx_mdps,
-                gy_mdps,
-                gz_mdps
+                ax_mg, ay_mg, az_mg, gx_mdps, gy_mdps, gz_mdps
             );
         } else {
             warn!("[Demo][IMU] no data in last second");
@@ -78,12 +74,7 @@ async fn log_apds_for_seconds(seconds: u64) {
             let lux_milli = (data.lux * 1000.0) as i32;
             info!(
                 "[Demo][APDS] r={}, g={}, b={}, ir={}, cct={}, lux_milli={}",
-                data.red,
-                data.green,
-                data.blue,
-                data.ir,
-                data.cct,
-                lux_milli
+                data.red, data.green, data.blue, data.ir, data.cct, lux_milli
             );
         } else {
             warn!("[Demo][APDS] no data in last second");
@@ -92,8 +83,9 @@ async fn log_apds_for_seconds(seconds: u64) {
 }
 
 async fn log_mic_for_seconds(seconds: u64) {
-    let mut sub =
-        MIC_STREAM_CH.subscriber().expect("Failed to create mic demo subscriber");
+    let mut sub = MIC_STREAM_CH
+        .subscriber()
+        .expect("Failed to create mic demo subscriber");
 
     for _ in 0..seconds {
         let tick = Timer::after_secs(1);
@@ -185,9 +177,7 @@ pub async fn demo_task(sender: EventSender) {
     ] {
         info!("[Demo][Haptic] Playing {}", name);
         sender
-            .send(
-                HapticEvent::Play(HapticCommand::PlayEffect(effect)).into(),
-            )
+            .send(HapticEvent::Play(HapticCommand::PlayEffect(effect)).into())
             .await;
         Timer::after_millis(1500).await;
     }
@@ -201,9 +191,7 @@ pub async fn demo_task(sender: EventSender) {
     let _ = seq.push(WaveformEntry::from(Effect::PulsingStrong1_100));
     let _ = seq.push(WaveformEntry::stop());
     sender
-        .send(
-            HapticEvent::Play(HapticCommand::PlaySequence(seq)).into(),
-        )
+        .send(HapticEvent::Play(HapticCommand::PlaySequence(seq)).into())
         .await;
     Timer::after_secs(3).await;
 

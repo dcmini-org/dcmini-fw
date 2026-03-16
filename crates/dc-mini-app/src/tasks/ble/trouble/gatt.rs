@@ -543,27 +543,18 @@ pub async fn gatt_server_task<P: PacketPool>(
                     if handle >= server.ads.daisy_en.handle
                         && handle <= server.ads.command.handle
                     {
-                        server
-                            .handle_write_event(handle, app_context)
-                            .await;
+                        server.handle_write_event(handle, app_context).await;
                     } else if handle >= server.session.recording_id.handle
                         && handle <= server.session.command.handle
                     {
                         server
-                            .handle_session_write_event(
-                                handle,
-                                app_context,
-                            )
+                            .handle_session_write_event(handle, app_context)
                             .await;
-                    } else if handle
-                        >= server.profile.current_profile.handle
+                    } else if handle >= server.profile.current_profile.handle
                         && handle <= server.profile.command.handle
                     {
                         server
-                            .handle_profile_write_event(
-                                handle,
-                                app_context,
-                            )
+                            .handle_profile_write_event(handle, app_context)
                             .await;
                     } else if handle >= server.mic.gain_db.handle
                         && handle <= server.mic.command.handle

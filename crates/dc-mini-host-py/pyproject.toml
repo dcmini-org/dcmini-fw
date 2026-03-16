@@ -16,5 +16,6 @@ dependencies = [
     "numpy>=1.24.4",
     "rerun-sdk>=0.22.1",
 ]
+
 [tool.maturin]
 features = ["pyo3/extension-module"]

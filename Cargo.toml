@@ -3,6 +3,7 @@ members = [
   "crates/dc-mini-app",
   "crates/dc-mini-boot",
   "crates/dc-mini-bsp",
+  "crates/cvep-decoder",
   "crates/dc-mini-icd",
   "crates/dc-mini-host",
   "crates/dc-mini-host-py",
@@ -97,7 +98,7 @@ syn = "2.0"
 quote = "1.0"
 
 postcard = { version = "1", features = ["alloc"] }
-postcard-rpc = { version = "0.12", features = ["embassy-usb-0_5-server"] }
+postcard-rpc = { version = "0.12" }
 postcard-schema = { version = "0.2", features = [
   "derive",
   "alloc",

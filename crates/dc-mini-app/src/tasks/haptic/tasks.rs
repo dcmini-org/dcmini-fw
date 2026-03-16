@@ -29,7 +29,8 @@ pub async fn haptic_task(bus_manager: &'static I2cBusManager) {
 
         match cmd {
             Some(HapticCommand::PlayEffect(effect)) => {
-                if let Err(e) = haptic.set_single_effect_enum_async(effect).await
+                if let Err(e) =
+                    haptic.set_single_effect_enum_async(effect).await
                 {
                     error!("Failed to set haptic effect: {:?}", e);
                     continue;

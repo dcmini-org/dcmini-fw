@@ -3,7 +3,8 @@ use embassy_nrf::pdm::{Frequency, Ratio};
 use fixed::types::I7F1;
 
 // SELECT is tied to ground on this board revision.
-pub const DEFAULT_MIC_CHANNEL: spk0838_pdm::Channel = spk0838_pdm::Channel::Left;
+pub const DEFAULT_MIC_CHANNEL: spk0838_pdm::Channel =
+    spk0838_pdm::Channel::Left;
 
 /// Convert an ICD `MicConfig` into the SPK0838 driver `Config`.
 pub fn to_driver_config(config: &MicConfig) -> spk0838_pdm::Config {

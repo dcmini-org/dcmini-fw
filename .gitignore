@@ -60,6 +60,7 @@ __pycache__/
 
 dc_mini_metadata.json
 .rustc_info.json
+rustc-ice-*.txt
 *.edf
 *.dat
-
+crates/cvep-decoder/data/

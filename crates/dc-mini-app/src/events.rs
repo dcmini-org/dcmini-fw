@@ -1,5 +1,7 @@
 use crate::tasks::ads::events::AdsEvent;
 use crate::tasks::apds::events::ApdsEvent;
+#[cfg(feature = "cvep")]
+use crate::tasks::cvep::events::CvepEvent;
 use crate::tasks::haptic::events::HapticEvent;
 use crate::tasks::mic::events::MicEvent;
 use crate::tasks::session::events::SessionEvent;
@@ -29,6 +31,8 @@ pub enum DfuEvent {
 pub enum Event {
     AdsEvent(AdsEvent),
     ApdsEvent(ApdsEvent),
+    #[cfg(feature = "cvep")]
+    CvepEvent(CvepEvent),
     SessionEvent(SessionEvent),
     ButtonPress(ButtonPress),
     TimerElapsed,
@@ -44,6 +48,7 @@ pub async fn orchestrate(
     receiver: EventReceiver,
     ads_manager: AdsManager,
     apds_manager: ApdsManager,
+    #[cfg(feature = "cvep")] cvep_manager: CvepManager,
     mut session_manager: SessionManager,
     imu_manager: ImuManager,
     mic_manager: MicManager,
@@ -56,6 +61,8 @@ pub async fn orchestrate(
         match receiver.receive().await {
             Event::AdsEvent(e) => ads_manager.handle_event(e).await,
             Event::ApdsEvent(e) => apds_manager.handle_event(e).await,
+            #[cfg(feature = "cvep")]
+            Event::CvepEvent(e) => cvep_manager.handle_event(e).await,
             Event::SessionEvent(e) => session_manager.handle_event(e).await,
             Event::ButtonPress(e) => match e {
                 ButtonPress::Single => {} // Do nothing

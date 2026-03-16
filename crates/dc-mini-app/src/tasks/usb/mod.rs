@@ -22,6 +22,7 @@ use postcard_rpc::{
 
 mod ads;
 mod battery;
+mod cvep;
 mod device_info;
 mod dfu;
 mod mic;
@@ -30,6 +31,7 @@ mod session;
 
 use ads::*;
 use battery::*;
+use cvep::*;
 use device_info::*;
 use dfu::*;
 use mic::*;
@@ -90,6 +92,10 @@ define_dispatch! {
         | SessionSetIdEndpoint      | async     | session_set_id                |
         | SessionStartEndpoint      | async     | session_start                 |
         | SessionStopEndpoint       | async     | session_stop                  |
+        | CvepStartEndpoint         | spawn     | cvep_start_handler            |
+        | CvepStopEndpoint          | async     | cvep_stop_handler             |
+        | CvepGetStatusEndpoint     | async     | cvep_get_status               |
+        | CvepGetConfigEndpoint     | async     | cvep_get_config               |
         | DfuBeginEndpoint          | async     | dfu_begin                     |
         | DfuWriteEndpoint          | async     | dfu_write                     |
         | DfuFinishEndpoint         | async     | dfu_finish                    |
