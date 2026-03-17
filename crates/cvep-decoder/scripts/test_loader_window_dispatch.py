@@ -77,9 +77,11 @@ class LoaderWindowDispatchTest(unittest.TestCase):
             target_fs: int,
             trial_seconds: float | None = None,
             preprocessing=None,
+            thielen2021_source: str = "raw",
         ):
             del data_dir
             del preprocessing
+            del thielen2021_source
             calls.append((dataset, subject, target_fs, trial_seconds))
             return fake_subject_data(dataset, subject, trial_seconds or 31.5)
 
@@ -131,7 +133,6 @@ class LoaderWindowDispatchTest(unittest.TestCase):
             [
                 ("Thielen2021", 1, 250, 4.2),
                 ("Thielen2021", 1, 250, 8.4),
-                ("Thielen2021", 1, 250, 31.5),
                 ("Thielen2021", 1, 250, None),
             ],
         )
@@ -146,9 +147,11 @@ class LoaderWindowDispatchTest(unittest.TestCase):
             target_fs: int,
             trial_seconds: float | None = None,
             preprocessing=None,
+            thielen2021_source: str = "raw",
         ):
             del data_dir
             del preprocessing
+            del thielen2021_source
             calls.append((dataset, subject, target_fs, trial_seconds))
             return fake_subject_data(dataset, subject, trial_seconds or 31.5)
 

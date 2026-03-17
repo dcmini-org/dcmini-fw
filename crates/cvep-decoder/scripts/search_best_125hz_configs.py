@@ -58,6 +58,7 @@ def parse_args() -> argparse.Namespace:
         "--families", nargs="+", choices=["etrca", "cca"], default=["etrca", "cca"]
     )
     parser.add_argument("--search-limit", type=int, default=None)
+    parser.add_argument("--search-offset", type=int, default=0)
     return parser.parse_args()
 
 
@@ -232,6 +233,8 @@ def main() -> None:
     for family, script, search_space in families:
         if family not in args.families:
             continue
+        if args.search_offset:
+            search_space = search_space[args.search_offset :]
         if args.search_limit is not None:
             search_space = search_space[: args.search_limit]
         for idx, params in enumerate(search_space):
@@ -309,6 +312,7 @@ def main() -> None:
             "skip_rust": args.skip_rust,
             "families": args.families,
             "search_limit": args.search_limit,
+            "search_offset": args.search_offset,
         },
         "best": best,
         "trials": sorted(

@@ -114,6 +114,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--band-high", type=float, default=None)
     parser.add_argument("--notch-hz", type=float, default=None)
     parser.add_argument("--drop-first-seconds", type=float, default=None)
+    parser.add_argument(
+        "--thielen2021-source",
+        choices=["raw", "packaged"],
+        default="raw",
+    )
     parser.add_argument("--skip-rust", action="store_true")
     return parser.parse_args()
 
@@ -590,6 +595,7 @@ def main() -> None:
                                 target_fs,
                                 trial_seconds=load_seconds,
                                 preprocessing=preprocessing,
+                                thielen2021_source=args.thielen2021_source,
                             )
 
                         data = data_cache[cache_key]
@@ -631,6 +637,7 @@ def main() -> None:
         "cumulative_update_mode": args.cumulative_update_mode,
         "cumulative_min_margin": args.cumulative_min_margin,
         "skip_rust": args.skip_rust,
+        "thielen2021_source": args.thielen2021_source,
         "preprocessing": {
             "band_low": preprocessing.band_low,
             "band_high": preprocessing.band_high,

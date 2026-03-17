@@ -413,6 +413,12 @@ def parse_args() -> argparse.Namespace:
         help="Stimulus event string for rCCA.",
     )
     parser.add_argument(
+        "--thielen2021-source",
+        choices=["raw", "packaged"],
+        default="raw",
+        help="Source for Thielen2021 tensors when checking zero-training parity.",
+    )
+    parser.add_argument(
         "--band-low",
         type=float,
         default=None,
@@ -496,6 +502,9 @@ def decode_window_requests(
     if not filtered:
         raise ValueError("No valid window lengths remain after filtering")
 
+    if explicit is not None:
+        return sorted(filtered)
+
     if not any(
         math.isclose(value, full_trial_seconds, abs_tol=1e-9) for value in filtered
     ):
@@ -546,6 +555,7 @@ def load_subject(
     target_fs: int,
     trial_seconds: float | None = None,
     preprocessing: PreprocessingOptions | None = None,
+    thielen2021_source: str = "raw",
 ) -> SubjectData:
     if dataset == "Thielen2015":
         return load_thielen2015_subject(
@@ -558,6 +568,7 @@ def load_subject(
             target_fs,
             trial_seconds=trial_seconds,
             preprocessing=preprocessing,
+            source=thielen2021_source,
         )
     if dataset in CASTILLOS_PARADIGMS:
         return load_castillos_subject(
@@ -646,7 +657,12 @@ def load_thielen2021_subject(
     target_fs: int,
     trial_seconds: float | None = None,
     preprocessing: PreprocessingOptions | None = None,
+    source: str = "raw",
 ) -> SubjectData:
+    if source == "packaged":
+        return load_thielen2021_packaged_subject(subject, target_fs, trial_seconds)
+    if source != "raw":
+        raise ValueError(f"Unsupported Thielen2021 source {source}")
     root = data_dir / "MNE-thielen2021-data" / "dcc" / "DSC_2018.00122_448_v3"
     if trial_seconds is None:
         trial_seconds = trial_seconds_for_dataset("Thielen2021")
@@ -656,10 +672,7 @@ def load_thielen2021_subject(
 
     codes_path = root / "resources" / "mgold_61_6521_flip_balanced_20.mat"
     codes = loadmat(codes_path)["codes"]
-    presentation_samples = int(round(trial_seconds * THIELEN2021_PRESENTATION_RATE))
-    stimulus = np.tile(codes, (math.ceil(presentation_samples / codes.shape[0]), 1))[
-        :presentation_samples
-    ].T.astype(np.float64)
+    stimulus = np.asarray(codes.T, dtype=np.float64)
 
     for block_idx in range(1, THIELEN2021_BLOCKS + 1):
         block = f"block_{block_idx}"
@@ -733,6 +746,45 @@ def load_thielen2021_subject(
         cycle_size=codes.shape[0] / THIELEN2021_PRESENTATION_RATE,
         trial_seconds=trial_seconds,
         presentation_rate=THIELEN2021_PRESENTATION_RATE,
+    )
+
+
+def load_thielen2021_packaged_subject(
+    subject: int,
+    target_fs: int,
+    trial_seconds: float | None = None,
+) -> SubjectData:
+    if trial_seconds is None:
+        trial_seconds = trial_seconds_for_dataset("Thielen2021")
+
+    import pyntbci
+
+    if pyntbci.__file__ is None:
+        raise RuntimeError("pyntbci package path is unavailable")
+
+    packaged_path = (
+        Path(pyntbci.__file__).resolve().parent
+        / "data"
+        / f"thielen2021_sub-{subject:02d}.npz"
+    )
+    raw = np.load(packaged_path)
+    fs_raw = int(np.asarray(raw["fs"]).item())
+    n_samples = seconds_to_samples(trial_seconds, fs_raw)
+    x = np.asarray(raw["X"], dtype=np.float64)[:, :, :n_samples]
+    if target_fs != fs_raw:
+        x = resample_trials(x, fs_raw, target_fs)
+    y = np.asarray(raw["y"], dtype=np.int64)
+    stimulus = np.asarray(raw["V"], dtype=np.float64)
+    return SubjectData(
+        dataset="Thielen2021",
+        subject=subject,
+        x=x,
+        y=y,
+        fs=target_fs,
+        stimulus=stimulus,
+        cycle_size=2.1,
+        trial_seconds=trial_seconds,
+        presentation_rate=fs_raw,
     )
 
 
@@ -1164,6 +1216,15 @@ def benchmark_subject_fold_windows(
         fs=data.fs,
     )
 
+    etrca_model = None
+    if algorithm == "etrca":
+        etrca_model = fit_etrca(
+            x_train,
+            y_train,
+            data.fs,
+            effective_etrca_cycle_size(data.cycle_size, data.fs),
+        )
+
     rows: list[dict[str, Any]] = []
     for requested_window_seconds in window_requests_seconds:
         x_train_window, stimulus_window, window_info = (
@@ -1188,12 +1249,8 @@ def benchmark_subject_fold_windows(
         actual_window_seconds = float(window_info["effective_window_seconds"])
 
         if algorithm == "etrca":
-            model = fit_etrca(
-                x_train_window,
-                y_train,
-                data.fs,
-                effective_etrca_cycle_size(data.cycle_size, data.fs),
-            )
+            assert etrca_model is not None
+            model = etrca_model
         elif algorithm == "rcca":
             model = fit_rcca(
                 x_train_window,
@@ -1744,6 +1801,7 @@ def main() -> None:
                                 target_fs,
                                 trial_seconds=load_seconds,
                                 preprocessing=preprocessing,
+                                thielen2021_source=args.thielen2021_source,
                             )
                             loaded = data_cache[cache_key]
                             console.print(
@@ -1800,6 +1858,7 @@ def main() -> None:
                 "drop_first_seconds": preprocessing.drop_first_seconds,
             },
             "skip_rust": args.skip_rust,
+            "thielen2021_source": args.thielen2021_source,
         },
         "results": results,
     }

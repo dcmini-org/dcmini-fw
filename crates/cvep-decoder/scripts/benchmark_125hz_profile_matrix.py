@@ -74,10 +74,15 @@ def run_script(command: list[str]) -> dict[str, Any]:
     result = subprocess.run(
         command,
         cwd=WORKSPACE_ROOT,
-        check=True,
         capture_output=True,
         text=True,
     )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with code {result.returncode}\n"
+            f"stdout:\n{result.stdout}\n\n"
+            f"stderr:\n{result.stderr}"
+        )
     output_json = Path(command[command.index("--output-json") + 1])
     payload = json.loads(output_json.read_text(encoding="utf-8"))
     payload["stdout"] = result.stdout
@@ -275,25 +280,39 @@ def main() -> None:
         etrca_command = base_command(ETRCA_SCRIPT, profile, etrca_prefix, args)
         etrca_command.extend(["--algorithms", "etrca"])
         console.print(f"[cyan]matrix[/cyan] running {' '.join(etrca_command[2:8])} ...")
-        etrca_payload = run_script(etrca_command)
-        for row in etrca_payload["results"]:
-            row["script"] = "benchmark_pyntbci_vs_rust.py"
-            all_rows.append(row)
-        run_log.append(
-            {"profile": profile, "script": "etrca", "config": etrca_payload["config"]}
-        )
+        try:
+            etrca_payload = run_script(etrca_command)
+        except RuntimeError as exc:
+            run_log.append({"profile": profile, "script": "etrca", "error": str(exc)})
+            console.print(f"[yellow]matrix[/yellow] eTRCA failed for {profile}")
+        else:
+            for row in etrca_payload["results"]:
+                row["script"] = "benchmark_pyntbci_vs_rust.py"
+                all_rows.append(row)
+            run_log.append(
+                {
+                    "profile": profile,
+                    "script": "etrca",
+                    "config": etrca_payload["config"],
+                }
+            )
 
         cca_prefix = args.output_json.parent / f"matrix_cca_{profile}"
         cca_command = base_command(CCA_SCRIPT, profile, cca_prefix, args)
         cca_command.extend(["--algorithms", "instantaneous_cca", "cumulative_cca"])
         console.print(f"[cyan]matrix[/cyan] running {' '.join(cca_command[2:8])} ...")
-        cca_payload = run_script(cca_command)
-        for row in cca_payload["results"]:
-            row["script"] = "benchmark_cca_vs_rust.py"
-            all_rows.append(row)
-        run_log.append(
-            {"profile": profile, "script": "cca", "config": cca_payload["config"]}
-        )
+        try:
+            cca_payload = run_script(cca_command)
+        except RuntimeError as exc:
+            run_log.append({"profile": profile, "script": "cca", "error": str(exc)})
+            console.print(f"[yellow]matrix[/yellow] CCA failed for {profile}")
+        else:
+            for row in cca_payload["results"]:
+                row["script"] = "benchmark_cca_vs_rust.py"
+                all_rows.append(row)
+            run_log.append(
+                {"profile": profile, "script": "cca", "config": cca_payload["config"]}
+            )
 
     summary = grouped_summary(all_rows)
     payload = {
