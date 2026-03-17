@@ -21,12 +21,12 @@ pub struct InstantaneousCcaDecoder<
 }
 
 impl<
-    'a,
-    const CLASSES: usize,
-    const CHANNELS: usize,
-    const FEATURES: usize,
-    const WINDOW: usize,
-> InstantaneousCcaDecoder<'a, CLASSES, CHANNELS, FEATURES, WINDOW>
+        'a,
+        const CLASSES: usize,
+        const CHANNELS: usize,
+        const FEATURES: usize,
+        const WINDOW: usize,
+    > InstantaneousCcaDecoder<'a, CLASSES, CHANNELS, FEATURES, WINDOW>
 {
     pub const fn new(
         bank: UrCcaBank<'a, CLASSES, FEATURES, WINDOW>,
@@ -48,11 +48,7 @@ impl<
         let mut avg_x = [0.0; CHANNELS];
         let mut cov_x = [[0.0; CHANNELS]; CHANNELS];
         let n_new = update_running_cov_x_f32(
-            &state,
-            trial,
-            &x_obs,
-            &mut avg_x,
-            &mut cov_x,
+            &state, trial, &x_obs, &mut avg_x, &mut cov_x,
         );
 
         let mut scratch_avg_y = [0.0; FEATURES];
@@ -87,10 +83,7 @@ impl<
         scores
     }
 
-    pub fn observe_f32(
-        &self,
-        trial: &[[f32; WINDOW]; CHANNELS],
-    ) -> Decision {
+    pub fn observe_f32(&self, trial: &[[f32; WINDOW]; CHANNELS]) -> Decision {
         let scores = self.class_scores_f32(trial);
         let (best_class, best_score, runner_up) = best_two(&scores);
         Decision {
@@ -101,20 +94,13 @@ impl<
         }
     }
 
-    pub fn observe_i32(
-        &self,
-        trial: &[[i32; WINDOW]; CHANNELS],
-    ) -> Decision {
+    pub fn observe_i32(&self, trial: &[[i32; WINDOW]; CHANNELS]) -> Decision {
         let state = RunningCcaState::<CHANNELS, FEATURES>::default();
         let x_obs = observation_mean_i32(trial);
         let mut avg_x = [0.0; CHANNELS];
         let mut cov_x = [[0.0; CHANNELS]; CHANNELS];
         let n_new = update_running_cov_x_i32(
-            &state,
-            trial,
-            &x_obs,
-            &mut avg_x,
-            &mut cov_x,
+            &state, trial, &x_obs, &mut avg_x, &mut cov_x,
         );
 
         let mut trial_f32 = [[0.0; WINDOW]; CHANNELS];

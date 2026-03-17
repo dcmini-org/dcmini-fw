@@ -22,9 +22,10 @@ struct ResultPayload {
 
 fn main() {
     let path = parse_fixture_path();
-    let text = fs::read_to_string(&path).expect("failed to read preprocessing fixture");
-    let fixture: Fixture =
-        serde_json::from_str(&text).expect("failed to parse preprocessing fixture");
+    let text = fs::read_to_string(&path)
+        .expect("failed to read preprocessing fixture");
+    let fixture: Fixture = serde_json::from_str(&text)
+        .expect("failed to parse preprocessing fixture");
     let result = dispatch_fixture(&fixture);
     println!(
         "{}",
@@ -74,11 +75,13 @@ fn run_fixture<const CHANNELS: usize, const SECTIONS: usize>(
 
     let rows = fixture_rows_to_array::<SECTIONS>(&fixture.sos_rows);
     let cascade = SosCascade::<SECTIONS>::from_scipy_rows(rows);
-    let mut preprocessor = ChannelPreprocessor::<CHANNELS, SECTIONS>::shared(cascade);
+    let mut preprocessor =
+        ChannelPreprocessor::<CHANNELS, SECTIONS>::shared(cascade);
 
     let mut filtered = Vec::with_capacity(fixture.samples.len());
     for frame in &fixture.samples {
-        let out = preprocessor.process_frame(frame_to_array::<CHANNELS>(frame));
+        let out =
+            preprocessor.process_frame(frame_to_array::<CHANNELS>(frame));
         filtered.push(out.to_vec());
     }
 
@@ -90,7 +93,9 @@ fn run_fixture<const CHANNELS: usize, const SECTIONS: usize>(
     }
 }
 
-fn fixture_rows_to_array<const SECTIONS: usize>(rows: &[[f32; 6]]) -> [[f32; 6]; SECTIONS] {
+fn fixture_rows_to_array<const SECTIONS: usize>(
+    rows: &[[f32; 6]],
+) -> [[f32; 6]; SECTIONS] {
     let mut out = [[0.0; 6]; SECTIONS];
     for (idx, row) in rows.iter().enumerate() {
         assert!(idx < SECTIONS);

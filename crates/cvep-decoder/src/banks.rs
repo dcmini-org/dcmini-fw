@@ -56,10 +56,16 @@ impl<const CLASSES: usize, const CHANNELS: usize, const WINDOW: usize>
     }
 }
 
-pub type EtRcaBank<const CLASSES: usize, const CHANNELS: usize, const WINDOW: usize> =
-    ProjectedCorrelationBank<CLASSES, CHANNELS, WINDOW>;
-pub type RccaBank<const CLASSES: usize, const CHANNELS: usize, const WINDOW: usize> =
-    ProjectedCorrelationBank<CLASSES, CHANNELS, WINDOW>;
+pub type EtRcaBank<
+    const CLASSES: usize,
+    const CHANNELS: usize,
+    const WINDOW: usize,
+> = ProjectedCorrelationBank<CLASSES, CHANNELS, WINDOW>;
+pub type RccaBank<
+    const CLASSES: usize,
+    const CHANNELS: usize,
+    const WINDOW: usize,
+> = ProjectedCorrelationBank<CLASSES, CHANNELS, WINDOW>;
 
 /// Binary target / non-target labels over stimulus-locked epochs.
 ///

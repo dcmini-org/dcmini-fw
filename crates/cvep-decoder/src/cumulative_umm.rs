@@ -1,8 +1,8 @@
 use crate::banks::UmmCodebook;
 use crate::instantaneous_umm::{
     combine_covariance_summaries, combine_mean, covariance_with_structure,
-    epoch_summary_f32, epochs_i32_to_f32, mahalanobis_delta_score, partition_means,
-    UmmBlockStructure,
+    epoch_summary_f32, epochs_i32_to_f32, mahalanobis_delta_score,
+    partition_means, UmmBlockStructure,
 };
 use crate::types::Decision;
 
@@ -85,12 +85,8 @@ pub struct CumulativeUmmDecoder<
     confidence_model: UmmConfidenceModel,
 }
 
-impl<
-    'a,
-    const CLASSES: usize,
-    const FEATURES: usize,
-    const EPOCHS: usize,
-> CumulativeUmmDecoder<'a, CLASSES, FEATURES, EPOCHS>
+impl<'a, const CLASSES: usize, const FEATURES: usize, const EPOCHS: usize>
+    CumulativeUmmDecoder<'a, CLASSES, FEATURES, EPOCHS>
 {
     pub const fn new(
         codebook: UmmCodebook<'a, CLASSES, EPOCHS>,
@@ -179,8 +175,12 @@ impl<
         let mut class_idx = 0;
         while class_idx < CLASSES {
             let labels = &self.codebook.labels()[class_idx];
-            let Some((target_count, non_target_count, trial_target, trial_non_target)) =
-                partition_means(epochs, labels)
+            let Some((
+                target_count,
+                non_target_count,
+                trial_target,
+                trial_non_target,
+            )) = partition_means(epochs, labels)
             else {
                 scores[class_idx] = 0.0;
                 class_idx += 1;
@@ -203,16 +203,15 @@ impl<
             let mut delta = [0.0; FEATURES];
             let mut feature_idx = 0;
             while feature_idx < FEATURES {
-                delta[feature_idx] =
-                    combined_target[feature_idx] - combined_non_target[feature_idx];
+                delta[feature_idx] = combined_target[feature_idx]
+                    - combined_non_target[feature_idx];
                 feature_idx += 1;
             }
-            scores[class_idx] =
-                mahalanobis_delta_score(
-                    &delta,
-                    &structured_covariance,
-                    self.regularization,
-                );
+            scores[class_idx] = mahalanobis_delta_score(
+                &delta,
+                &structured_covariance,
+                self.regularization,
+            );
             class_idx += 1;
         }
 
@@ -224,8 +223,10 @@ impl<
         epochs: &[[f32; EPOCHS]; FEATURES],
     ) -> Decision {
         let scores = self.class_scores_f32(epochs);
-        let (decision, confidence) =
-            decision_and_confidence_from_scores(&scores, self.confidence_model);
+        let (decision, confidence) = decision_and_confidence_from_scores(
+            &scores,
+            self.confidence_model,
+        );
         self.update_state_f32(epochs, decision.class_index, confidence);
         decision
     }
@@ -249,8 +250,12 @@ impl<
 
         let (trial_mean, trial_cov) = epoch_summary_f32(epochs);
         let labels = &self.codebook.labels()[class_index];
-        let Some((target_count, non_target_count, trial_target, trial_non_target)) =
-            partition_means(epochs, labels)
+        let Some((
+            target_count,
+            non_target_count,
+            trial_target,
+            trial_non_target,
+        )) = partition_means(epochs, labels)
         else {
             return;
         };
@@ -262,14 +267,15 @@ impl<
         }
 
         let epoch_weight = confidence * EPOCHS as f32;
-        let (next_mean, next_cov, next_weight_sum) = combine_covariance_summaries(
-            &self.state.avg_epoch,
-            &self.state.covariance,
-            self.state.epoch_weight_sum,
-            &trial_mean,
-            &trial_cov,
-            epoch_weight,
-        );
+        let (next_mean, next_cov, next_weight_sum) =
+            combine_covariance_summaries(
+                &self.state.avg_epoch,
+                &self.state.covariance,
+                self.state.epoch_weight_sum,
+                &trial_mean,
+                &trial_cov,
+                epoch_weight,
+            );
         self.state.avg_epoch = next_mean;
         self.state.covariance = next_cov;
         self.state.epoch_weight_sum = next_weight_sum;
@@ -288,7 +294,8 @@ impl<
             &trial_non_target,
             confidence * non_target_count as f32,
         );
-        self.state.non_target_weight_sum += confidence * non_target_count as f32;
+        self.state.non_target_weight_sum +=
+            confidence * non_target_count as f32;
     }
 }
 
@@ -317,7 +324,8 @@ fn decision_and_confidence_from_scores<const CLASSES: usize>(
         normalized_score: best_score,
         margin: best_score - runner_up,
     };
-    let confidence = confidence_from_scores(best_score, runner_up, confidence_model);
+    let confidence =
+        confidence_from_scores(best_score, runner_up, confidence_model);
     (decision, confidence)
 }
 
@@ -356,14 +364,8 @@ mod tests {
         const EPOCHS: usize = 4;
 
         let labels = [[1, 0, 1, 0], [1, 1, 0, 0]];
-        let first = [
-            [4.0, 1.0, 5.0, 1.0],
-            [1.0, 2.0, 1.0, 2.0],
-        ];
-        let second = [
-            [3.0, 1.5, 4.0, 1.0],
-            [1.0, 2.0, 1.0, 2.0],
-        ];
+        let first = [[4.0, 1.0, 5.0, 1.0], [1.0, 2.0, 1.0, 2.0]];
+        let second = [[3.0, 1.5, 4.0, 1.0], [1.0, 2.0, 1.0, 2.0]];
 
         let codebook = UmmCodebook::<CLASSES, EPOCHS>::new(&labels);
         let mut decoder = CumulativeUmmDecoder::new(codebook, 1.0e-3);
@@ -385,10 +387,11 @@ mod tests {
     #[test]
     fn cumulative_umm_confidence_is_bounded() {
         let scores = [10.0, 9.0, 2.0];
-        let (_decision, confidence) = super::decision_and_confidence_from_scores(
-            &scores,
-            UmmConfidenceModel::InferredNormalizedMargin,
-        );
+        let (_decision, confidence) =
+            super::decision_and_confidence_from_scores(
+                &scores,
+                UmmConfidenceModel::InferredNormalizedMargin,
+            );
         assert!(confidence > 0.0);
         assert!(confidence <= 1.0);
     }
@@ -396,14 +399,16 @@ mod tests {
     #[test]
     fn cumulative_umm_supports_alternative_confidence_models() {
         let scores = [10.0, 9.0, 2.0];
-        let (_decision, normalized_margin) = super::decision_and_confidence_from_scores(
-            &scores,
-            UmmConfidenceModel::InferredNormalizedMargin,
-        );
-        let (_decision, margin_over_winner) = super::decision_and_confidence_from_scores(
-            &scores,
-            UmmConfidenceModel::MarginOverWinner,
-        );
+        let (_decision, normalized_margin) =
+            super::decision_and_confidence_from_scores(
+                &scores,
+                UmmConfidenceModel::InferredNormalizedMargin,
+            );
+        let (_decision, margin_over_winner) =
+            super::decision_and_confidence_from_scores(
+                &scores,
+                UmmConfidenceModel::MarginOverWinner,
+            );
         assert!(margin_over_winner >= normalized_margin);
         assert!(margin_over_winner <= 1.0);
     }

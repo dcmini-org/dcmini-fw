@@ -46,9 +46,10 @@ struct BenchmarkResult {
 
 fn main() {
     let path = parse_fixture_path();
-    let text = fs::read_to_string(&path).expect("failed to read UMM benchmark fixture");
-    let fixture: Fixture =
-        serde_json::from_str(&text).expect("failed to parse UMM benchmark fixture");
+    let text = fs::read_to_string(&path)
+        .expect("failed to read UMM benchmark fixture");
+    let fixture: Fixture = serde_json::from_str(&text)
+        .expect("failed to parse UMM benchmark fixture");
 
     let result = std::thread::Builder::new()
         .name("umm-benchmark".to_string())
@@ -87,26 +88,35 @@ macro_rules! try_dispatch_umm {
 }
 
 fn dispatch_fixture(fixture: &Fixture) -> BenchmarkResult {
-    try_dispatch_umm!(fixture, 20, 600, [
-        12, 27, 42, 57, 72, 87, 102, 117, 132, 147, 162, 177, 192, 207, 222,
-        237, 243, 246, 249, 252, 267, 282, 297, 312, 327, 342, 357, 372, 387,
-        402, 417, 432, 447, 462, 477, 492, 507, 522, 537, 552, 567, 582, 597,
-        612, 627, 642, 657, 672, 687, 702, 717, 732, 747, 762, 777, 792, 807,
-        822, 837, 852, 867, 882, 897, 912, 927, 942, 957, 972, 987, 1002, 1017,
-        1032, 1047, 1062, 1077, 1092, 1107, 1122, 1137, 1152, 1167, 1182, 1197,
-        1212, 1227, 1242, 1257, 1272, 1287, 1302, 1317, 1332, 1347, 1362, 1377,
-        1392, 1407, 1422, 1437, 1452, 1467, 1482, 1497, 1512, 1527, 1542, 1557,
-        1572, 1587, 1602, 1617, 1632, 1647, 1662, 1677, 1692, 1707, 1722, 1737,
-        1752, 1767, 1782, 1797, 1812, 1827, 1842, 1857, 1872, 1881, 1884, 1887,
-        1890
-    ]);
+    try_dispatch_umm!(
+        fixture,
+        20,
+        600,
+        [
+            12, 27, 42, 57, 72, 87, 102, 117, 132, 147, 162, 177, 192, 207,
+            222, 237, 243, 246, 249, 252, 267, 282, 297, 312, 327, 342, 357,
+            372, 387, 402, 417, 432, 447, 462, 477, 492, 507, 522, 537, 552,
+            567, 582, 597, 612, 627, 642, 657, 672, 687, 702, 717, 732, 747,
+            762, 777, 792, 807, 822, 837, 852, 867, 882, 897, 912, 927, 942,
+            957, 972, 987, 1002, 1017, 1032, 1047, 1062, 1077, 1092, 1107,
+            1122, 1137, 1152, 1167, 1182, 1197, 1212, 1227, 1242, 1257, 1272,
+            1287, 1302, 1317, 1332, 1347, 1362, 1377, 1392, 1407, 1422, 1437,
+            1452, 1467, 1482, 1497, 1512, 1527, 1542, 1557, 1572, 1587, 1602,
+            1617, 1632, 1647, 1662, 1677, 1692, 1707, 1722, 1737, 1752, 1767,
+            1782, 1797, 1812, 1827, 1842, 1857, 1872, 1881, 1884, 1887, 1890
+        ]
+    );
     panic!(
         "unsupported UMM benchmark shape classes={} features={} epochs={}",
         fixture.classes, fixture.feature_count, fixture.epochs_per_trial
     );
 }
 
-fn run_fixture<const CLASSES: usize, const FEATURES: usize, const EPOCHS: usize>(
+fn run_fixture<
+    const CLASSES: usize,
+    const FEATURES: usize,
+    const EPOCHS: usize,
+>(
     fixture: &Fixture,
 ) -> BenchmarkResult {
     validate_fixture::<CLASSES, FEATURES, EPOCHS>(fixture);
@@ -185,7 +195,11 @@ fn run_fixture<const CLASSES: usize, const FEATURES: usize, const EPOCHS: usize>
     }
 }
 
-fn validate_fixture<const CLASSES: usize, const FEATURES: usize, const EPOCHS: usize>(
+fn validate_fixture<
+    const CLASSES: usize,
+    const FEATURES: usize,
+    const EPOCHS: usize,
+>(
     fixture: &Fixture,
 ) {
     assert_eq!(fixture.classes, CLASSES);
@@ -193,7 +207,10 @@ fn validate_fixture<const CLASSES: usize, const FEATURES: usize, const EPOCHS: u
     assert_eq!(fixture.epochs_per_trial, EPOCHS);
     assert_eq!(fixture.channels * fixture.timepoints, FEATURES);
     assert_eq!(fixture.codebook.len(), CLASSES);
-    assert_eq!(fixture.benchmark_labels.len(), fixture.benchmark_predictions.len());
+    assert_eq!(
+        fixture.benchmark_labels.len(),
+        fixture.benchmark_predictions.len()
+    );
     assert_eq!(fixture.benchmark_labels.len(), fixture.features_f32.len());
     assert_eq!(fixture.benchmark_labels.len(), fixture.features_i32.len());
 }
@@ -204,17 +221,18 @@ fn block_structure(fixture: &Fixture) -> UmmBlockStructure {
             fixture.channels,
             fixture.timepoints,
         ),
-        "time_prime" => UmmBlockStructure::time_prime(
-            fixture.channels,
-            fixture.timepoints,
-        ),
+        "time_prime" => {
+            UmmBlockStructure::time_prime(fixture.channels, fixture.timepoints)
+        }
         other => panic!("unsupported UMM feature layout {other}"),
     }
 }
 
 fn parse_confidence_model(name: &str) -> UmmConfidenceModel {
     match name {
-        "inferred_normalized_margin" => UmmConfidenceModel::InferredNormalizedMargin,
+        "inferred_normalized_margin" => {
+            UmmConfidenceModel::InferredNormalizedMargin
+        }
         "margin_over_winner" => UmmConfidenceModel::MarginOverWinner,
         other => panic!("unsupported UMM confidence model {other}"),
     }
@@ -230,11 +248,13 @@ fn run_instantaneous_exact<
     covariance_structure: Option<UmmBlockStructure>,
 ) -> Vec<usize> {
     let decoder = match covariance_structure {
-        Some(structure) => InstantaneousUmmDecoder::new_tapered_block_toeplitz(
-            codebook,
-            fixture.regularization,
-            structure,
-        ),
+        Some(structure) => {
+            InstantaneousUmmDecoder::new_tapered_block_toeplitz(
+                codebook,
+                fixture.regularization,
+                structure,
+            )
+        }
         None => InstantaneousUmmDecoder::new(codebook, fixture.regularization),
     };
     let mut predictions = Vec::with_capacity(fixture.features_f32.len());
@@ -255,11 +275,13 @@ fn run_instantaneous_fixed<
     covariance_structure: Option<UmmBlockStructure>,
 ) -> Vec<usize> {
     let decoder = match covariance_structure {
-        Some(structure) => InstantaneousUmmDecoder::new_tapered_block_toeplitz(
-            codebook,
-            fixture.regularization,
-            structure,
-        ),
+        Some(structure) => {
+            InstantaneousUmmDecoder::new_tapered_block_toeplitz(
+                codebook,
+                fixture.regularization,
+                structure,
+            )
+        }
         None => InstantaneousUmmDecoder::new(codebook, fixture.regularization),
     };
     let mut predictions = Vec::with_capacity(fixture.features_i32.len());

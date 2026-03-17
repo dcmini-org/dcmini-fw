@@ -62,8 +62,10 @@ pub(crate) fn top_canonical_correlation<
 
     let left_whitened =
         solve_lower_left::<CHANNELS, FEATURES>(&chol_x, cov_xy);
-    let whitened =
-        solve_lower_right_transpose::<CHANNELS, FEATURES>(&left_whitened, &chol_y);
+    let whitened = solve_lower_right_transpose::<CHANNELS, FEATURES>(
+        &left_whitened,
+        &chol_y,
+    );
     let (u, v, sigma) = dominant_singular_vectors(&whitened);
     if sigma <= 0.0 {
         return 0.0;
@@ -94,18 +96,16 @@ fn projected_trial_correlation<
         let mut x_value = 0.0f32;
         let mut channel_idx = 0;
         while channel_idx < CHANNELS {
-            x_value +=
-                (trial_x[channel_idx][sample_idx] - avg_x[channel_idx])
-                    * wx[channel_idx];
+            x_value += (trial_x[channel_idx][sample_idx] - avg_x[channel_idx])
+                * wx[channel_idx];
             channel_idx += 1;
         }
 
         let mut y_value = 0.0f32;
         let mut feature_idx = 0;
         while feature_idx < FEATURES {
-            y_value +=
-                (trial_y[feature_idx][sample_idx] - avg_y[feature_idx])
-                    * wy[feature_idx];
+            y_value += (trial_y[feature_idx][sample_idx] - avg_y[feature_idx])
+                * wy[feature_idx];
             feature_idx += 1;
         }
 
@@ -125,18 +125,16 @@ fn projected_trial_correlation<
         let mut x_value = 0.0f32;
         let mut channel_idx = 0;
         while channel_idx < CHANNELS {
-            x_value +=
-                (trial_x[channel_idx][sample_idx] - avg_x[channel_idx])
-                    * wx[channel_idx];
+            x_value += (trial_x[channel_idx][sample_idx] - avg_x[channel_idx])
+                * wx[channel_idx];
             channel_idx += 1;
         }
 
         let mut y_value = 0.0f32;
         let mut feature_idx = 0;
         while feature_idx < FEATURES {
-            y_value +=
-                (trial_y[feature_idx][sample_idx] - avg_y[feature_idx])
-                    * wy[feature_idx];
+            y_value += (trial_y[feature_idx][sample_idx] - avg_y[feature_idx])
+                * wy[feature_idx];
             feature_idx += 1;
         }
 

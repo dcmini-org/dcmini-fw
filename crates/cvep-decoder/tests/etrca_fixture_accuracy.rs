@@ -24,13 +24,16 @@ struct Fixture {
 #[test]
 fn etrca_fixture_reports_exact_accuracy() {
     let Ok(path) = env::var("ETRCA_FIXTURE_JSON") else {
-        eprintln!("ETRCA_FIXTURE_JSON not set; skipping eTRCA fixture accuracy test");
+        eprintln!(
+            "ETRCA_FIXTURE_JSON not set; skipping eTRCA fixture accuracy test"
+        );
         return;
     };
 
-    let fixture_text = fs::read_to_string(path).expect("failed to read etrca fixture");
-    let fixture: Fixture =
-        serde_json::from_str(&fixture_text).expect("failed to parse etrca fixture");
+    let fixture_text =
+        fs::read_to_string(path).expect("failed to read etrca fixture");
+    let fixture: Fixture = serde_json::from_str(&fixture_text)
+        .expect("failed to parse etrca fixture");
 
     assert_eq!(fixture.classes, CLASSES);
     assert_eq!(fixture.channels, CHANNELS);
@@ -60,12 +63,16 @@ fn etrca_fixture_reports_exact_accuracy() {
             sample_idx += 1;
         }
 
-        exact_predictions.push(decoder.predict_etrca(&bank).unwrap().class_index);
+        exact_predictions
+            .push(decoder.predict_etrca(&bank).unwrap().class_index);
     }
 
-    let benchmark_accuracy =
-        class_accuracy(&fixture.benchmark_labels, &fixture.benchmark_predictions);
-    let exact_accuracy = class_accuracy(&fixture.benchmark_labels, &exact_predictions);
+    let benchmark_accuracy = class_accuracy(
+        &fixture.benchmark_labels,
+        &fixture.benchmark_predictions,
+    );
+    let exact_accuracy =
+        class_accuracy(&fixture.benchmark_labels, &exact_predictions);
     let exact_match_rate =
         class_accuracy(&fixture.benchmark_predictions, &exact_predictions);
     println!("benchmark_accuracy={benchmark_accuracy:.4}");
@@ -97,9 +104,7 @@ fn spatial_filters_to_array(
     out
 }
 
-fn templates_to_array(
-    templates: Vec<Vec<f32>>,
-) -> [[f32; WINDOW]; CLASSES] {
+fn templates_to_array(templates: Vec<Vec<f32>>) -> [[f32; WINDOW]; CLASSES] {
     let mut out = [[0.0; WINDOW]; CLASSES];
     for (class_idx, template) in templates.into_iter().enumerate() {
         assert!(class_idx < CLASSES);

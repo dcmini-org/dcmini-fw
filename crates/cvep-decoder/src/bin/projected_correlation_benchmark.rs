@@ -35,9 +35,10 @@ struct BenchmarkResult {
 
 fn main() {
     let path = parse_fixture_path();
-    let text = fs::read_to_string(&path).expect("failed to read benchmark fixture");
-    let fixture: Fixture =
-        serde_json::from_str(&text).expect("failed to parse benchmark fixture");
+    let text =
+        fs::read_to_string(&path).expect("failed to read benchmark fixture");
+    let fixture: Fixture = serde_json::from_str(&text)
+        .expect("failed to parse benchmark fixture");
 
     let result = dispatch_fixture(&fixture);
     println!(
@@ -71,61 +72,125 @@ macro_rules! try_dispatch_windows {
 }
 
 fn dispatch_fixture(fixture: &Fixture) -> BenchmarkResult {
-    try_dispatch_windows!(fixture, "etrca", run_etrca, 20, 8, [
-            31, 63, 94, 125, 156, 188, 219, 250, 281, 313, 315, 336, 344, 375, 406, 438, 469, 500, 531, 563, 594,
-            625, 656, 672, 688, 719, 750, 781, 813, 844, 875, 906, 938, 969, 1000, 1008, 1031, 1050, 1063, 1094,
-            1125, 1156, 1188, 1219, 1250, 1281, 1313, 1344, 1375, 1406, 1438, 1469, 1500, 1531, 1563, 1575, 1594,
-            1625, 1656, 1688, 1719, 1750, 1781, 1813, 1844, 1875, 1906, 1938, 1969, 2000, 2031, 2063, 2094, 2125,
-            2156, 2188, 2219, 2250, 2281, 2313, 2344, 2375, 2406, 2438, 2469, 2500, 2531, 2563, 2594, 2625, 2656,
-            2688, 2719, 2750, 2781, 2813, 2844, 2875, 2906, 2938, 2969, 3000, 3031, 3063, 3094, 3125, 3156, 3188,
-            3219, 3250, 3281, 3313, 3344, 3375, 3406, 3438, 3469, 3500, 3531, 3563, 3594, 3625, 3656, 3688, 3719,
-            3750, 3781, 3813, 3844, 3875, 3906, 3938, 4000, 4063, 4125, 4188, 4250, 4313, 4375, 4438, 4500, 4563,
-            4625, 4688, 4750, 4813, 4875, 4938, 5000, 5063, 5125, 5188, 5250, 5313, 5375, 5438, 5500, 5563, 5625,
-            5688, 5750, 5813, 5875, 5938, 6000, 6063, 6125, 6188, 6250, 6313, 6375, 6438, 6500, 6563, 6625, 6688,
-            6750, 6813, 6875, 6938, 7000, 7063, 7125, 7188, 7250, 7313, 7375, 7438, 7500, 7563, 7625, 7688, 7750,
+    try_dispatch_windows!(
+        fixture,
+        "etrca",
+        run_etrca,
+        20,
+        8,
+        [
+            31, 63, 94, 125, 156, 188, 219, 250, 281, 313, 315, 336, 344, 375,
+            406, 438, 469, 500, 531, 563, 594, 625, 656, 672, 688, 719, 750,
+            781, 813, 844, 875, 906, 938, 969, 1000, 1008, 1031, 1050, 1063,
+            1094, 1125, 1156, 1188, 1219, 1250, 1281, 1313, 1344, 1375, 1406,
+            1438, 1469, 1500, 1531, 1563, 1575, 1594, 1625, 1656, 1688, 1719,
+            1750, 1781, 1813, 1844, 1875, 1906, 1938, 1969, 2000, 2031, 2063,
+            2094, 2125, 2156, 2188, 2219, 2250, 2281, 2313, 2344, 2375, 2406,
+            2438, 2469, 2500, 2531, 2563, 2594, 2625, 2656, 2688, 2719, 2750,
+            2781, 2813, 2844, 2875, 2906, 2938, 2969, 3000, 3031, 3063, 3094,
+            3125, 3156, 3188, 3219, 3250, 3281, 3313, 3344, 3375, 3406, 3438,
+            3469, 3500, 3531, 3563, 3594, 3625, 3656, 3688, 3719, 3750, 3781,
+            3813, 3844, 3875, 3906, 3938, 4000, 4063, 4125, 4188, 4250, 4313,
+            4375, 4438, 4500, 4563, 4625, 4688, 4750, 4813, 4875, 4938, 5000,
+            5063, 5125, 5188, 5250, 5313, 5375, 5438, 5500, 5563, 5625, 5688,
+            5750, 5813, 5875, 5938, 6000, 6063, 6125, 6188, 6250, 6313, 6375,
+            6438, 6500, 6563, 6625, 6688, 6750, 6813, 6875, 6938, 7000, 7063,
+            7125, 7188, 7250, 7313, 7375, 7438, 7500, 7563, 7625, 7688, 7750,
             7813, 7875
-    ]);
-    try_dispatch_windows!(fixture, "etrca", run_etrca, 36, 64, [
-            31, 63, 94, 125, 156, 188, 219, 250, 281, 313, 315, 336, 344, 375, 406, 438, 469, 500, 525, 563, 625,
-            672, 688, 750, 813, 875, 938, 1000, 1008, 1050, 1575, 7875
-    ]);
-    try_dispatch_windows!(fixture, "etrca", run_etrca, 4, 32, [
-            31, 63, 94, 125, 156, 176, 188, 219, 250, 275, 313, 352, 375, 438, 500, 528, 550
-    ]);
-    try_dispatch_windows!(fixture, "rcca", run_rcca, 20, 8, [
-            31, 63, 94, 125, 156, 188, 219, 250, 281, 313, 315, 336, 344, 375, 406, 438, 469, 500, 531, 563, 594,
-            625, 656, 672, 688, 719, 750, 781, 813, 844, 875, 906, 938, 969, 1000, 1008, 1031, 1050, 1063, 1094,
-            1125, 1156, 1188, 1219, 1250, 1281, 1313, 1344, 1375, 1406, 1438, 1469, 1500, 1531, 1563, 1575, 1594,
-            1625, 1656, 1688, 1719, 1750, 1781, 1813, 1844, 1875, 1906, 1938, 1969, 2000, 2031, 2063, 2094, 2125,
-            2156, 2188, 2219, 2250, 2281, 2313, 2344, 2375, 2406, 2438, 2469, 2500, 2531, 2563, 2594, 2625, 2656,
-            2688, 2719, 2750, 2781, 2813, 2844, 2875, 2906, 2938, 2969, 3000, 3031, 3063, 3094, 3125, 3156, 3188,
-            3219, 3250, 3281, 3313, 3344, 3375, 3406, 3438, 3469, 3500, 3531, 3563, 3594, 3625, 3656, 3688, 3719,
-            3750, 3781, 3813, 3844, 3875, 3906, 3938, 4000, 4063, 4125, 4188, 4250, 4313, 4375, 4438, 4500, 4563,
-            4625, 4688, 4750, 4813, 4875, 4938, 5000, 5063, 5125, 5188, 5250, 5313, 5375, 5438, 5500, 5563, 5625,
-            5688, 5750, 5813, 5875, 5938, 6000, 6063, 6125, 6188, 6250, 6313, 6375, 6438, 6500, 6563, 6625, 6688,
-            6750, 6813, 6875, 6938, 7000, 7063, 7125, 7188, 7250, 7313, 7375, 7438, 7500, 7563, 7625, 7688, 7750,
+        ]
+    );
+    try_dispatch_windows!(
+        fixture,
+        "etrca",
+        run_etrca,
+        36,
+        64,
+        [
+            31, 63, 94, 125, 156, 188, 219, 250, 281, 313, 315, 336, 344, 375,
+            406, 438, 469, 500, 525, 563, 625, 672, 688, 750, 813, 875, 938,
+            1000, 1008, 1050, 1575, 7875
+        ]
+    );
+    try_dispatch_windows!(
+        fixture,
+        "etrca",
+        run_etrca,
+        4,
+        32,
+        [
+            31, 63, 94, 125, 156, 176, 188, 219, 250, 275, 313, 352, 375, 438,
+            500, 528, 550
+        ]
+    );
+    try_dispatch_windows!(
+        fixture,
+        "rcca",
+        run_rcca,
+        20,
+        8,
+        [
+            31, 63, 94, 125, 156, 188, 219, 250, 281, 313, 315, 336, 344, 375,
+            406, 438, 469, 500, 531, 563, 594, 625, 656, 672, 688, 719, 750,
+            781, 813, 844, 875, 906, 938, 969, 1000, 1008, 1031, 1050, 1063,
+            1094, 1125, 1156, 1188, 1219, 1250, 1281, 1313, 1344, 1375, 1406,
+            1438, 1469, 1500, 1531, 1563, 1575, 1594, 1625, 1656, 1688, 1719,
+            1750, 1781, 1813, 1844, 1875, 1906, 1938, 1969, 2000, 2031, 2063,
+            2094, 2125, 2156, 2188, 2219, 2250, 2281, 2313, 2344, 2375, 2406,
+            2438, 2469, 2500, 2531, 2563, 2594, 2625, 2656, 2688, 2719, 2750,
+            2781, 2813, 2844, 2875, 2906, 2938, 2969, 3000, 3031, 3063, 3094,
+            3125, 3156, 3188, 3219, 3250, 3281, 3313, 3344, 3375, 3406, 3438,
+            3469, 3500, 3531, 3563, 3594, 3625, 3656, 3688, 3719, 3750, 3781,
+            3813, 3844, 3875, 3906, 3938, 4000, 4063, 4125, 4188, 4250, 4313,
+            4375, 4438, 4500, 4563, 4625, 4688, 4750, 4813, 4875, 4938, 5000,
+            5063, 5125, 5188, 5250, 5313, 5375, 5438, 5500, 5563, 5625, 5688,
+            5750, 5813, 5875, 5938, 6000, 6063, 6125, 6188, 6250, 6313, 6375,
+            6438, 6500, 6563, 6625, 6688, 6750, 6813, 6875, 6938, 7000, 7063,
+            7125, 7188, 7250, 7313, 7375, 7438, 7500, 7563, 7625, 7688, 7750,
             7813, 7875
-    ]);
-    try_dispatch_windows!(fixture, "rcca", run_rcca, 36, 64, [
-            31, 63, 94, 125, 156, 188, 219, 250, 281, 313, 315, 336, 344, 375, 406, 438, 469, 500, 525, 563, 625,
-            672, 688, 750, 813, 875, 938, 1000, 1008, 1050, 1575, 7875
-    ]);
-    try_dispatch_windows!(fixture, "rcca", run_rcca, 4, 32, [
-            31, 63, 94, 125, 156, 176, 188, 219, 250, 275, 313, 352, 375, 438, 500, 528, 550
-    ]);
+        ]
+    );
+    try_dispatch_windows!(
+        fixture,
+        "rcca",
+        run_rcca,
+        36,
+        64,
+        [
+            31, 63, 94, 125, 156, 188, 219, 250, 281, 313, 315, 336, 344, 375,
+            406, 438, 469, 500, 525, 563, 625, 672, 688, 750, 813, 875, 938,
+            1000, 1008, 1050, 1575, 7875
+        ]
+    );
+    try_dispatch_windows!(
+        fixture,
+        "rcca",
+        run_rcca,
+        4,
+        32,
+        [
+            31, 63, 94, 125, 156, 176, 188, 219, 250, 275, 313, 352, 375, 438,
+            500, 528, 550
+        ]
+    );
     panic!(
         "unsupported benchmark shape algorithm={} classes={} channels={} window={}",
         fixture.algorithm, fixture.classes, fixture.channels, fixture.window
     )
 }
 
-fn run_etrca<const CLASSES: usize, const CHANNELS: usize, const WINDOW: usize>(
+fn run_etrca<
+    const CLASSES: usize,
+    const CHANNELS: usize,
+    const WINDOW: usize,
+>(
     fixture: &Fixture,
 ) -> BenchmarkResult {
     validate_fixture::<CLASSES, CHANNELS, WINDOW>(fixture);
 
     let bank = EtRcaBank::new(
-        spatial_filters_to_array::<CLASSES, CHANNELS>(&fixture.spatial_filters),
+        spatial_filters_to_array::<CLASSES, CHANNELS>(
+            &fixture.spatial_filters,
+        ),
         templates_to_array::<CLASSES, WINDOW>(&fixture.projected_templates),
     );
     let mut exact_predictions = Vec::with_capacity(fixture.trials_i32.len());
@@ -134,7 +199,8 @@ fn run_etrca<const CLASSES: usize, const CHANNELS: usize, const WINDOW: usize>(
         let trial = trial_to_array::<CHANNELS, WINDOW>(trial);
         let mut decoder = CvepDecoder::<CHANNELS, WINDOW>::new();
         push_trial(&mut decoder, &trial);
-        exact_predictions.push(decoder.predict_etrca(&bank).unwrap().class_index);
+        exact_predictions
+            .push(decoder.predict_etrca(&bank).unwrap().class_index);
     }
 
     BenchmarkResult {
@@ -160,13 +226,19 @@ fn run_etrca<const CLASSES: usize, const CHANNELS: usize, const WINDOW: usize>(
     }
 }
 
-fn run_rcca<const CLASSES: usize, const CHANNELS: usize, const WINDOW: usize>(
+fn run_rcca<
+    const CLASSES: usize,
+    const CHANNELS: usize,
+    const WINDOW: usize,
+>(
     fixture: &Fixture,
 ) -> BenchmarkResult {
     validate_fixture::<CLASSES, CHANNELS, WINDOW>(fixture);
 
     let bank = RccaBank::new(
-        spatial_filters_to_array::<CLASSES, CHANNELS>(&fixture.spatial_filters),
+        spatial_filters_to_array::<CLASSES, CHANNELS>(
+            &fixture.spatial_filters,
+        ),
         templates_to_array::<CLASSES, WINDOW>(&fixture.projected_templates),
     );
 
@@ -175,7 +247,8 @@ fn run_rcca<const CLASSES: usize, const CHANNELS: usize, const WINDOW: usize>(
         let trial = trial_to_array::<CHANNELS, WINDOW>(trial);
         let mut decoder = CvepDecoder::<CHANNELS, WINDOW>::new();
         push_trial(&mut decoder, &trial);
-        exact_predictions.push(decoder.predict_rcca(&bank).unwrap().class_index);
+        exact_predictions
+            .push(decoder.predict_rcca(&bank).unwrap().class_index);
     }
 
     BenchmarkResult {
@@ -201,13 +274,20 @@ fn run_rcca<const CLASSES: usize, const CHANNELS: usize, const WINDOW: usize>(
     }
 }
 
-fn validate_fixture<const CLASSES: usize, const CHANNELS: usize, const WINDOW: usize>(
+fn validate_fixture<
+    const CLASSES: usize,
+    const CHANNELS: usize,
+    const WINDOW: usize,
+>(
     fixture: &Fixture,
 ) {
     assert_eq!(fixture.classes, CLASSES);
     assert_eq!(fixture.channels, CHANNELS);
     assert_eq!(fixture.window, WINDOW);
-    assert_eq!(fixture.benchmark_labels.len(), fixture.benchmark_predictions.len());
+    assert_eq!(
+        fixture.benchmark_labels.len(),
+        fixture.benchmark_predictions.len()
+    );
     assert_eq!(fixture.benchmark_labels.len(), fixture.trials_i32.len());
 }
 

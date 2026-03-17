@@ -165,8 +165,8 @@ impl<const CHANNELS: usize, const WINDOW: usize>
         let mut value = 0.0f32;
         let mut channel_idx = 0;
         while channel_idx < CHANNELS {
-            value += self.ring[channel_idx][ring_idx] as f32
-                * filter[channel_idx];
+            value +=
+                self.ring[channel_idx][ring_idx] as f32 * filter[channel_idx];
             channel_idx += 1;
         }
         value

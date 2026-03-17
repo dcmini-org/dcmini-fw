@@ -1,5 +1,6 @@
 #[derive(Clone)]
-pub(crate) struct RunningCcaState<const CHANNELS: usize, const FEATURES: usize> {
+pub(crate) struct RunningCcaState<const CHANNELS: usize, const FEATURES: usize>
+{
     pub(crate) samples_seen: usize,
     pub(crate) avg_x: [f32; CHANNELS],
     pub(crate) avg_y: [f32; FEATURES],
@@ -23,7 +24,10 @@ impl<const CHANNELS: usize, const FEATURES: usize> Default
     }
 }
 
-pub(crate) fn observation_mean_i32<const CHANNELS: usize, const WINDOW: usize>(
+pub(crate) fn observation_mean_i32<
+    const CHANNELS: usize,
+    const WINDOW: usize,
+>(
     trial: &[[i32; WINDOW]; CHANNELS],
 ) -> [f32; CHANNELS] {
     let mut avg = [0.0; CHANNELS];
@@ -41,7 +45,10 @@ pub(crate) fn observation_mean_i32<const CHANNELS: usize, const WINDOW: usize>(
     avg
 }
 
-pub(crate) fn observation_mean_f32<const FEATURES: usize, const WINDOW: usize>(
+pub(crate) fn observation_mean_f32<
+    const FEATURES: usize,
+    const WINDOW: usize,
+>(
     trial: &[[f32; WINDOW]; FEATURES],
 ) -> [f32; FEATURES] {
     let mut avg = [0.0; FEATURES];
@@ -81,7 +88,8 @@ pub(crate) fn update_running_cov_x_f32<
                 let mut sum = 0.0f32;
                 let mut t = 0;
                 while t < WINDOW {
-                    sum += (trial[i][t] - out_avg[i]) * (trial[j][t] - out_avg[j]);
+                    sum += (trial[i][t] - out_avg[i])
+                        * (trial[j][t] - out_avg[j]);
                     t += 1;
                 }
                 out_cov[i][j] = sum * scale;

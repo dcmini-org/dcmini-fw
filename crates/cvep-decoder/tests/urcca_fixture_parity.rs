@@ -44,9 +44,10 @@ fn urcca_fixture_matches_pyntbci_predictions() {
         return;
     };
 
-    let fixture_text = fs::read_to_string(path).expect("failed to read urcca fixture");
-    let fixture: Fixture =
-        serde_json::from_str(&fixture_text).expect("failed to parse urcca fixture");
+    let fixture_text =
+        fs::read_to_string(path).expect("failed to read urcca fixture");
+    let fixture: Fixture = serde_json::from_str(&fixture_text)
+        .expect("failed to parse urcca fixture");
 
     assert_eq!(fixture.classes, CLASSES);
     assert_eq!(fixture.channels, CHANNELS);
@@ -57,11 +58,10 @@ fn urcca_fixture_matches_pyntbci_predictions() {
 
     let encodings = boxed_encodings(fixture.encodings);
     let bank = UrCcaBank::<CLASSES, FEATURES, WINDOW>::new(&encodings);
-    let mut decoder =
-        UrCcaDecoder::<CLASSES, CHANNELS, FEATURES, WINDOW>::new(
-            bank,
-            fixture.regularization,
-        );
+    let mut decoder = UrCcaDecoder::<CLASSES, CHANNELS, FEATURES, WINDOW>::new(
+        bank,
+        fixture.regularization,
+    );
 
     let mut predictions = Vec::with_capacity(fixture.trials.len());
     let mut snapshots = Vec::new();
@@ -93,9 +93,15 @@ fn urcca_fixture_matches_pyntbci_predictions() {
         for reference in reference_states {
             let (_, prediction, scores, snapshot) = snapshots
                 .iter()
-                .find(|(trial_index, _, _, _)| *trial_index == reference.trial_index)
+                .find(|(trial_index, _, _, _)| {
+                    *trial_index == reference.trial_index
+                })
                 .expect("missing Rust snapshot for reference state");
-            assert_score_close(reference.trial_index, &scores, &reference.scores);
+            assert_score_close(
+                reference.trial_index,
+                &scores,
+                &reference.scores,
+            );
             assert_eq!(
                 *prediction, reference.predicted_class,
                 "reference predicted class mismatch at trial {}",
@@ -175,10 +181,7 @@ fn assert_max_abs_diff(
     );
 }
 
-fn max_abs_diff_1d<const N: usize>(
-    left: &[f32; N],
-    right: &[f32],
-) -> f32 {
+fn max_abs_diff_1d<const N: usize>(left: &[f32; N], right: &[f32]) -> f32 {
     assert_eq!(right.len(), N);
     let mut max_diff = 0.0f32;
     let mut idx = 0;
@@ -217,8 +220,7 @@ fn max_abs_diff_2d<const R: usize, const C: usize>(
 fn boxed_encodings(
     encodings: Vec<Vec<Vec<f32>>>,
 ) -> Box<[[[f32; WINDOW]; FEATURES]; CLASSES]> {
-    let mut flat =
-        Vec::with_capacity(CLASSES * FEATURES * WINDOW);
+    let mut flat = Vec::with_capacity(CLASSES * FEATURES * WINDOW);
     for class in encodings {
         assert_eq!(class.len(), FEATURES);
         for feature in class {
@@ -230,7 +232,8 @@ fn boxed_encodings(
     let boxed: Box<[f32]> = flat.into_boxed_slice();
     let boxed: Box<[f32; CLASSES * FEATURES * WINDOW]> =
         boxed.try_into().expect("invalid encoding length");
-    let raw = Box::into_raw(boxed) as *mut [[[f32; WINDOW]; FEATURES]; CLASSES];
+    let raw =
+        Box::into_raw(boxed) as *mut [[[f32; WINDOW]; FEATURES]; CLASSES];
     unsafe { Box::from_raw(raw) }
 }
 

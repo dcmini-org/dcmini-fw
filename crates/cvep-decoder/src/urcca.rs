@@ -8,10 +8,7 @@ use crate::internal::stats::{
 use crate::types::Decision;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct UrCcaStateSnapshot<
-    const CHANNELS: usize,
-    const FEATURES: usize,
-> {
+pub struct UrCcaStateSnapshot<const CHANNELS: usize, const FEATURES: usize> {
     pub samples_seen: usize,
     pub avg_x: [f32; CHANNELS],
     pub avg_y: [f32; FEATURES],
@@ -41,12 +38,12 @@ pub struct UrCcaDecoder<
 }
 
 impl<
-    'a,
-    const CLASSES: usize,
-    const CHANNELS: usize,
-    const FEATURES: usize,
-    const WINDOW: usize,
-> UrCcaDecoder<'a, CLASSES, CHANNELS, FEATURES, WINDOW>
+        'a,
+        const CLASSES: usize,
+        const CHANNELS: usize,
+        const FEATURES: usize,
+        const WINDOW: usize,
+    > UrCcaDecoder<'a, CLASSES, CHANNELS, FEATURES, WINDOW>
 {
     pub fn new(
         bank: UrCcaBank<'a, CLASSES, FEATURES, WINDOW>,
@@ -66,9 +63,7 @@ impl<
         self.state = RunningCcaState::default();
     }
 
-    pub fn bank(
-        &self,
-    ) -> &UrCcaBank<'a, CLASSES, FEATURES, WINDOW> {
+    pub fn bank(&self) -> &UrCcaBank<'a, CLASSES, FEATURES, WINDOW> {
         &self.bank
     }
 
@@ -120,9 +115,7 @@ impl<
         scores
     }
 
-    pub fn state_snapshot(
-        &self,
-    ) -> UrCcaStateSnapshot<CHANNELS, FEATURES> {
+    pub fn state_snapshot(&self) -> UrCcaStateSnapshot<CHANNELS, FEATURES> {
         UrCcaStateSnapshot {
             samples_seen: self.state.samples_seen,
             avg_x: self.state.avg_x,

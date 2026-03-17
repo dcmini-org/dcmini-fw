@@ -36,15 +36,8 @@ impl UmmBlockStructure {
         }
     }
 
-    pub const fn time_prime(
-        n_channels: usize,
-        n_timepoints: usize,
-    ) -> Self {
-        Self {
-            n_channels,
-            n_timepoints,
-            layout: UmmFeatureLayout::TimePrime,
-        }
+    pub const fn time_prime(n_channels: usize, n_timepoints: usize) -> Self {
+        Self { n_channels, n_timepoints, layout: UmmFeatureLayout::TimePrime }
     }
 
     pub const fn n_channels(&self) -> usize {
@@ -84,12 +77,8 @@ pub struct InstantaneousUmmDecoder<
     covariance_structure: Option<UmmBlockStructure>,
 }
 
-impl<
-    'a,
-    const CLASSES: usize,
-    const FEATURES: usize,
-    const EPOCHS: usize,
-> InstantaneousUmmDecoder<'a, CLASSES, FEATURES, EPOCHS>
+impl<'a, const CLASSES: usize, const FEATURES: usize, const EPOCHS: usize>
+    InstantaneousUmmDecoder<'a, CLASSES, FEATURES, EPOCHS>
 {
     pub const fn new(
         codebook: UmmCodebook<'a, CLASSES, EPOCHS>,
@@ -122,10 +111,8 @@ impl<
         epochs: &[[f32; EPOCHS]; FEATURES],
     ) -> [f32; CLASSES] {
         let (_overall_mean, cov) = epoch_summary_f32(epochs);
-        let structured_cov = covariance_with_structure(
-            &cov,
-            self.covariance_structure,
-        );
+        let structured_cov =
+            covariance_with_structure(&cov, self.covariance_structure);
         let mut scores = [0.0; CLASSES];
         let mut class_idx = 0;
         while class_idx < CLASSES {
@@ -140,18 +127,12 @@ impl<
         scores
     }
 
-    pub fn observe_f32(
-        &self,
-        epochs: &[[f32; EPOCHS]; FEATURES],
-    ) -> Decision {
+    pub fn observe_f32(&self, epochs: &[[f32; EPOCHS]; FEATURES]) -> Decision {
         let scores = self.class_scores_f32(epochs);
         decision_from_scores(&scores)
     }
 
-    pub fn observe_i32(
-        &self,
-        epochs: &[[i32; EPOCHS]; FEATURES],
-    ) -> Decision {
+    pub fn observe_i32(&self, epochs: &[[i32; EPOCHS]; FEATURES]) -> Decision {
         let epochs = epochs_i32_to_f32(epochs);
         self.observe_f32(&epochs)
     }
@@ -165,7 +146,8 @@ pub(crate) fn epochs_i32_to_f32<const FEATURES: usize, const EPOCHS: usize>(
     while feature_idx < FEATURES {
         let mut epoch_idx = 0;
         while epoch_idx < EPOCHS {
-            out[feature_idx][epoch_idx] = epochs[feature_idx][epoch_idx] as f32;
+            out[feature_idx][epoch_idx] =
+                epochs[feature_idx][epoch_idx] as f32;
             epoch_idx += 1;
         }
         feature_idx += 1;
@@ -248,7 +230,8 @@ pub(crate) fn partition_means<const FEATURES: usize, const EPOCHS: usize>(
     let mut non_target_mean = [0.0; FEATURES];
     let mut feature_idx = 0;
     while feature_idx < FEATURES {
-        target_mean[feature_idx] = target_sum[feature_idx] / target_count as f32;
+        target_mean[feature_idx] =
+            target_sum[feature_idx] / target_count as f32;
         non_target_mean[feature_idx] =
             non_target_sum[feature_idx] / non_target_count as f32;
         feature_idx += 1;
@@ -328,7 +311,8 @@ pub(crate) fn combine_covariance_summaries<const FEATURES: usize>(
             let delta_col = mean_b[col] - mean_a[col];
             let m2_a = cov_a[row][col] * (weight_a - 1.0).max(0.0);
             let m2_b = cov_b[row][col] * (weight_b - 1.0).max(0.0);
-            let correction = delta_row * delta_col * ((weight_a * weight_b) / total);
+            let correction =
+                delta_row * delta_col * ((weight_a * weight_b) / total);
             out_cov[row][col] =
                 (m2_a + m2_b + correction) / (total - 1.0).max(1.0);
             col += 1;
@@ -354,7 +338,10 @@ pub(crate) fn tapered_block_toeplitz_covariance<const FEATURES: usize>(
 ) -> [[f32; FEATURES]; FEATURES] {
     let n_channels = structure.n_channels();
     let n_timepoints = structure.n_timepoints();
-    if n_channels == 0 || n_timepoints == 0 || structure.feature_count() != FEATURES {
+    if n_channels == 0
+        || n_timepoints == 0
+        || structure.feature_count() != FEATURES
+    {
         return *covariance;
     }
 
@@ -372,16 +359,10 @@ pub(crate) fn tapered_block_toeplitz_covariance<const FEATURES: usize>(
                 let mut sum = 0.0f32;
                 let mut block_idx = 0;
                 while block_idx < count {
-                    let row_time = if lag >= 0 {
-                        block_idx
-                    } else {
-                        block_idx + abs_lag
-                    };
-                    let col_time = if lag >= 0 {
-                        block_idx + abs_lag
-                    } else {
-                        block_idx
-                    };
+                    let row_time =
+                        if lag >= 0 { block_idx } else { block_idx + abs_lag };
+                    let col_time =
+                        if lag >= 0 { block_idx + abs_lag } else { block_idx };
                     let row = feature_index(structure, row_time, row_channel);
                     let col = feature_index(structure, col_time, col_channel);
                     sum += covariance[row][col];
@@ -391,16 +372,10 @@ pub(crate) fn tapered_block_toeplitz_covariance<const FEATURES: usize>(
                 let averaged = (sum / count as f32) * taper;
                 let mut block_idx = 0;
                 while block_idx < count {
-                    let row_time = if lag >= 0 {
-                        block_idx
-                    } else {
-                        block_idx + abs_lag
-                    };
-                    let col_time = if lag >= 0 {
-                        block_idx + abs_lag
-                    } else {
-                        block_idx
-                    };
+                    let row_time =
+                        if lag >= 0 { block_idx } else { block_idx + abs_lag };
+                    let col_time =
+                        if lag >= 0 { block_idx + abs_lag } else { block_idx };
                     let row = feature_index(structure, row_time, row_channel);
                     let col = feature_index(structure, col_time, col_channel);
                     out[row][col] = averaged;
@@ -481,7 +456,9 @@ fn solve_lower_vec<const N: usize>(
     out
 }
 
-fn decision_from_scores<const CLASSES: usize>(scores: &[f32; CLASSES]) -> Decision {
+fn decision_from_scores<const CLASSES: usize>(
+    scores: &[f32; CLASSES],
+) -> Decision {
     let mut best_class = 0usize;
     let mut best_score = f32::NEG_INFINITY;
     let mut runner_up = f32::NEG_INFINITY;
@@ -508,7 +485,8 @@ fn decision_from_scores<const CLASSES: usize>(scores: &[f32; CLASSES]) -> Decisi
 #[cfg(test)]
 mod tests {
     use super::{
-        tapered_block_toeplitz_covariance, InstantaneousUmmDecoder, UmmBlockStructure,
+        tapered_block_toeplitz_covariance, InstantaneousUmmDecoder,
+        UmmBlockStructure,
     };
     use crate::UmmCodebook;
 
@@ -518,10 +496,7 @@ mod tests {
         const EPOCHS: usize = 4;
 
         let labels = [[1, 0, 1, 0], [0, 1, 0, 1]];
-        let epochs = [
-            [4.0, 1.0, 5.0, 1.0],
-            [1.0, 2.0, 1.0, 2.0],
-        ];
+        let epochs = [[4.0, 1.0, 5.0, 1.0], [1.0, 2.0, 1.0, 2.0]];
 
         let codebook = UmmCodebook::<CLASSES, EPOCHS>::new(&labels);
         let decoder = InstantaneousUmmDecoder::new(codebook, 1.0e-3);
@@ -540,7 +515,8 @@ mod tests {
             [2.0, 8.0, 4.0, 40.0],
         ];
 
-        let tapered = tapered_block_toeplitz_covariance(&covariance, structure);
+        let tapered =
+            tapered_block_toeplitz_covariance(&covariance, structure);
 
         assert_eq!(tapered[0][0], 20.0);
         assert_eq!(tapered[1][1], 30.0);
@@ -562,7 +538,8 @@ mod tests {
             [2.0, 4.0, 8.0, 40.0],
         ];
 
-        let tapered = tapered_block_toeplitz_covariance(&covariance, structure);
+        let tapered =
+            tapered_block_toeplitz_covariance(&covariance, structure);
 
         assert_eq!(tapered[0][0], 20.0);
         assert_eq!(tapered[1][1], 20.0);

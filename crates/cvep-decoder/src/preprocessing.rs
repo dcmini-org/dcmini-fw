@@ -59,7 +59,9 @@ impl<const SECTIONS: usize> SosCascade<SECTIONS> {
 
     /// Creates a cascade from SciPy-style SOS rows.
     pub const fn from_scipy_rows(rows: [[f32; 6]; SECTIONS]) -> Self {
-        let mut sections = [SosSection::from_scipy_row([0.0, 0.0, 0.0, 1.0, 0.0, 0.0]); SECTIONS];
+        let mut sections =
+            [SosSection::from_scipy_row([0.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
+                SECTIONS];
         let mut idx = 0;
         while idx < SECTIONS {
             sections[idx] = SosSection::from_scipy_row(rows[idx]);
@@ -125,7 +127,10 @@ impl<const CHANNELS: usize, const SECTIONS: usize>
 
     /// Filters a single frame of `f32` samples.
     #[inline(always)]
-    pub fn process_frame(&mut self, frame: [f32; CHANNELS]) -> [f32; CHANNELS] {
+    pub fn process_frame(
+        &mut self,
+        frame: [f32; CHANNELS],
+    ) -> [f32; CHANNELS] {
         let mut out = [0.0; CHANNELS];
         let mut idx = 0;
         while idx < CHANNELS {
@@ -149,7 +154,8 @@ impl<const CHANNELS: usize, const SECTIONS: usize>
         let mut out = [0.0; CHANNELS];
         let mut idx = 0;
         while idx < CHANNELS {
-            out[idx] = self.cascades[idx].process_sample(frame[idx] as f32 * scale);
+            out[idx] =
+                self.cascades[idx].process_sample(frame[idx] as f32 * scale);
             idx += 1;
         }
         out
