@@ -118,8 +118,187 @@ class SubjectData:
     presentation_rate: int
 
 
+@dataclass(frozen=True)
+class PreprocessingOptions:
+    band_low: float
+    band_high: float
+    notch_hz: float
+    pretrial_buffer_seconds: float
+    drop_first_seconds: float
+
+
+@dataclass(frozen=True)
+class BenchmarkProfile:
+    name: str
+    description: str
+    target_fs: int
+    band_low: float
+    band_high: float
+    notch_hz: float
+    drop_first_seconds: float
+    event: str
+    onset_event: bool
+    encoding_length: float
+    default_window_seconds_grid: tuple[float, ...] | None = None
+
+
+THIELEN2021_KEY_WINDOWS = (1.05, 2.1, 4.2, 5.25, 10.5, 31.5)
+
+BENCHMARK_PROFILES: dict[str, BenchmarkProfile] = {
+    "legacy": BenchmarkProfile(
+        name="legacy",
+        description="Current default benchmark settings.",
+        target_fs=250,
+        band_low=1.0,
+        band_high=65.0,
+        notch_hz=50.0,
+        drop_first_seconds=0.0,
+        event="refe",
+        onset_event=False,
+        encoding_length=0.3,
+        default_window_seconds_grid=None,
+    ),
+    "matched_embedded_125": BenchmarkProfile(
+        name="matched_embedded_125",
+        description="Embedded-relevant 125 Hz comparison profile.",
+        target_fs=125,
+        band_low=6.0,
+        band_high=50.0,
+        notch_hz=50.0,
+        drop_first_seconds=0.0,
+        event="refe",
+        onset_event=False,
+        encoding_length=0.3,
+        default_window_seconds_grid=THIELEN2021_KEY_WINDOWS,
+    ),
+    "matched_diagnostic_125": BenchmarkProfile(
+        name="matched_diagnostic_125",
+        description="Embedded 125 Hz profile with first 500 ms removed.",
+        target_fs=125,
+        band_low=6.0,
+        band_high=50.0,
+        notch_hz=50.0,
+        drop_first_seconds=0.5,
+        event="refe",
+        onset_event=False,
+        encoding_length=0.3,
+        default_window_seconds_grid=THIELEN2021_KEY_WINDOWS,
+    ),
+    "matched_onset_aware_125": BenchmarkProfile(
+        name="matched_onset_aware_125",
+        description="Embedded 125 Hz profile with onset-aware CCA.",
+        target_fs=125,
+        band_low=6.0,
+        band_high=50.0,
+        notch_hz=50.0,
+        drop_first_seconds=0.0,
+        event="refe",
+        onset_event=True,
+        encoding_length=0.3,
+        default_window_seconds_grid=THIELEN2021_KEY_WINDOWS,
+    ),
+    "literature_oriented_125": BenchmarkProfile(
+        name="literature_oriented_125",
+        description="Literature-inspired zero-training CCA profile at 125 Hz.",
+        target_fs=125,
+        band_low=6.0,
+        band_high=50.0,
+        notch_hz=50.0,
+        drop_first_seconds=0.5,
+        event="refe",
+        onset_event=True,
+        encoding_length=0.3,
+        default_window_seconds_grid=THIELEN2021_KEY_WINDOWS,
+    ),
+}
+
+
+def benchmark_profile_names() -> list[str]:
+    return list(BENCHMARK_PROFILES)
+
+
+def resolve_benchmark_profile(name: str) -> BenchmarkProfile:
+    try:
+        return BENCHMARK_PROFILES[name]
+    except KeyError as exc:
+        raise ValueError(f"Unknown benchmark profile {name}") from exc
+
+
+def default_preprocessing_options() -> PreprocessingOptions:
+    profile = resolve_benchmark_profile("legacy")
+    return PreprocessingOptions(
+        band_low=profile.band_low,
+        band_high=profile.band_high,
+        notch_hz=profile.notch_hz,
+        pretrial_buffer_seconds=PRETRIAL_BUFFER_SECONDS,
+        drop_first_seconds=profile.drop_first_seconds,
+    )
+
+
+def resolve_preprocessing_options(
+    profile: BenchmarkProfile,
+    *,
+    band_low: float | None,
+    band_high: float | None,
+    notch_hz: float | None,
+    drop_first_seconds: float | None,
+) -> PreprocessingOptions:
+    return PreprocessingOptions(
+        band_low=profile.band_low if band_low is None else band_low,
+        band_high=profile.band_high if band_high is None else band_high,
+        notch_hz=profile.notch_hz if notch_hz is None else notch_hz,
+        pretrial_buffer_seconds=PRETRIAL_BUFFER_SECONDS,
+        drop_first_seconds=(
+            profile.drop_first_seconds
+            if drop_first_seconds is None
+            else drop_first_seconds
+        ),
+    )
+
+
+def resolve_window_grid(
+    profile: BenchmarkProfile,
+    dataset: str,
+    explicit: list[float] | None,
+    step_seconds: float | None,
+) -> list[float] | None:
+    if explicit is not None or step_seconds is not None:
+        return explicit
+    if dataset != "Thielen2021" or profile.default_window_seconds_grid is None:
+        return explicit
+    return list(profile.default_window_seconds_grid)
+
+
+def resolve_target_fs(
+    profile: BenchmarkProfile,
+    target_fs: int | None,
+) -> int:
+    return profile.target_fs if target_fs is None else target_fs
+
+
+def resolve_event(profile: BenchmarkProfile, event: str | None) -> str:
+    return profile.event if event is None else event
+
+
+def resolve_onset_event(profile: BenchmarkProfile, onset_event: bool | None) -> bool:
+    return profile.onset_event if onset_event is None else onset_event
+
+
+def resolve_encoding_length(
+    profile: BenchmarkProfile,
+    encoding_length: float | None,
+) -> float:
+    return profile.encoding_length if encoding_length is None else encoding_length
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--profile",
+        choices=benchmark_profile_names(),
+        default="legacy",
+        help="Named benchmark profile controlling default preprocessing and target fs.",
+    )
     parser.add_argument(
         "--data-dir",
         type=Path,
@@ -186,7 +365,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--target-fs",
         type=int,
-        default=250,
+        default=None,
         help="Resample all trials to this frequency before fitting. Must divide 250 Hz exactly.",
     )
     parser.add_argument(
@@ -224,15 +403,40 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--encoding-length",
         type=float,
-        default=0.3,
+        default=None,
         help="Encoding length in seconds for rCCA.",
     )
     parser.add_argument(
         "--event",
         type=str,
-        default="refe",
+        default=None,
         help="Stimulus event string for rCCA.",
     )
+    parser.add_argument(
+        "--band-low",
+        type=float,
+        default=None,
+        help="Optional lower cutoff for preprocessing band-pass filter.",
+    )
+    parser.add_argument(
+        "--band-high",
+        type=float,
+        default=None,
+        help="Optional upper cutoff for preprocessing band-pass filter.",
+    )
+    parser.add_argument(
+        "--notch-hz",
+        type=float,
+        default=None,
+        help="Optional mains-notch spacing in Hz. Set <=0 to disable notch filtering.",
+    )
+    parser.add_argument(
+        "--drop-first-seconds",
+        type=float,
+        default=None,
+        help="Optional leading segment to discard within each requested decode window.",
+    )
+    parser.add_argument("--skip-rust", action="store_true")
     return parser.parse_args()
 
 
@@ -259,11 +463,6 @@ def trial_seconds_for_dataset(dataset: str) -> float:
 def validate_target_fs(target_fs: int) -> None:
     if target_fs <= 0:
         raise ValueError(f"target_fs must be positive, got {target_fs}")
-    if DC_MINI_BASE_FS % target_fs != 0:
-        raise ValueError(
-            f"target_fs={target_fs} is not an integer divisor of the DC-mini ADS1299 base "
-            f"rate {DC_MINI_BASE_FS} Hz"
-        )
 
 
 def round_half_up(value: float) -> int:
@@ -283,7 +482,9 @@ def decode_window_requests(
         values = sorted({float(value) for value in explicit})
     elif step_seconds is not None:
         if step_seconds <= 0.0:
-            raise ValueError(f"window_step_seconds must be positive, got {step_seconds}")
+            raise ValueError(
+                f"window_step_seconds must be positive, got {step_seconds}"
+            )
         values = []
         steps = int(math.floor(full_trial_seconds / step_seconds))
         for idx in range(1, steps + 1):
@@ -295,9 +496,25 @@ def decode_window_requests(
     if not filtered:
         raise ValueError("No valid window lengths remain after filtering")
 
-    if not any(math.isclose(value, full_trial_seconds, abs_tol=1e-9) for value in filtered):
+    if not any(
+        math.isclose(value, full_trial_seconds, abs_tol=1e-9) for value in filtered
+    ):
         filtered.append(full_trial_seconds)
     return sorted(filtered)
+
+
+def loader_trial_seconds_for_algorithm(
+    dataset: str,
+    algorithm: str,
+    requested_window_seconds: float,
+) -> float | None:
+    if dataset == "Thielen2021" and algorithm in {
+        "rcca",
+        "instantaneous_cca",
+        "cumulative_cca",
+    }:
+        return requested_window_seconds
+    return None
 
 
 def validate_dataset_algorithm_target_fs(
@@ -327,13 +544,25 @@ def load_subject(
     subject: int,
     data_dir: Path,
     target_fs: int,
+    trial_seconds: float | None = None,
+    preprocessing: PreprocessingOptions | None = None,
 ) -> SubjectData:
     if dataset == "Thielen2015":
-        return load_thielen2015_subject(subject, data_dir, target_fs)
+        return load_thielen2015_subject(
+            subject, data_dir, target_fs, preprocessing=preprocessing
+        )
     if dataset == "Thielen2021":
-        return load_thielen2021_subject(subject, data_dir, target_fs)
+        return load_thielen2021_subject(
+            subject,
+            data_dir,
+            target_fs,
+            trial_seconds=trial_seconds,
+            preprocessing=preprocessing,
+        )
     if dataset in CASTILLOS_PARADIGMS:
-        return load_castillos_subject(dataset, subject, data_dir, target_fs)
+        return load_castillos_subject(
+            dataset, subject, data_dir, target_fs, preprocessing=preprocessing
+        )
     raise ValueError(f"Unsupported dataset {dataset}")
 
 
@@ -341,6 +570,7 @@ def load_thielen2015_subject(
     subject: int,
     data_dir: Path,
     target_fs: int,
+    preprocessing: PreprocessingOptions | None = None,
 ) -> SubjectData:
     root = (
         data_dir
@@ -389,6 +619,7 @@ def load_thielen2015_subject(
             onsets,
             trial_seconds,
             target_fs,
+            preprocessing=preprocessing,
         )
         runs_x.append(trials)
         runs_y.append(labels)
@@ -413,9 +644,12 @@ def load_thielen2021_subject(
     subject: int,
     data_dir: Path,
     target_fs: int,
+    trial_seconds: float | None = None,
+    preprocessing: PreprocessingOptions | None = None,
 ) -> SubjectData:
     root = data_dir / "MNE-thielen2021-data" / "dcc" / "DSC_2018.00122_448_v3"
-    trial_seconds = trial_seconds_for_dataset("Thielen2021")
+    if trial_seconds is None:
+        trial_seconds = trial_seconds_for_dataset("Thielen2021")
     session = THIELEN2021_SESSIONS[subject - 1]
     runs_x = []
     runs_y = []
@@ -482,6 +716,7 @@ def load_thielen2021_subject(
             onsets,
             trial_seconds,
             target_fs,
+            preprocessing=preprocessing,
         )
         runs_x.append(trials)
         runs_y.append(labels)
@@ -506,6 +741,7 @@ def load_castillos_subject(
     subject: int,
     data_dir: Path,
     target_fs: int,
+    preprocessing: PreprocessingOptions | None = None,
 ) -> SubjectData:
     paradigm = CASTILLOS_PARADIGMS[dataset]
     path = (
@@ -542,6 +778,7 @@ def load_castillos_subject(
         tmin=0.0,
         tmax=2.2,
         event_id=event_id,
+        preprocessing=preprocessing,
     )
     stimulus = castillos_codebook(event_id)
     return SubjectData(
@@ -576,13 +813,22 @@ def notch_frequencies(fs_raw: float) -> np.ndarray:
 
 def preprocess_raw(
     raw: mne.io.BaseRaw,
+    preprocessing: PreprocessingOptions | None = None,
 ) -> None:
-    freqs = notch_frequencies(raw.info["sfreq"])
+    settings = (
+        default_preprocessing_options() if preprocessing is None else preprocessing
+    )
+    if settings.notch_hz > 0.0:
+        upper = raw.info["sfreq"] / 2.0
+        freqs = np.arange(settings.notch_hz, upper, settings.notch_hz, dtype=np.float64)
+        freqs = freqs[freqs > 0]
+    else:
+        freqs = np.asarray([], dtype=np.float64)
     if freqs.size:
         raw.notch_filter(freqs=freqs, picks="eeg", verbose=False)
     raw.filter(
-        l_freq=BANDPASS_HZ[0],
-        h_freq=BANDPASS_HZ[1],
+        l_freq=settings.band_low,
+        h_freq=settings.band_high,
         picks="eeg",
         verbose=False,
     )
@@ -595,13 +841,17 @@ def epoch_and_resample(
     tmin: float,
     tmax: float,
     event_id: dict[str, int] | None = None,
+    preprocessing: PreprocessingOptions | None = None,
 ) -> np.ndarray:
-    preprocess_raw(raw)
+    settings = (
+        default_preprocessing_options() if preprocessing is None else preprocessing
+    )
+    preprocess_raw(raw, preprocessing=settings)
     epochs = mne.Epochs(
         raw,
         events=events,
         event_id=event_id,
-        tmin=tmin - PRETRIAL_BUFFER_SECONDS,
+        tmin=tmin - settings.pretrial_buffer_seconds,
         tmax=tmax,
         baseline=None,
         picks="eeg",
@@ -617,9 +867,13 @@ def extract_trials_from_raw(
     onsets: np.ndarray,
     trial_seconds: float,
     target_fs: int,
+    preprocessing: PreprocessingOptions | None = None,
 ) -> np.ndarray:
+    settings = (
+        default_preprocessing_options() if preprocessing is None else preprocessing
+    )
     raw_samples = int(
-        round((trial_seconds + PRETRIAL_BUFFER_SECONDS) * raw.info["sfreq"])
+        round((trial_seconds + settings.pretrial_buffer_seconds) * raw.info["sfreq"])
     )
     valid_onsets = []
     for onset in onsets:
@@ -642,6 +896,7 @@ def extract_trials_from_raw(
         tmin=0.0,
         tmax=trial_seconds,
         event_id={"trial": 1},
+        preprocessing=settings,
     )
 
 
@@ -662,6 +917,77 @@ def resample_trials(
         pad = target_samples - resampled.shape[2]
         resampled = np.pad(resampled, ((0, 0), (0, 0), (0, pad)))
     return resampled.astype(np.float64)
+
+
+def stimulus_to_sample_rate(
+    stimulus: np.ndarray,
+    presentation_rate: int,
+    fs: int,
+) -> np.ndarray:
+    if presentation_rate <= 0:
+        raise ValueError(f"presentation_rate must be positive, got {presentation_rate}")
+    duration_seconds = stimulus.shape[1] / presentation_rate
+    total_samples = seconds_to_samples(duration_seconds, fs)
+    sample_positions = np.floor(
+        np.arange(total_samples) * presentation_rate / fs
+    ).astype(np.int64)
+    sample_positions = np.clip(sample_positions, 0, stimulus.shape[1] - 1)
+    return np.asarray(stimulus[:, sample_positions], dtype=np.float64)
+
+
+def slice_windowed_trials_and_stimulus(
+    x: np.ndarray,
+    stimulus: np.ndarray,
+    fs: int,
+    presentation_rate: int,
+    requested_window_seconds: float,
+    drop_first_seconds: float,
+) -> tuple[np.ndarray, np.ndarray, dict[str, float | int]]:
+    nominal_window_samples = min(
+        seconds_to_samples(requested_window_seconds, fs), x.shape[2]
+    )
+    nominal_window_seconds = nominal_window_samples / fs
+    nominal_stimulus_samples = min(
+        seconds_to_samples(requested_window_seconds, presentation_rate),
+        stimulus.shape[1],
+    )
+    x_window = x[:, :, :nominal_window_samples]
+    stimulus_window = stimulus[:, :nominal_stimulus_samples]
+
+    trim_seconds = max(0.0, drop_first_seconds)
+    if trim_seconds > 0.0:
+        trim_samples = min(
+            seconds_to_samples(trim_seconds, fs),
+            max(0, nominal_window_samples - 1),
+        )
+        trim_stimulus_samples = min(
+            seconds_to_samples(trim_seconds, presentation_rate),
+            max(0, nominal_stimulus_samples - 1),
+        )
+    else:
+        trim_samples = 0
+        trim_stimulus_samples = 0
+
+    x_effective = x_window[:, :, trim_samples:]
+    stimulus_effective = stimulus_window[:, trim_stimulus_samples:]
+    effective_window_samples = x_effective.shape[2]
+    effective_window_seconds = effective_window_samples / fs
+    effective_stimulus_samples = stimulus_effective.shape[1]
+
+    return (
+        x_effective,
+        stimulus_effective,
+        {
+            "nominal_window_samples": nominal_window_samples,
+            "nominal_window_seconds": nominal_window_seconds,
+            "effective_window_samples": effective_window_samples,
+            "effective_window_seconds": effective_window_seconds,
+            "leading_trim_seconds": trim_seconds,
+            "leading_trim_samples": trim_samples,
+            "nominal_stimulus_samples": nominal_stimulus_samples,
+            "effective_stimulus_samples": effective_stimulus_samples,
+        },
+    )
 
 
 def fold_slices(n_trials: int, folds: int) -> list[np.ndarray]:
@@ -783,6 +1109,8 @@ def build_rust_binary() -> Path:
             "--quiet",
             "-p",
             "cvep-decoder",
+            "--features",
+            "host-tools",
             "--bin",
             "projected_correlation_benchmark",
         ],
@@ -808,7 +1136,7 @@ def run_rust_fixture(fixture_path: Path, rust_binary: Path) -> dict[str, Any]:
 def benchmark_subject_fold_windows(
     algorithm: str,
     data: SubjectData,
-    rust_binary: Path,
+    rust_binary: Path | None,
     fold_idx: int,
     folds: int,
     window_requests_seconds: list[float],
@@ -816,6 +1144,8 @@ def benchmark_subject_fold_windows(
     adc_headroom: float,
     encoding_length: float,
     event: str,
+    preprocessing: PreprocessingOptions,
+    profile_name: str,
 ) -> list[dict[str, Any]]:
     classes = np.unique(data.y)
     fold_parts = fold_slices(data.x.shape[0], folds)
@@ -828,39 +1158,62 @@ def benchmark_subject_fold_windows(
     y_train = data.y[train_idx]
     x_test = data.x[test_idx]
     y_test = data.y[test_idx]
-
-    if algorithm == "etrca":
-        model = fit_etrca(
-            x_train,
-            y_train,
-            data.fs,
-            effective_etrca_cycle_size(data.cycle_size, data.fs),
-        )
-    elif algorithm == "rcca":
-        model = fit_rcca(
-            x_train,
-            y_train,
-            data.stimulus,
-            data.fs,
-            event=event,
-            encoding_length=encoding_length,
-        )
-    else:
-        raise ValueError(f"Unsupported algorithm {algorithm}")
+    stimulus_fs = stimulus_to_sample_rate(
+        data.stimulus,
+        presentation_rate=data.presentation_rate,
+        fs=data.fs,
+    )
 
     rows: list[dict[str, Any]] = []
     for requested_window_seconds in window_requests_seconds:
-        requested_samples = seconds_to_samples(requested_window_seconds, data.fs)
-        window_samples = min(requested_samples, data.x.shape[2])
-        actual_window_seconds = window_samples / data.fs
-        x_test_window = x_test[:, :, :window_samples]
+        x_train_window, stimulus_window, window_info = (
+            slice_windowed_trials_and_stimulus(
+                x_train,
+                stimulus_fs,
+                data.fs,
+                data.fs,
+                requested_window_seconds,
+                preprocessing.drop_first_seconds,
+            )
+        )
+        x_test_window, _stimulus_unused, _ = slice_windowed_trials_and_stimulus(
+            x_test,
+            stimulus_fs,
+            data.fs,
+            data.fs,
+            requested_window_seconds,
+            preprocessing.drop_first_seconds,
+        )
+        window_samples = int(window_info["effective_window_samples"])
+        actual_window_seconds = float(window_info["effective_window_seconds"])
 
         if algorithm == "etrca":
-            spatial_filters, templates = build_etrca_bank(model, window_samples, classes)
+            model = fit_etrca(
+                x_train_window,
+                y_train,
+                data.fs,
+                effective_etrca_cycle_size(data.cycle_size, data.fs),
+            )
+        elif algorithm == "rcca":
+            model = fit_rcca(
+                x_train_window,
+                y_train,
+                stimulus_window,
+                data.fs,
+                event=event,
+                encoding_length=encoding_length,
+            )
+        else:
+            raise ValueError(f"Unsupported algorithm {algorithm}")
+
+        if algorithm == "etrca":
+            spatial_filters, templates = build_etrca_bank(
+                model, window_samples, classes
+            )
         elif algorithm == "rcca":
             spatial_filters, templates = build_rcca_bank(
                 model,
-                n_classes=data.stimulus.shape[0],
+                n_classes=stimulus_window.shape[0],
                 n_channels=data.x.shape[1],
                 n_samples=window_samples,
             )
@@ -888,10 +1241,13 @@ def benchmark_subject_fold_windows(
             "trials_i32": quantized_trials.tolist(),
         }
 
-        with tempfile.TemporaryDirectory(prefix="cvep-benchmark-") as tmp_dir:
-            fixture_path = Path(tmp_dir) / "fixture.json"
-            fixture_path.write_text(json.dumps(fixture), encoding="utf-8")
-            rust = run_rust_fixture(fixture_path, rust_binary)
+        if rust_binary is None:
+            rust = None
+        else:
+            with tempfile.TemporaryDirectory(prefix="cvep-benchmark-") as tmp_dir:
+                fixture_path = Path(tmp_dir) / "fixture.json"
+                fixture_path.write_text(json.dumps(fixture), encoding="utf-8")
+                rust = run_rust_fixture(fixture_path, rust_binary)
 
         rows.append(
             {
@@ -903,16 +1259,28 @@ def benchmark_subject_fold_windows(
                 "classes": fixture["classes"],
                 "channels": fixture["channels"],
                 "target_fs": data.fs,
-                "cycle_size_seconds": effective_etrca_cycle_size(data.cycle_size, data.fs),
+                "profile": profile_name,
+                "cycle_size_seconds": effective_etrca_cycle_size(
+                    data.cycle_size, data.fs
+                ),
                 "train_window_seconds": data.trial_seconds,
                 "requested_window_seconds": requested_window_seconds,
-                "window_seconds": actual_window_seconds,
+                "window_seconds": float(window_info["nominal_window_seconds"]),
+                "effective_window_seconds": actual_window_seconds,
+                "leading_trim_seconds": float(window_info["leading_trim_seconds"]),
                 "window": fixture["window"],
                 "train_trials": int(x_train.shape[0]),
                 "test_trials": int(x_test.shape[0]),
+                "band_low": preprocessing.band_low,
+                "band_high": preprocessing.band_high,
+                "notch_hz": preprocessing.notch_hz,
                 "pyntbci_accuracy": float(np.mean(benchmark_predictions == y_test)),
-                "rust_exact_accuracy": float(rust["rust_exact_accuracy"]),
-                "rust_exact_match_rate": float(rust["rust_exact_match_rate"]),
+                "rust_exact_accuracy": (
+                    None if rust is None else float(rust["rust_exact_accuracy"])
+                ),
+                "rust_exact_match_rate": (
+                    None if rust is None else float(rust["rust_exact_match_rate"])
+                ),
             }
         )
     return rows
@@ -927,10 +1295,16 @@ def flatten_results_csv(results: list[dict[str, Any]]) -> str:
         "folds",
         "classes",
         "channels",
+        "profile",
         "target_fs",
+        "band_low",
+        "band_high",
+        "notch_hz",
         "train_window_seconds",
         "requested_window_seconds",
         "window_seconds",
+        "effective_window_seconds",
+        "leading_trim_seconds",
         "window",
         "train_trials",
         "test_trials",
@@ -948,33 +1322,54 @@ def flatten_results_csv(results: list[dict[str, Any]]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def mean_or_none(values: list[float | None]) -> float | None:
+    filtered = [value for value in values if value is not None]
+    if not filtered:
+        return None
+    return float(np.mean(filtered))
+
+
+def fmt_metric(value: float | None) -> str:
+    return "-" if value is None else f"{value:.4f}"
+
+
 def grouped_summary_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    grouped: dict[tuple[str, str, int, int], list[dict[str, Any]]] = {}
+    grouped: dict[tuple[str, str, str, int, int], list[dict[str, Any]]] = {}
     for row in results:
         grouped.setdefault(
-            (row["algorithm"], row["dataset"], row["target_fs"], row["window"]),
+            (
+                row["algorithm"],
+                row["dataset"],
+                row.get("profile", "legacy"),
+                row["target_fs"],
+                row["window"],
+            ),
             [],
         ).append(row)
 
     summaries = []
-    for (algorithm, dataset, target_fs, window), rows in sorted(grouped.items()):
+    for (algorithm, dataset, profile, target_fs, window), rows in sorted(
+        grouped.items()
+    ):
         summaries.append(
             {
                 "algorithm": algorithm,
                 "dataset": dataset,
+                "profile": profile,
                 "target_fs": target_fs,
                 "window": window,
                 "window_seconds": rows[0]["window_seconds"],
+                "effective_window_seconds": rows[0].get("effective_window_seconds"),
                 "requested_window_seconds": rows[0]["requested_window_seconds"],
                 "subjects": len({row["subject"] for row in rows}),
                 "mean_pyntbci_accuracy": float(
                     np.mean([row["pyntbci_accuracy"] for row in rows])
                 ),
-                "mean_rust_exact_accuracy": float(
-                    np.mean([row["rust_exact_accuracy"] for row in rows])
+                "mean_rust_exact_accuracy": mean_or_none(
+                    [row.get("rust_exact_accuracy") for row in rows]
                 ),
-                "mean_rust_exact_match_rate": float(
-                    np.mean([row["rust_exact_match_rate"] for row in rows])
+                "mean_rust_exact_match_rate": mean_or_none(
+                    [row.get("rust_exact_match_rate") for row in rows]
                 ),
             }
         )
@@ -1004,8 +1399,8 @@ def render_html_report(
             f"<td>{row['window_seconds']:.3f}</td>"
             f"<td>{row['subjects']}</td>"
             f"<td>{row['mean_pyntbci_accuracy']:.4f}</td>"
-            f"<td>{row['mean_rust_exact_accuracy']:.4f}</td>"
-            f"<td>{row['mean_rust_exact_match_rate']:.4f}</td>"
+            f"<td>{fmt_metric(row['mean_rust_exact_accuracy'])}</td>"
+            f"<td>{fmt_metric(row['mean_rust_exact_match_rate'])}</td>"
             "</tr>"
         )
         for row in summary
@@ -1026,8 +1421,8 @@ def render_html_report(
             f"<td>{row['window_seconds']:.3f}</td>"
             f"<td>{row['window']}</td>"
             f"<td>{row['pyntbci_accuracy']:.4f}</td>"
-            f"<td>{row['rust_exact_accuracy']:.4f}</td>"
-            f"<td>{row['rust_exact_match_rate']:.4f}</td>"
+            f"<td>{fmt_metric(row['rust_exact_accuracy'])}</td>"
+            f"<td>{fmt_metric(row['rust_exact_match_rate'])}</td>"
             "</tr>"
         )
         for row in results
@@ -1241,8 +1636,8 @@ def render_summary(console: Console, results: list[dict[str, Any]]) -> None:
             f"{row['window_seconds']:.3f}",
             str(row["subjects"]),
             f"{row['mean_pyntbci_accuracy']:.4f}",
-            f"{row['mean_rust_exact_accuracy']:.4f}",
-            f"{row['mean_rust_exact_match_rate']:.4f}",
+            fmt_metric(row["mean_rust_exact_accuracy"]),
+            fmt_metric(row["mean_rust_exact_match_rate"]),
         )
 
     console.print(table)
@@ -1251,8 +1646,19 @@ def render_summary(console: Console, results: list[dict[str, Any]]) -> None:
 def main() -> None:
     args = parse_args()
     console = Console()
-    rust_binary = build_rust_binary()
-    target_fs_grid = args.target_fs_grid or [args.target_fs]
+    profile = resolve_benchmark_profile(args.profile)
+    preprocessing = resolve_preprocessing_options(
+        profile,
+        band_low=args.band_low,
+        band_high=args.band_high,
+        notch_hz=args.notch_hz,
+        drop_first_seconds=args.drop_first_seconds,
+    )
+    encoding_length = resolve_encoding_length(profile, args.encoding_length)
+    event = resolve_event(profile, args.event)
+    rust_binary = None if args.skip_rust else build_rust_binary()
+    resolved_target_fs = resolve_target_fs(profile, args.target_fs)
+    target_fs_grid = args.target_fs_grid or [resolved_target_fs]
     for target_fs in target_fs_grid:
         validate_target_fs(target_fs)
 
@@ -1267,6 +1673,7 @@ def main() -> None:
         args.fold_index if args.fold_index is not None else list(range(args.folds))
     )
     results: list[dict[str, Any]] = []
+    resolved_window_grid = args.window_seconds_grid
 
     for dataset in args.datasets:
         subjects = args.subjects or subject_list_for_dataset(dataset)
@@ -1279,56 +1686,120 @@ def main() -> None:
 
         for subject in subjects:
             for target_fs in target_fs_grid:
-                console.print(
-                    f"[cyan]loading[/cyan] dataset={dataset} subject={subject} target_fs={target_fs}"
+                full_trial_seconds = trial_seconds_for_dataset(dataset)
+                resolved_window_grid = resolve_window_grid(
+                    profile,
+                    dataset,
+                    args.window_seconds_grid,
+                    args.window_step_seconds,
                 )
-                data = load_subject(dataset, subject, args.data_dir, target_fs)
                 window_requests_seconds = decode_window_requests(
-                    data.trial_seconds,
-                    explicit=args.window_seconds_grid,
+                    full_trial_seconds,
+                    explicit=resolved_window_grid,
                     step_seconds=args.window_step_seconds,
                 )
-                console.print(
-                    f"[green]loaded[/green] dataset={dataset} subject={subject} "
-                    f"target_fs={target_fs} shape={tuple(data.x.shape)} "
-                    f"classes={len(np.unique(data.y))} windows={len(window_requests_seconds)}"
-                )
+                data_cache: dict[tuple[str, float | None], SubjectData] = {}
 
                 for algorithm in args.algorithms:
-                    for fold_idx in fold_indices:
-                        console.print(
-                            f"[blue]benchmarking[/blue] algorithm={algorithm} "
-                            f"dataset={dataset} subject={subject} target_fs={target_fs} "
-                            f"fold={fold_idx}/{args.folds - 1}"
+                    grouped_windows = [window_requests_seconds]
+                    use_direct_window_trials = (
+                        loader_trial_seconds_for_algorithm(
+                            dataset,
+                            algorithm,
+                            requested_window_seconds=full_trial_seconds,
                         )
-                        results.extend(
-                            benchmark_subject_fold_windows(
+                        is not None
+                    )
+                    if use_direct_window_trials:
+                        grouped_windows = [
+                            [window] for window in window_requests_seconds
+                        ]
+
+                    for windows in grouped_windows:
+                        load_seconds = (
+                            loader_trial_seconds_for_algorithm(
+                                dataset,
                                 algorithm,
-                                data,
-                                rust_binary=rust_binary,
-                                fold_idx=fold_idx,
-                                folds=args.folds,
-                                window_requests_seconds=window_requests_seconds,
-                                adc_bits=args.adc_bits,
-                                adc_headroom=args.adc_headroom,
-                                encoding_length=args.encoding_length,
-                                event=args.event,
+                                requested_window_seconds=windows[0],
                             )
+                            if use_direct_window_trials
+                            else None
                         )
+                        cache_key = (algorithm, load_seconds)
+                        if cache_key not in data_cache:
+                            label_seconds = (
+                                load_seconds
+                                if load_seconds is not None
+                                else full_trial_seconds
+                            )
+                            console.print(
+                                f"[cyan]loading[/cyan] dataset={dataset} subject={subject} "
+                                f"target_fs={target_fs} algorithm={algorithm} "
+                                f"trial_seconds={label_seconds:.3f}"
+                            )
+                            data_cache[cache_key] = load_subject(
+                                dataset,
+                                subject,
+                                args.data_dir,
+                                target_fs,
+                                trial_seconds=load_seconds,
+                                preprocessing=preprocessing,
+                            )
+                            loaded = data_cache[cache_key]
+                            console.print(
+                                f"[green]loaded[/green] dataset={dataset} subject={subject} "
+                                f"target_fs={target_fs} algorithm={algorithm} "
+                                f"shape={tuple(loaded.x.shape)} classes={len(np.unique(loaded.y))} "
+                                f"windows={len(windows)}"
+                            )
+
+                        data = data_cache[cache_key]
+                        for fold_idx in fold_indices:
+                            console.print(
+                                f"[blue]benchmarking[/blue] algorithm={algorithm} "
+                                f"dataset={dataset} subject={subject} target_fs={target_fs} "
+                                f"fold={fold_idx}/{args.folds - 1} "
+                                f"windows={','.join(f'{value:.3f}' for value in windows)}"
+                            )
+                            results.extend(
+                                benchmark_subject_fold_windows(
+                                    algorithm,
+                                    data,
+                                    rust_binary=rust_binary,
+                                    fold_idx=fold_idx,
+                                    folds=args.folds,
+                                    window_requests_seconds=windows,
+                                    adc_bits=args.adc_bits,
+                                    adc_headroom=args.adc_headroom,
+                                    encoding_length=encoding_length,
+                                    event=event,
+                                    preprocessing=preprocessing,
+                                    profile_name=profile.name,
+                                )
+                            )
 
     payload = {
         "config": {
             "datasets": args.datasets,
+            "profile": profile.name,
+            "profile_description": profile.description,
             "algorithms": args.algorithms,
             "folds": args.folds,
             "fold_indices": fold_indices,
             "target_fs_grid": target_fs_grid,
-            "window_seconds_grid": args.window_seconds_grid,
+            "window_seconds_grid": resolved_window_grid,
             "window_step_seconds": args.window_step_seconds,
             "adc_bits": args.adc_bits,
             "adc_headroom": args.adc_headroom,
-            "encoding_length": args.encoding_length,
-            "event": args.event,
+            "encoding_length": encoding_length,
+            "event": event,
+            "preprocessing": {
+                "band_low": preprocessing.band_low,
+                "band_high": preprocessing.band_high,
+                "notch_hz": preprocessing.notch_hz,
+                "drop_first_seconds": preprocessing.drop_first_seconds,
+            },
+            "skip_rust": args.skip_rust,
         },
         "results": results,
     }

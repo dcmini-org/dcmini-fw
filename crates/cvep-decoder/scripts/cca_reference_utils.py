@@ -61,7 +61,9 @@ def build_cca_encodings(
             (model.Ms, np.tile(model.Mw, (1, 1, repeats))),
             axis=2,
         )[:, :, :total_samples]
-    return np.asarray(full[:, :, start_sample : start_sample + window_samples], dtype=np.float64)
+    return np.asarray(
+        full[:, :, start_sample : start_sample + window_samples], dtype=np.float64
+    )
 
 
 def instantaneous_cca_predictions_pyntbci(
@@ -72,6 +74,7 @@ def instantaneous_cca_predictions_pyntbci(
     event: str,
     onset_event: bool,
     encoding_length: float,
+    start_sample: int = 0,
 ) -> CcaReferenceResult:
     import pyntbci
 
@@ -85,6 +88,9 @@ def instantaneous_cca_predictions_pyntbci(
             onset_event=onset_event,
             encoding_length=encoding_length,
         )
+        if start_sample:
+            model.Ms = model.Ms[:, :, start_sample:].copy()
+            model.Mw = model.Mw[:, :, start_sample:].copy()
         model.fit(trials[trial_idx])
         predictions[trial_idx] = int(model.predict())
         scores[trial_idx] = np.asarray(model.rho, dtype=np.float64)
@@ -99,6 +105,7 @@ def cumulative_cca_predictions_pyntbci(
     event: str,
     onset_event: bool,
     encoding_length: float,
+    start_sample: int = 0,
 ) -> CcaReferenceResult:
     import pyntbci
 
@@ -109,6 +116,9 @@ def cumulative_cca_predictions_pyntbci(
         onset_event=onset_event,
         encoding_length=encoding_length,
     )
+    if start_sample:
+        model.Ms = model.Ms[:, :, start_sample:].copy()
+        model.Mw = model.Mw[:, :, start_sample:].copy()
     predictions = np.zeros(trials.shape[0], dtype=np.int64)
     scores = np.zeros((trials.shape[0], stimulus.shape[0]), dtype=np.float64)
     for trial_idx in range(trials.shape[0]):
@@ -116,6 +126,47 @@ def cumulative_cca_predictions_pyntbci(
         predictions[trial_idx] = int(model.predict())
         scores[trial_idx] = np.asarray(model.rho, dtype=np.float64)
         model.update(predictions[trial_idx])
+    return CcaReferenceResult(predictions=predictions, scores=scores)
+
+
+def cumulative_cca_predictions_pyntbci_confidence_gated(
+    trials: np.ndarray,
+    stimulus: np.ndarray,
+    fs: int,
+    *,
+    event: str,
+    onset_event: bool,
+    encoding_length: float,
+    min_margin: float,
+    start_sample: int = 0,
+) -> CcaReferenceResult:
+    import pyntbci
+
+    model = pyntbci.classifiers.urCCA(
+        stimulus=stimulus,
+        fs=fs,
+        event=event,
+        onset_event=onset_event,
+        encoding_length=encoding_length,
+    )
+    if start_sample:
+        model.Ms = model.Ms[:, :, start_sample:].copy()
+        model.Mw = model.Mw[:, :, start_sample:].copy()
+    predictions = np.zeros(trials.shape[0], dtype=np.int64)
+    scores = np.zeros((trials.shape[0], stimulus.shape[0]), dtype=np.float64)
+    for trial_idx in range(trials.shape[0]):
+        model.fit(trials[trial_idx])
+        trial_scores = np.asarray(model.rho, dtype=np.float64)
+        prediction = int(np.argmax(trial_scores))
+        predictions[trial_idx] = prediction
+        scores[trial_idx] = trial_scores
+        if trial_scores.size == 1:
+            margin = float("inf")
+        else:
+            top2 = np.partition(trial_scores, -2)[-2:]
+            margin = float(top2[-1] - top2[-2])
+        if margin >= min_margin:
+            model.update(prediction)
     return CcaReferenceResult(predictions=predictions, scores=scores)
 
 
