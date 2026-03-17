@@ -223,3 +223,46 @@ def instantaneous_cca_predictions_reference(
     )
     predictions = scores.argmax(axis=1).astype(np.int64)
     return CcaReferenceResult(predictions=predictions, scores=scores)
+
+
+def cumulative_cca_predictions_reference(
+    trials: np.ndarray,
+    encodings: np.ndarray,
+    regularization: float,
+    *,
+    min_margin: float | None = None,
+) -> CcaReferenceResult:
+    predictions = np.zeros(trials.shape[0], dtype=np.int64)
+    scores = np.zeros((trials.shape[0], encodings.shape[0]), dtype=np.float64)
+    running_trials: list[np.ndarray] = []
+    running_labels: list[int] = []
+
+    for trial_idx, trial in enumerate(trials):
+        trial_scores = class_scores_from_encodings(trial, encodings, regularization)
+        prediction = int(np.argmax(trial_scores))
+        predictions[trial_idx] = prediction
+        scores[trial_idx] = trial_scores
+
+        if min_margin is not None and trial_scores.size > 1:
+            top2 = np.partition(trial_scores, -2)[-2:]
+            margin = float(top2[-1] - top2[-2])
+            if margin < min_margin:
+                continue
+
+        running_trials.append(trial)
+        running_labels.append(prediction)
+        per_class_trials = []
+        for class_idx in range(encodings.shape[0]):
+            class_members = [
+                running_trials[idx]
+                for idx, label in enumerate(running_labels)
+                if label == class_idx
+            ]
+            if class_members:
+                template = np.mean(np.stack(class_members, axis=0), axis=0)
+            else:
+                template = encodings[class_idx]
+            per_class_trials.append(template)
+        encodings = np.asarray(per_class_trials, dtype=np.float64)
+
+    return CcaReferenceResult(predictions=predictions, scores=scores)
