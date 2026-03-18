@@ -36,6 +36,10 @@ search_best_125hz_configs = "cvep_bench.cli.search_best_125hz_configs:main"
 search_best_125hz_cca_inprocess = "cvep_bench.cli.search_best_125hz_cca_inprocess:main"
 compare_thielen2021_packaged_vs_raw = "cvep_bench.cli.compare_thielen2021_packaged_vs_raw:main"
 compare_rust_preprocessing_to_python = "cvep_bench.cli.compare_rust_preprocessing_to_python:main"
+export_pyntbci_etrca = "cvep_bench.cli.export_pyntbci_etrca:main"
+export_pyntbci_rcca = "cvep_bench.cli.export_pyntbci_rcca:main"
+export_pyntbci_urcca = "cvep_bench.cli.export_pyntbci_urcca:main"
+analyze_cvep_benchmark_results = "cvep_bench.cli.analyze_cvep_benchmark_results:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cvep_bench"]
