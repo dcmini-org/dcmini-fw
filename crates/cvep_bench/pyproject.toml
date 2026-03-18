@@ -44,6 +44,10 @@ benchmark_causal_preprocessing_vs_reference = "cvep_bench.cli.benchmark_causal_p
 compare_reference_vs_causal_preprocessing = "cvep_bench.cli.compare_reference_vs_causal_preprocessing:main"
 download_cvep_datasets = "cvep_bench.cli.download_cvep_datasets:main"
 benchmark_pyntbci_example3_etrca = "cvep_bench.cli.benchmark_pyntbci_example3_etrca:main"
+benchmark_cca_sliding_windows = "cvep_bench.cli.benchmark_cca_sliding_windows:main"
+benchmark_umm_sliding_windows = "cvep_bench.cli.benchmark_umm_sliding_windows:main"
+benchmark_umm_variants = "cvep_bench.cli.benchmark_umm_variants:main"
+export_umm_features = "cvep_bench.cli.export_umm_features:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cvep_bench"]
