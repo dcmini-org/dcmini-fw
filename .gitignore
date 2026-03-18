@@ -55,6 +55,13 @@ target/
 
 .direnv/
 
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+
 __pycache__/
 /softdevice/
 

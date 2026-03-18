@@ -1,7 +1,3 @@
-[build-system]
-requires = ["hatchling>=1.27.0"]
-build-backend = "hatchling.build"
-
 [project]
 name = "cvep-bench"
 version = "0.1.0"
@@ -18,14 +14,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-analysis = [
-  "matplotlib>=3.9.0",
-  "pandas>=2.3.0",
-]
-dev = [
-  "pytest>=8.3.0",
-  "ruff>=0.8.0",
-]
+analysis = ["matplotlib>=3.9.0", "pandas>=2.3.0"]
+dev = ["pytest>=8.3.0", "ruff>=0.8.0"]
 
 [project.scripts]
 benchmark_pyntbci_vs_rust = "cvep_bench.cli.benchmark_pyntbci_vs_rust:main"
@@ -48,6 +38,10 @@ benchmark_cca_sliding_windows = "cvep_bench.cli.benchmark_cca_sliding_windows:ma
 benchmark_umm_sliding_windows = "cvep_bench.cli.benchmark_umm_sliding_windows:main"
 benchmark_umm_variants = "cvep_bench.cli.benchmark_umm_variants:main"
 export_umm_features = "cvep_bench.cli.export_umm_features:main"
+
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cvep_bench"]

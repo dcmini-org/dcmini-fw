@@ -1,0 +1,11 @@
+[project]
+name = "dcmini"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["cvep-bench"]
+
+[tool.uv.sources]
+cvep-bench = { workspace = true }
+
+[tool.uv.workspace]
+members = ["python/*"]
