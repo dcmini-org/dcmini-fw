@@ -1,15 +1,11 @@
 from __future__ import annotations
 
 import argparse
-import html
-import json
-import tempfile
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 from rich.console import Console
-from rich.table import Table
 
 from cvep_bench.algorithms.cca_reference import (
     build_cca_encodings,
@@ -18,12 +14,34 @@ from cvep_bench.algorithms.cca_reference import (
     instantaneous_cca_predictions_pyntbci,
     quantize_trials_to_i32,
 )
-from cvep_bench.benchmarks.pyntbci_vs_rust import DEFAULT_DATA_DIR
-from cvep_bench.datasets.loaders import (
-    load_subject,
-    subject_list_for_dataset,
-    trial_seconds_for_dataset,
+from cvep_bench.benchmarks.load_planning import loader_trial_seconds_for_algorithm
+from cvep_bench.benchmarks.orchestration import (
+    BenchmarkDataCache,
+    ensure_output_dirs,
+    resolve_subjects,
+    resolve_window_requests_for_dataset,
 )
+from cvep_bench.benchmarks.reporting import (
+    build_group_summary,
+    render_rich_table,
+    render_tabular_html,
+    rows_to_csv,
+    write_json_payload,
+)
+from cvep_bench.cli.arg_groups import (
+    add_adc_args,
+    add_data_dir_arg,
+    add_dataset_args,
+    add_fold_args,
+    add_output_args,
+    add_preprocessing_override_args,
+    add_profile_arg,
+    add_rust_args,
+    add_target_fs_args,
+    add_window_args,
+    resolve_fold_indices,
+)
+from cvep_bench.datasets.loaders import load_subject, trial_seconds_for_dataset
 from cvep_bench.datasets.profiles import (
     benchmark_profile_names,
     resolve_benchmark_profile,
@@ -32,53 +50,35 @@ from cvep_bench.datasets.profiles import (
     resolve_onset_event,
     resolve_preprocessing_options,
     resolve_target_fs,
-    resolve_window_grid,
 )
-from cvep_bench.datasets.windows import (
-    decode_window_requests,
-    fold_slices,
-    loader_trial_seconds_for_algorithm,
+from cvep_bench.datasets.windowing import (
     slice_windowed_trials_and_stimulus,
     stimulus_to_sample_rate,
 )
-from cvep_bench.runtime.cargo import build_rust_binary
-from cvep_bench.runtime.fixtures import run_rust_fixture
+from cvep_bench.evaluation.splits import fold_slices
+from cvep_bench.runtime.binaries import WORKSPACE_ROOT, build_rust_binary
+from cvep_bench.runtime.json_fixtures import temporary_fixture_path
+from cvep_bench.runtime.runner import maybe_run_fixture_payload
+
+
+DEFAULT_DATA_DIR = WORKSPACE_ROOT / "crates" / "cvep-decoder" / "data"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--profile", choices=benchmark_profile_names(), default="legacy"
-    )
-    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
-    parser.add_argument(
-        "--output-json",
-        type=Path,
-        default=DEFAULT_DATA_DIR / "cca_vs_rust_results.json",
-    )
-    parser.add_argument(
-        "--output-csv", type=Path, default=DEFAULT_DATA_DIR / "cca_vs_rust_results.csv"
-    )
-    parser.add_argument(
-        "--output-html",
-        type=Path,
-        default=DEFAULT_DATA_DIR / "cca_vs_rust_results.html",
-    )
+    add_profile_arg(parser, choices=benchmark_profile_names())
+    add_data_dir_arg(parser, DEFAULT_DATA_DIR)
+    add_output_args(parser, output_dir=DEFAULT_DATA_DIR, stem="cca_vs_rust_results")
     parser.add_argument(
         "--algorithms",
         nargs="+",
         choices=["instantaneous_cca", "cumulative_cca"],
         default=["instantaneous_cca", "cumulative_cca"],
     )
-    parser.add_argument("--datasets", nargs="+", default=["Thielen2021"])
-    parser.add_argument("--subjects", type=int, nargs="+", default=None)
-    parser.add_argument("--max-subjects", type=int, default=None)
-    parser.add_argument("--folds", type=int, default=5)
-    parser.add_argument("--fold-index", type=int, nargs="+", default=None)
-    parser.add_argument("--target-fs", type=int, default=None)
-    parser.add_argument("--target-fs-grid", type=int, nargs="+", default=None)
-    parser.add_argument("--window-step-seconds", type=float, default=None)
-    parser.add_argument("--window-seconds-grid", type=float, nargs="+", default=None)
+    add_dataset_args(parser, default_datasets=["Thielen2021"])
+    add_fold_args(parser)
+    add_target_fs_args(parser, default=None, include_grid=True)
+    add_window_args(parser, default_grid=None, include_step=True)
     parser.add_argument("--encoding-length", type=float, default=None)
     parser.add_argument("--event", type=str, default=None)
     parser.add_argument(
@@ -91,16 +91,12 @@ def parse_args() -> argparse.Namespace:
         default="naive",
     )
     parser.add_argument("--cumulative-min-margin", type=float, default=0.05)
-    parser.add_argument("--adc-bits", type=int, default=24)
-    parser.add_argument("--adc-headroom", type=float, default=0.95)
-    parser.add_argument("--band-low", type=float, default=None)
-    parser.add_argument("--band-high", type=float, default=None)
-    parser.add_argument("--notch-hz", type=float, default=None)
-    parser.add_argument("--drop-first-seconds", type=float, default=None)
+    add_adc_args(parser)
+    add_preprocessing_override_args(parser)
     parser.add_argument(
         "--thielen2021-source", choices=["raw", "packaged"], default="raw"
     )
-    parser.add_argument("--skip-rust", action="store_true")
+    add_rust_args(parser)
     return parser.parse_args()
 
 
@@ -193,12 +189,10 @@ def benchmark_subject_fold_windows(
             "trials_i32": quantized_trials.tolist(),
             "regularization": args.regularization,
         }
-        rust = None
-        if rust_binary is not None:
-            with tempfile.TemporaryDirectory(prefix="cvep-cca-benchmark-") as tmp_dir:
-                fixture_path = Path(tmp_dir) / "fixture.json"
-                fixture_path.write_text(json.dumps(fixture), encoding="utf-8")
-                rust = run_rust_fixture(fixture_path, rust_binary)
+        with temporary_fixture_path(prefix="cvep-cca-benchmark-") as fixture_path:
+            rust = maybe_run_fixture_payload(
+                rust_binary, fixture, fixture_path=fixture_path
+            )
         rows.append(
             {
                 "algorithm": algorithm,
@@ -245,181 +239,59 @@ def benchmark_subject_fold_windows(
     return rows
 
 
-def flatten_results_csv(results: list[dict[str, Any]]) -> str:
-    keys = [
-        "algorithm",
-        "dataset",
-        "subject",
-        "fold_index",
-        "folds",
-        "classes",
-        "channels",
-        "profile",
-        "target_fs",
-        "band_low",
-        "band_high",
-        "notch_hz",
-        "train_window_seconds",
-        "requested_window_seconds",
-        "window_seconds",
-        "effective_window_seconds",
-        "leading_trim_seconds",
-        "window",
-        "feature_count",
-        "train_trials",
-        "test_trials",
-        "python_reference_accuracy",
-        "pyntbci_accuracy",
-        "rust_exact_accuracy",
-        "rust_exact_match_rate",
-        "rust_fixed_accuracy",
-        "rust_fixed_match_rate",
-    ]
-    lines = [",".join(keys)]
-    for row in results:
-        lines.append(
-            ",".join("" if row.get(key) is None else str(row[key]) for key in keys)
-        )
-    return "\n".join(lines) + "\n"
-
-
-def mean_or_none(values: list[float | None]) -> float | None:
-    filtered = [value for value in values if value is not None]
-    return None if not filtered else float(np.mean(filtered))
+def grouped_summary_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return build_group_summary(
+        results,
+        key_fields=[
+            "algorithm",
+            "dataset",
+            "profile",
+            "target_fs",
+            "window",
+            "window_seconds",
+            "effective_window_seconds",
+            "requested_window_seconds",
+        ],
+        metric_fields=["python_reference_accuracy"],
+        optional_metric_fields=(
+            "rust_exact_accuracy",
+            "rust_exact_match_rate",
+            "rust_fixed_accuracy",
+            "rust_fixed_match_rate",
+        ),
+    )
 
 
 def fmt_metric(value: float | None) -> str:
     return "-" if value is None else f"{value:.4f}"
 
 
-def grouped_summary_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    grouped: dict[tuple[str, str, str, int, int], list[dict[str, Any]]] = {}
-    for row in results:
-        grouped.setdefault(
-            (
-                row["algorithm"],
-                row["dataset"],
-                row.get("profile", "legacy"),
-                row["target_fs"],
-                row["window"],
-            ),
-            [],
-        ).append(row)
-    out = []
-    for (algorithm, dataset, profile, target_fs, window), rows in sorted(
-        grouped.items()
-    ):
-        out.append(
-            {
-                "algorithm": algorithm,
-                "dataset": dataset,
-                "profile": profile,
-                "target_fs": target_fs,
-                "window": window,
-                "window_seconds": rows[0]["window_seconds"],
-                "effective_window_seconds": rows[0].get("effective_window_seconds"),
-                "requested_window_seconds": rows[0]["requested_window_seconds"],
-                "subjects": len({row["subject"] for row in rows}),
-                "mean_python_reference_accuracy": float(
-                    np.mean([row["python_reference_accuracy"] for row in rows])
-                ),
-                "mean_rust_exact_accuracy": mean_or_none(
-                    [row.get("rust_exact_accuracy") for row in rows]
-                ),
-                "mean_rust_exact_match_rate": mean_or_none(
-                    [row.get("rust_exact_match_rate") for row in rows]
-                ),
-                "mean_rust_fixed_accuracy": mean_or_none(
-                    [row.get("rust_fixed_accuracy") for row in rows]
-                ),
-                "mean_rust_fixed_match_rate": mean_or_none(
-                    [row.get("rust_fixed_match_rate") for row in rows]
-                ),
-            }
-        )
-    return out
-
-
 def render_summary(console: Console, results: list[dict[str, Any]]) -> None:
-    table = Table(title="CCA Benchmark Summary")
-    for col in [
-        "Algorithm",
-        "Dataset",
-        "Profile",
-        "fs",
-        "Window",
-        "Subjects",
-        "Python",
-        "Rust exact",
-        "Exact match",
-        "Rust fixed",
-        "Fixed match",
-    ]:
-        table.add_column(col)
-    for row in grouped_summary_rows(results):
-        table.add_row(
-            row["algorithm"],
-            row["dataset"],
-            row["profile"],
-            str(row["target_fs"]),
-            f"{row['effective_window_seconds']:.3f}",
-            str(row["subjects"]),
-            f"{row['mean_python_reference_accuracy']:.4f}",
-            fmt_metric(row["mean_rust_exact_accuracy"]),
-            fmt_metric(row["mean_rust_exact_match_rate"]),
-            fmt_metric(row["mean_rust_fixed_accuracy"]),
-            fmt_metric(row["mean_rust_fixed_match_rate"]),
-        )
-    console.print(table)
-
-
-def render_html_report(
-    output: Path, config: dict[str, Any], results: list[dict[str, Any]]
-) -> None:
-    summary = grouped_summary_rows(results)
-    summary_rows = "\n".join(
-        (
-            "<tr>"
-            f"<td>{html.escape(row['algorithm'])}</td>"
-            f"<td>{html.escape(row['dataset'])}</td>"
-            f"<td>{html.escape(row['profile'])}</td>"
-            f"<td>{row['target_fs']}</td>"
-            f"<td>{row['requested_window_seconds']:.3f}</td>"
-            f"<td>{row['effective_window_seconds']:.3f}</td>"
-            f"<td>{row['subjects']}</td>"
-            f"<td>{row['mean_python_reference_accuracy']:.4f}</td>"
-            f"<td>{fmt_metric(row['mean_rust_exact_accuracy'])}</td>"
-            f"<td>{fmt_metric(row['mean_rust_exact_match_rate'])}</td>"
-            f"<td>{fmt_metric(row['mean_rust_fixed_accuracy'])}</td>"
-            f"<td>{fmt_metric(row['mean_rust_fixed_match_rate'])}</td>"
-            "</tr>"
-        )
-        for row in summary
-    )
-    detail_rows = "\n".join(
-        (
-            "<tr>"
-            f"<td>{html.escape(row['algorithm'])}</td>"
-            f"<td>{html.escape(row['dataset'])}</td>"
-            f"<td>{html.escape(row['profile'])}</td>"
-            f"<td>{row['subject']}</td>"
-            f"<td>{row['fold_index']}</td>"
-            f"<td>{row['target_fs']}</td>"
-            f"<td>{row['requested_window_seconds']:.3f}</td>"
-            f"<td>{row['effective_window_seconds']:.3f}</td>"
-            f"<td>{row['feature_count']}</td>"
-            f"<td>{row['python_reference_accuracy']:.4f}</td>"
-            f"<td>{fmt_metric(row['rust_exact_accuracy'])}</td>"
-            f"<td>{fmt_metric(row['rust_exact_match_rate'])}</td>"
-            f"<td>{fmt_metric(row['rust_fixed_accuracy'])}</td>"
-            f"<td>{fmt_metric(row['rust_fixed_match_rate'])}</td>"
-            "</tr>"
-        )
-        for row in results
-    )
-    output.write_text(
-        f"<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>CCA Benchmark</title></head><body><pre>{html.escape(json.dumps(config, indent=2))}</pre><table><thead><tr><th>Algorithm</th><th>Dataset</th><th>Profile</th><th>fs</th><th>Requested window</th><th>Actual window</th><th>Subjects</th><th>Python</th><th>Rust exact</th><th>Exact match</th><th>Rust fixed</th><th>Fixed match</th></tr></thead><tbody>{summary_rows}</tbody></table><table><thead><tr><th>Algorithm</th><th>Dataset</th><th>Profile</th><th>Subject</th><th>Fold</th><th>fs</th><th>Requested window</th><th>Actual window</th><th>Features</th><th>Python</th><th>Rust exact</th><th>Exact match</th><th>Rust fixed</th><th>Fixed match</th></tr></thead><tbody>{detail_rows}</tbody></table></body></html>",
-        encoding="utf-8",
+    render_rich_table(
+        console,
+        title="CCA Benchmark Summary",
+        columns=[
+            ("Algorithm", "algorithm"),
+            ("Dataset", "dataset"),
+            ("Profile", "profile"),
+            ("fs", "target_fs"),
+            ("Window", "effective_window_seconds"),
+            ("Subjects", "subjects"),
+            ("Python", "mean_python_reference_accuracy"),
+            ("Rust exact", "mean_rust_exact_accuracy"),
+            ("Exact match", "mean_rust_exact_match_rate"),
+            ("Rust fixed", "mean_rust_fixed_accuracy"),
+            ("Fixed match", "mean_rust_fixed_match_rate"),
+        ],
+        rows=grouped_summary_rows(results),
+        formatters={
+            "effective_window_seconds": lambda value: f"{value:.3f}",
+            "mean_python_reference_accuracy": lambda value: f"{value:.4f}",
+            "mean_rust_exact_accuracy": fmt_metric,
+            "mean_rust_exact_match_rate": fmt_metric,
+            "mean_rust_fixed_accuracy": fmt_metric,
+            "mean_rust_fixed_match_rate": fmt_metric,
+        },
     )
 
 
@@ -443,22 +315,25 @@ def main() -> None:
     target_fs_grid = args.target_fs_grid or [resolve_target_fs(profile, args.target_fs)]
     rust_binary = None if args.skip_rust else build_rust_binary("cca_benchmark")
     console = Console()
+    ensure_output_dirs([args.output_json, args.output_csv, args.output_html])
+    fold_indices = resolve_fold_indices(args.folds, args.fold_index)
     results: list[dict[str, Any]] = []
     resolved_window_grid = args.window_seconds_grid
+    cache = BenchmarkDataCache(args.data_dir)
     for dataset in args.datasets:
-        subjects = args.subjects or subject_list_for_dataset(dataset)
-        if args.max_subjects is not None:
-            subjects = subjects[: args.max_subjects]
+        subjects = resolve_subjects(dataset, args.subjects, args.max_subjects)
         for subject in subjects:
             for target_fs in target_fs_grid:
                 full_trial_seconds = trial_seconds_for_dataset(dataset)
-                resolved_window_grid = resolve_window_grid(
-                    profile, dataset, args.window_seconds_grid, args.window_step_seconds
+                window_requests_seconds, resolved_window_grid = (
+                    resolve_window_requests_for_dataset(
+                        dataset,
+                        profile,
+                        args.window_seconds_grid,
+                        args.window_step_seconds,
+                        full_trial_seconds,
+                    )
                 )
-                window_requests_seconds = decode_window_requests(
-                    full_trial_seconds, resolved_window_grid, args.window_step_seconds
-                )
-                data_cache: dict[tuple[str, float | None], Any] = {}
                 for algorithm in args.algorithms:
                     grouped_windows = [window_requests_seconds]
                     if (
@@ -487,19 +362,14 @@ def main() -> None:
                             is None
                             else windows[0]
                         )
-                        cache_key = (algorithm, load_seconds)
-                        if cache_key not in data_cache:
-                            data_cache[cache_key] = load_subject(
-                                dataset,
-                                subject,
-                                args.data_dir,
-                                target_fs,
-                                trial_seconds=load_seconds,
-                                preprocessing=preprocessing,
-                                thielen2021_source=args.thielen2021_source,
-                            )
-                        data = data_cache[cache_key]
-                        fold_indices = args.fold_index or list(range(args.folds))
+                        data = cache.get(
+                            dataset,
+                            subject,
+                            target_fs,
+                            trial_seconds=load_seconds,
+                            preprocessing=preprocessing,
+                            thielen2021_source=args.thielen2021_source,
+                        )
                         for fold_idx in fold_indices:
                             results.extend(
                                 benchmark_subject_fold_windows(
@@ -520,7 +390,7 @@ def main() -> None:
             "subjects": args.subjects,
             "max_subjects": args.max_subjects,
             "folds": args.folds,
-            "fold_index": args.fold_index or list(range(args.folds)),
+            "fold_index": fold_indices,
             "target_fs_grid": target_fs_grid,
             "window_step_seconds": args.window_step_seconds,
             "window_seconds_grid": resolved_window_grid,
@@ -542,9 +412,78 @@ def main() -> None:
         },
         "results": results,
     }
-    for output in [args.output_json, args.output_csv, args.output_html]:
-        output.parent.mkdir(parents=True, exist_ok=True)
-    args.output_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    args.output_csv.write_text(flatten_results_csv(results), encoding="utf-8")
-    render_html_report(args.output_html, payload["config"], results)
+    write_json_payload(args.output_json, payload)
+    args.output_csv.write_text(
+        rows_to_csv(
+            results,
+            [
+                "algorithm",
+                "dataset",
+                "subject",
+                "fold_index",
+                "folds",
+                "classes",
+                "channels",
+                "profile",
+                "target_fs",
+                "band_low",
+                "band_high",
+                "notch_hz",
+                "train_window_seconds",
+                "requested_window_seconds",
+                "window_seconds",
+                "effective_window_seconds",
+                "leading_trim_seconds",
+                "window",
+                "feature_count",
+                "train_trials",
+                "test_trials",
+                "python_reference_accuracy",
+                "pyntbci_accuracy",
+                "rust_exact_accuracy",
+                "rust_exact_match_rate",
+                "rust_fixed_accuracy",
+                "rust_fixed_match_rate",
+            ],
+        ),
+        encoding="utf-8",
+    )
+    render_tabular_html(
+        args.output_html,
+        title="CCA Benchmark",
+        subtitle="Zero-training CCA parity against Rust.",
+        config=payload["config"],
+        summary_columns=[
+            ("Algorithm", "algorithm"),
+            ("Dataset", "dataset"),
+            ("Profile", "profile"),
+            ("fs", "target_fs"),
+            ("Requested window", "requested_window_seconds"),
+            ("Actual window", "effective_window_seconds"),
+            ("Subjects", "subjects"),
+            ("Python", "mean_python_reference_accuracy"),
+            ("Rust exact", "mean_rust_exact_accuracy"),
+            ("Exact match", "mean_rust_exact_match_rate"),
+            ("Rust fixed", "mean_rust_fixed_accuracy"),
+            ("Fixed match", "mean_rust_fixed_match_rate"),
+        ],
+        summary_rows=grouped_summary_rows(results),
+        detail_columns=[
+            ("Algorithm", "algorithm"),
+            ("Dataset", "dataset"),
+            ("Profile", "profile"),
+            ("Subject", "subject"),
+            ("Fold", "fold_index"),
+            ("fs", "target_fs"),
+            ("Requested window", "requested_window_seconds"),
+            ("Actual window", "effective_window_seconds"),
+            ("Features", "feature_count"),
+            ("Python", "python_reference_accuracy"),
+            ("Rust exact", "rust_exact_accuracy"),
+            ("Exact match", "rust_exact_match_rate"),
+            ("Rust fixed", "rust_fixed_accuracy"),
+            ("Fixed match", "rust_fixed_match_rate"),
+        ],
+        detail_rows=results,
+    )
     render_summary(console, results)

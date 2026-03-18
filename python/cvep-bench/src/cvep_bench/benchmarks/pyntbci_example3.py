@@ -1,24 +1,27 @@
 from __future__ import annotations
 
 import argparse
-import html
 import json
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 from rich.console import Console
-from rich.table import Table
 
 from cvep_bench.algorithms.pyntbci_models import (
     build_etrca_bank,
     fit_etrca,
     quantize_trials_to_adc,
 )
-from cvep_bench.runtime.cargo import WORKSPACE_ROOT, build_rust_binary
-from cvep_bench.runtime.fixtures import run_rust_fixture
+from cvep_bench.benchmarks.reporting import (
+    render_rich_table,
+    render_tabular_html,
+    write_json_payload,
+)
+from cvep_bench.runtime.binaries import build_rust_binary
+from cvep_bench.runtime.json_fixtures import temporary_fixture_path
+from cvep_bench.runtime.runner import run_fixture_payload
 
 
 @dataclass
@@ -125,10 +128,8 @@ def benchmark_subject_fold(
         "benchmark_labels": y_test.astype(np.int64).tolist(),
         "trials_i32": trials_i32.tolist(),
     }
-    with tempfile.TemporaryDirectory(prefix="cvep-example3-") as tmpdir:
-        fixture_path = Path(tmpdir) / "fixture.json"
-        fixture_path.write_text(json.dumps(fixture), encoding="utf-8")
-        rust = run_rust_fixture(fixture_path, rust_binary)
+    with temporary_fixture_path(prefix="cvep-example3-") as fixture_path:
+        rust = run_fixture_payload(rust_binary, fixture, fixture_path=fixture_path)
     return {
         "subject": dataset.subject,
         "fold_index": fold_index,
@@ -159,7 +160,7 @@ def main() -> None:
                 )
             )
     payload = {"config": vars(args), "results": rows}
-    args.output_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    write_json_payload(args.output_json, payload)
     args.output_csv.write_text(
         "subject,fold_index,pyntbci_accuracy,rust_exact_accuracy,rust_exact_match_rate\n"
         + "\n".join(
@@ -169,19 +170,34 @@ def main() -> None:
         + "\n",
         encoding="utf-8",
     )
-    args.output_html.write_text(
-        f"<!doctype html><html lang='en'><body><pre>{html.escape(json.dumps(payload, indent=2))}</pre></body></html>",
-        encoding="utf-8",
+    render_tabular_html(
+        args.output_html,
+        title="PyNTBCI Example 3 eTRCA",
+        subtitle="Chronological fold parity between PyNTBCI and Rust on packaged example data.",
+        config=payload["config"],
+        summary_columns=[
+            ("Subject", "subject"),
+            ("Fold", "fold_index"),
+            ("PyntBCI", "pyntbci_accuracy"),
+            ("Rust exact", "rust_exact_accuracy"),
+            ("Match", "rust_exact_match_rate"),
+        ],
+        summary_rows=rows,
     )
-    table = Table(title="PyNTBCI Example 3 eTRCA")
-    for col in ["subject", "fold", "pyntbci", "rust_exact", "match"]:
-        table.add_column(col)
-    for row in rows:
-        table.add_row(
-            row["subject"],
-            str(row["fold_index"]),
-            f"{row['pyntbci_accuracy']:.4f}",
-            f"{row['rust_exact_accuracy']:.4f}",
-            f"{row['rust_exact_match_rate']:.4f}",
-        )
-    Console().print(table)
+    render_rich_table(
+        Console(),
+        title="PyNTBCI Example 3 eTRCA",
+        columns=[
+            ("subject", "subject"),
+            ("fold", "fold_index"),
+            ("pyntbci", "pyntbci_accuracy"),
+            ("rust_exact", "rust_exact_accuracy"),
+            ("match", "rust_exact_match_rate"),
+        ],
+        rows=rows,
+        formatters={
+            "pyntbci_accuracy": lambda value: f"{value:.4f}",
+            "rust_exact_accuracy": lambda value: f"{value:.4f}",
+            "rust_exact_match_rate": lambda value: f"{value:.4f}",
+        },
+    )

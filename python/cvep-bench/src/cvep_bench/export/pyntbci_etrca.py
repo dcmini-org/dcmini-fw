@@ -17,6 +17,8 @@ from cvep_bench.export.common import (
     class_accuracy,
     load_npz_dataset,
 )
+from cvep_bench.export.fixtures import etrca_fixture
+from cvep_bench.export.predictors import exact_etrca_predict
 
 
 def parse_args() -> argparse.Namespace:
@@ -32,25 +34,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--adc-bits", type=int, default=24)
     parser.add_argument("--adc-headroom", type=float, default=0.95)
     return parser.parse_args()
-
-
-def exact_etrca_predict(
-    x: np.ndarray,
-    spatial_filters: np.ndarray,
-    projected_templates: np.ndarray,
-    class_labels: np.ndarray,
-) -> np.ndarray:
-    scores = np.zeros((x.shape[0], spatial_filters.shape[0]), dtype=np.float64)
-    template_norms = np.sqrt(
-        np.maximum((projected_templates * projected_templates).sum(axis=1), 1e-12)
-    )
-    for class_idx in range(spatial_filters.shape[0]):
-        projected = np.einsum("tcs,c->ts", x, spatial_filters[class_idx], optimize=True)
-        projected -= projected.mean(axis=1, keepdims=True)
-        numerator = projected @ projected_templates[class_idx]
-        trial_norms = np.sqrt(np.maximum((projected * projected).sum(axis=1), 1e-12))
-        scores[:, class_idx] = numerator / (trial_norms * template_norms[class_idx])
-    return class_labels[np.argmax(scores, axis=1)]
 
 
 def main() -> None:
@@ -108,19 +91,17 @@ def main() -> None:
         quantized_trials, _scale = quantize_trials_to_adc(
             x_test, args.adc_bits, args.adc_headroom
         )
-        fixture = {
-            "algorithm": "etrca",
-            "dataset": args.input.name,
-            "subject": args.subject,
-            "classes": int(model_class_labels.shape[0]),
-            "channels": int(x.shape[1]),
-            "window": int(x.shape[2]),
-            "spatial_filters": spatial_filters.astype(np.float32).tolist(),
-            "projected_templates": projected_templates.astype(np.float32).tolist(),
-            "benchmark_predictions": pyntbci_pred.astype(np.int64).tolist(),
-            "benchmark_labels": y_test.astype(np.int64).tolist(),
-            "trials_i32": quantized_trials.tolist(),
-        }
+        fixture = etrca_fixture(
+            dataset=args.input.name,
+            subject=args.subject,
+            class_labels=model_class_labels,
+            x=x,
+            spatial_filters=spatial_filters,
+            projected_templates=projected_templates,
+            benchmark_predictions=pyntbci_pred,
+            benchmark_labels=y_test,
+            trials_i32=quantized_trials,
+        )
         args.fixture_json.write_text(json.dumps(fixture), encoding="utf-8")
     if args.metadata_json is not None:
         args.metadata_json.write_text(

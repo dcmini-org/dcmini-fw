@@ -1,18 +1,30 @@
 from __future__ import annotations
 
 import argparse
-import html
 import itertools
-import json
 from pathlib import Path
-import subprocess
-import sys
 
 import numpy as np
 from rich.console import Console
-from rich.table import Table
 
 from cvep_bench.benchmarks.pyntbci_vs_rust import DEFAULT_DATA_DIR
+from cvep_bench.benchmarks.reporting import (
+    render_rich_table,
+    render_tabular_html,
+    write_json_payload,
+)
+from cvep_bench.benchmarks.subprocesses import (
+    build_common_benchmark_argv,
+    run_module_with_json_output,
+)
+from cvep_bench.cli.arg_groups import (
+    add_data_dir_arg,
+    add_dataset_args,
+    add_fold_args,
+    add_output_args,
+    add_rust_args,
+    add_window_args,
+)
 
 
 DEFAULT_WINDOWS = [1.05, 2.1, 4.2, 5.25, 10.5, 31.5]
@@ -20,78 +32,24 @@ DEFAULT_WINDOWS = [1.05, 2.1, 4.2, 5.25, 10.5, 31.5]
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
-    parser.add_argument(
-        "--output-json",
-        type=Path,
-        default=DEFAULT_DATA_DIR / "search_best_125hz_configs.json",
+    add_data_dir_arg(parser, DEFAULT_DATA_DIR)
+    add_output_args(
+        parser,
+        output_dir=DEFAULT_DATA_DIR,
+        stem="search_best_125hz_configs",
+        include_csv=False,
     )
-    parser.add_argument(
-        "--output-html",
-        type=Path,
-        default=DEFAULT_DATA_DIR / "search_best_125hz_configs.html",
-    )
-    parser.add_argument("--datasets", nargs="+", default=["Thielen2021"])
-    parser.add_argument("--subjects", type=int, nargs="+", default=None)
-    parser.add_argument("--max-subjects", type=int, default=4)
-    parser.add_argument("--folds", type=int, default=5)
-    parser.add_argument("--fold-index", type=int, nargs="+", default=[0])
-    parser.add_argument(
-        "--window-seconds-grid", type=float, nargs="+", default=DEFAULT_WINDOWS
-    )
-    parser.add_argument("--skip-rust", action="store_true", default=True)
+    add_dataset_args(parser, default_datasets=["Thielen2021"], default_max_subjects=4)
+    add_fold_args(parser)
+    parser.set_defaults(fold_index=[0])
+    add_window_args(parser, default_grid=DEFAULT_WINDOWS, include_step=False)
+    add_rust_args(parser)
     parser.add_argument(
         "--families", nargs="+", choices=["etrca", "cca"], default=["etrca", "cca"]
     )
     parser.add_argument("--search-limit", type=int, default=None)
     parser.add_argument("--search-offset", type=int, default=0)
     return parser.parse_args()
-
-
-def base_command(module: str, output_json: Path, args: argparse.Namespace) -> list[str]:
-    command = [
-        sys.executable,
-        "-m",
-        module,
-        "--data-dir",
-        str(args.data_dir),
-        "--output-json",
-        str(output_json),
-        "--output-csv",
-        str(output_json.with_suffix(".csv")),
-        "--output-html",
-        str(output_json.with_suffix(".html")),
-        "--datasets",
-        *args.datasets,
-        "--folds",
-        str(args.folds),
-        "--fold-index",
-        *[str(v) for v in args.fold_index],
-        "--window-seconds-grid",
-        *[str(v) for v in args.window_seconds_grid],
-        "--target-fs",
-        "125",
-    ]
-    if args.subjects is not None:
-        command.extend(["--subjects", *[str(v) for v in args.subjects]])
-    if args.max_subjects is not None:
-        command.extend(["--max-subjects", str(args.max_subjects)])
-    if args.skip_rust:
-        command.append("--skip-rust")
-    return command
-
-
-def run_command(command: list[str]) -> dict:
-    result = subprocess.run(command, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"Command failed with code {result.returncode}\nstdout:\n{result.stdout}\n\nstderr:\n{result.stderr}"
-        )
-    output_json = Path(command[command.index("--output-json") + 1])
-    payload = json.loads(output_json.read_text(encoding="utf-8"))
-    payload["stdout"] = result.stdout
-    payload["stderr"] = result.stderr
-    return payload
 
 
 def summary_accuracy(payload: dict) -> float:
@@ -170,19 +128,29 @@ def main() -> None:
         if args.search_limit is not None:
             search_space = search_space[: args.search_limit]
         for idx, params in enumerate(search_space):
-            output_json = args.output_json.parent / f"search_{family}_{idx:03d}.json"
-            command = base_command(module, output_json, args) + [
-                "--profile",
-                params["profile"],
-                "--algorithms",
-                *params["algorithms"],
-                "--band-low",
-                str(params["band_low"]),
-                "--band-high",
-                str(params["band_high"]),
-                "--drop-first-seconds",
-                str(params["drop_first_seconds"]),
-            ]
+            output_prefix = args.output_json.parent / f"search_{family}_{idx:03d}"
+            command = build_common_benchmark_argv(
+                args,
+                output_prefix=output_prefix,
+                include_profile=False,
+                include_target_fs=False,
+            )
+            command.extend(
+                [
+                    "--target-fs",
+                    "125",
+                    "--profile",
+                    params["profile"],
+                    "--algorithms",
+                    *params["algorithms"],
+                    "--band-low",
+                    str(params["band_low"]),
+                    "--band-high",
+                    str(params["band_high"]),
+                    "--drop-first-seconds",
+                    str(params["drop_first_seconds"]),
+                ]
+            )
             if family == "cca":
                 command.extend(
                     [
@@ -196,7 +164,7 @@ def main() -> None:
                     "--onset-event" if params["onset_event"] else "--no-onset-event"
                 )
             try:
-                payload = run_command(command)
+                payload = run_module_with_json_output(module, command)
                 trials.append(
                     {
                         "family": family,
@@ -249,18 +217,26 @@ def main() -> None:
             ),
         ),
     }
-    args.output_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    args.output_html.write_text(
-        f"<!doctype html><html lang='en'><body><pre>{html.escape(json.dumps(payload, indent=2))}</pre></body></html>",
-        encoding="utf-8",
+    write_json_payload(args.output_json, payload)
+    render_tabular_html(
+        args.output_html,
+        title="Best 125 Hz Config Search",
+        subtitle="Constrained search over benchmark presets.",
+        config=payload["config"],
+        summary_columns=[
+            ("Family", "family"),
+            ("Mean", "mean_accuracy"),
+            ("Params", "params"),
+        ],
+        summary_rows=best,
     )
-    table = Table(title="Best 125 Hz Configs")
-    for col in ["Family", "Mean", "Params"]:
-        table.add_column(col)
-    for item in best:
-        table.add_row(
-            item["family"],
-            f"{item['mean_accuracy']:.4f}",
-            json.dumps(item["params"], sort_keys=True),
-        )
-    console.print(table)
+    render_rich_table(
+        console,
+        title="Best 125 Hz Configs",
+        columns=[("Family", "family"), ("Mean", "mean_accuracy"), ("Params", "params")],
+        rows=best,
+        formatters={
+            "mean_accuracy": lambda value: f"{value:.4f}",
+            "params": lambda value: str(value),
+        },
+    )

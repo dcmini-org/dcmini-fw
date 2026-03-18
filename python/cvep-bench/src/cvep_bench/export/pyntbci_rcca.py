@@ -12,6 +12,7 @@ from cvep_bench.export.common import (
     class_accuracy,
     load_npz_dataset,
 )
+from cvep_bench.export.predictors import exact_projected_predict
 
 
 def parse_args() -> argparse.Namespace:
@@ -26,23 +27,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ensemble", action="store_true")
     parser.add_argument("--metadata-json", type=Path, default=None)
     return parser.parse_args()
-
-
-def exact_projected_predict(
-    x: np.ndarray,
-    spatial_filters: np.ndarray,
-    templates: np.ndarray,
-    class_labels: np.ndarray,
-) -> np.ndarray:
-    scores = np.zeros((x.shape[0], spatial_filters.shape[0]), dtype=np.float64)
-    template_norms = np.sqrt(np.maximum((templates * templates).sum(axis=1), 1e-12))
-    for class_idx in range(spatial_filters.shape[0]):
-        projected = np.einsum("tcs,c->ts", x, spatial_filters[class_idx], optimize=True)
-        projected -= projected.mean(axis=1, keepdims=True)
-        numerator = projected @ templates[class_idx]
-        trial_norms = np.sqrt(np.maximum((projected * projected).sum(axis=1), 1e-12))
-        scores[:, class_idx] = numerator / (trial_norms * template_norms[class_idx])
-    return class_labels[np.argmax(scores, axis=1)]
 
 
 def main() -> None:

@@ -7,6 +7,8 @@ from pathlib import Path
 import numpy as np
 
 from cvep_bench.export.common import class_accuracy
+from cvep_bench.export.fixtures import urcca_fixture
+from cvep_bench.evaluation.splits import chronological_test_split
 
 
 def parse_args() -> argparse.Namespace:
@@ -24,19 +26,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--state-dump-json", type=Path, default=None)
     parser.add_argument("--state-dump-trials", type=int, default=2)
     return parser.parse_args()
-
-
-def chronological_test_split(
-    x: np.ndarray, y: np.ndarray, folds: int, fold_index: int
-) -> tuple[np.ndarray, np.ndarray]:
-    n_trials = x.shape[0]
-    if n_trials % folds != 0:
-        raise ValueError(
-            f"Expected trial count divisible by folds, got {n_trials=} and {folds=}"
-        )
-    split = np.repeat(np.arange(folds), n_trials // folds)
-    test_mask = split == fold_index
-    return x[test_mask], y[test_mask]
 
 
 def main() -> None:
@@ -133,18 +122,15 @@ def main() -> None:
             json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
         )
     if args.fixture_json is not None:
-        fixture = {
-            "classes": int(stimulus.shape[0]),
-            "channels": int(x.shape[1]),
-            "features": int(encodings.shape[1]),
-            "window": int(n_samples),
-            "encodings": encodings.astype(np.float32).tolist(),
-            "trials": x_test.astype(np.float32).tolist(),
-            "benchmark_predictions": online_pred.tolist(),
-            "benchmark_labels": y_test.astype(np.int64).tolist(),
-            "regularization": 0.0,
-            "reference_states": state_snapshots,
-        }
+        fixture = urcca_fixture(
+            stimulus=stimulus,
+            x_test=x_test,
+            encodings=encodings,
+            benchmark_predictions=online_pred,
+            benchmark_labels=y_test,
+            regularization=0.0,
+            reference_states=state_snapshots,
+        )
         args.fixture_json.write_text(json.dumps(fixture), encoding="utf-8")
     if args.state_dump_json is not None:
         args.state_dump_json.write_text(json.dumps(state_snapshots), encoding="utf-8")

@@ -4,6 +4,9 @@ import math
 
 import numpy as np
 
+from cvep_bench.benchmarks.load_planning import loader_trial_seconds_for_algorithm
+from cvep_bench.evaluation.splits import fold_slices
+
 
 def round_half_up(value: float) -> int:
     return int(math.floor(value + 0.5))
@@ -41,13 +44,6 @@ def decode_window_requests(
     ):
         filtered.append(full_trial_seconds)
     return sorted(filtered)
-
-
-def fold_slices(n_trials: int, folds: int) -> list[np.ndarray]:
-    return [
-        np.asarray(indices, dtype=np.int64)
-        for indices in np.array_split(np.arange(n_trials), folds)
-    ]
 
 
 def stimulus_to_sample_rate(
@@ -110,15 +106,3 @@ def slice_windowed_trials_and_stimulus(
             "effective_stimulus_samples": stimulus_effective.shape[1],
         },
     )
-
-
-def loader_trial_seconds_for_algorithm(
-    dataset: str, algorithm: str, requested_window_seconds: float
-) -> float | None:
-    if dataset == "Thielen2021" and algorithm in {
-        "rcca",
-        "instantaneous_cca",
-        "cumulative_cca",
-    }:
-        return requested_window_seconds
-    return None

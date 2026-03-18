@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 import argparse
-import html
 import json
 import subprocess
-import tempfile
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 from scipy import signal
 
-from cvep_bench.runtime.cargo import WORKSPACE_ROOT
+from cvep_bench.benchmarks.reporting import render_tabular_html, write_json_payload
+from cvep_bench.compare.metrics import compare_outputs
+from cvep_bench.runtime.binaries import WORKSPACE_ROOT
+from cvep_bench.runtime.json_fixtures import temporary_fixture_path
+from cvep_bench.runtime.runner import run_fixture_payload
 
 
 def parse_args() -> argparse.Namespace:
@@ -84,67 +85,24 @@ def run_rust_fixture(
         "sos_rows": sos_rows.astype(np.float32).tolist(),
         "samples": samples.astype(np.float32).tolist(),
     }
-    with tempfile.TemporaryDirectory(prefix="cvep-preproc-") as tmpdir:
-        fixture_path = Path(tmpdir) / "fixture.json"
-        fixture_path.write_text(json.dumps(fixture), encoding="utf-8")
-        result = subprocess.run(
+    binary = WORKSPACE_ROOT / "target" / "debug" / "preprocessing_fixture"
+    if not binary.exists():
+        subprocess.run(
             [
                 "cargo",
-                "run",
-                "-q",
+                "build",
+                "--quiet",
                 "-p",
                 "cvep-decoder",
                 "--bin",
                 "preprocessing_fixture",
-                "--",
-                str(fixture_path),
             ],
             cwd=WORKSPACE_ROOT,
             check=True,
-            capture_output=True,
-            text=True,
         )
-    return np.asarray(json.loads(result.stdout)["filtered"], dtype=np.float64)
-
-
-def compare_outputs(python: np.ndarray, rust: np.ndarray) -> dict[str, Any]:
-    delta = rust - python
-    abs_delta = np.abs(delta)
-    return {
-        "mae": float(np.mean(abs_delta)),
-        "rmse": float(np.sqrt(np.mean(delta**2))),
-        "max_abs_error": float(np.max(abs_delta)),
-        "channel_metrics": [
-            {
-                "channel": ch,
-                "mae": float(np.mean(abs_delta[:, ch])),
-                "rmse": float(np.sqrt(np.mean(delta[:, ch] ** 2))),
-                "max_abs_error": float(np.max(abs_delta[:, ch])),
-                "python_std": float(np.std(python[:, ch])),
-                "rust_std": float(np.std(rust[:, ch])),
-            }
-            for ch in range(python.shape[1])
-        ],
-        "first_frame_python": python[0].tolist(),
-        "first_frame_rust": rust[0].tolist(),
-        "last_frame_python": python[-1].tolist(),
-        "last_frame_rust": rust[-1].tolist(),
-    }
-
-
-def render_html(output: Path, payload: dict[str, Any]) -> None:
-    channel_rows = "\n".join(
-        (
-            "<tr>"
-            f"<td>{row['channel']}</td><td>{row['mae']:.8f}</td><td>{row['rmse']:.8f}</td><td>{row['max_abs_error']:.8f}</td><td>{row['python_std']:.8f}</td><td>{row['rust_std']:.8f}</td>"
-            "</tr>"
-        )
-        for row in payload["comparison"]["channel_metrics"]
-    )
-    output.write_text(
-        f"<!doctype html><html lang='en'><body><pre>{html.escape(json.dumps(payload, indent=2))}</pre><table><tbody>{channel_rows}</tbody></table></body></html>",
-        encoding="utf-8",
-    )
+    with temporary_fixture_path(prefix="cvep-preproc-") as fixture_path:
+        payload = run_fixture_payload(binary, fixture, fixture_path=fixture_path)
+    return np.asarray(payload["filtered"], dtype=np.float64)
 
 
 def main() -> None:
@@ -158,5 +116,19 @@ def main() -> None:
     python = signal.sosfilt(sos, samples, axis=0).astype(np.float64)
     rust = run_rust_fixture(samples, sos, args.channels)
     payload = {"config": vars(args), "comparison": compare_outputs(python, rust)}
-    args.output_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    render_html(args.output_html, payload)
+    write_json_payload(args.output_json, payload)
+    render_tabular_html(
+        args.output_html,
+        title="Rust Preprocessing Comparison",
+        subtitle="Python vs Rust SOS filter output comparison.",
+        config=vars(args),
+        summary_columns=[
+            ("Channel", "channel"),
+            ("MAE", "mae"),
+            ("RMSE", "rmse"),
+            ("Max Abs Error", "max_abs_error"),
+            ("Python Std", "python_std"),
+            ("Rust Std", "rust_std"),
+        ],
+        summary_rows=payload["comparison"]["channel_metrics"],
+    )

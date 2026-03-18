@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
-import html
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -10,9 +8,14 @@ from typing import Any
 
 import numpy as np
 from rich.console import Console
-from rich.table import Table
 from scipy import stats
 
+from cvep_bench.benchmarks.reporting import (
+    render_rich_table,
+    render_tabular_html,
+    write_csv_rows,
+    write_json_payload,
+)
 from cvep_bench.benchmarks.pyntbci_vs_rust import DEFAULT_DATA_DIR
 
 
@@ -197,31 +200,6 @@ def grouped_statistics(
     return summary_rows, test_rows
 
 
-def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
-    if not rows:
-        path.write_text("", encoding="utf-8")
-        return
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
-
-
-def render_html(output: Path, payload: dict[str, Any]) -> None:
-    summary_rows = "\n".join(
-        (
-            "<tr>"
-            f"<td>{html.escape(row['dataset'])}</td><td>{html.escape(row['algorithm'])}</td><td>{row['target_fs']}</td><td>{row['requested_window_seconds']:.3f}</td><td>{row['pyntbci_accuracy_mean']:.4f}</td><td>{row['rust_exact_accuracy_mean']:.4f}</td><td>{row['rust_exact_match_rate_mean']:.4f}</td>"
-            "</tr>"
-        )
-        for row in payload["summary_rows"]
-    )
-    output.write_text(
-        f"<!doctype html><html lang='en'><body><pre>{html.escape(json.dumps(payload['config'], indent=2))}</pre><table><tbody>{summary_rows}</tbody></table></body></html>",
-        encoding="utf-8",
-    )
-
-
 def main() -> None:
     args = parse_args()
     payload = json.loads(args.input_json.read_text(encoding="utf-8"))
@@ -239,28 +217,41 @@ def main() -> None:
         "summary_rows": summary_rows,
         "test_rows": test_rows,
     }
-    args.output_json.write_text(json.dumps(analysis, indent=2) + "\n", encoding="utf-8")
-    write_csv(args.output_csv, summary_rows)
-    render_html(args.output_html, analysis)
-    table = Table(title="Benchmark Analysis Summary")
-    for col in [
-        "dataset",
-        "algorithm",
-        "fs",
-        "window",
-        "pyntbci",
-        "rust_exact",
-        "match",
-    ]:
-        table.add_column(col)
-    for row in summary_rows:
-        table.add_row(
-            row["dataset"],
-            row["algorithm"],
-            str(row["target_fs"]),
-            f"{row['requested_window_seconds']:.3f}",
-            f"{row['pyntbci_accuracy_mean']:.4f}",
-            f"{row['rust_exact_accuracy_mean']:.4f}",
-            f"{row['rust_exact_match_rate_mean']:.4f}",
-        )
-    Console().print(table)
+    write_json_payload(args.output_json, analysis)
+    write_csv_rows(args.output_csv, summary_rows)
+    render_tabular_html(
+        args.output_html,
+        title="Benchmark Analysis Summary",
+        subtitle="Subject-level accuracy statistics and paired tests derived from benchmark outputs.",
+        config=analysis["config"],
+        summary_columns=[
+            ("Dataset", "dataset"),
+            ("Algorithm", "algorithm"),
+            ("fs", "target_fs"),
+            ("Window", "requested_window_seconds"),
+            ("PyntBCI", "pyntbci_accuracy_mean"),
+            ("Rust exact", "rust_exact_accuracy_mean"),
+            ("Match", "rust_exact_match_rate_mean"),
+        ],
+        summary_rows=summary_rows,
+    )
+    render_rich_table(
+        Console(),
+        title="Benchmark Analysis Summary",
+        columns=[
+            ("dataset", "dataset"),
+            ("algorithm", "algorithm"),
+            ("fs", "target_fs"),
+            ("window", "requested_window_seconds"),
+            ("pyntbci", "pyntbci_accuracy_mean"),
+            ("rust_exact", "rust_exact_accuracy_mean"),
+            ("match", "rust_exact_match_rate_mean"),
+        ],
+        rows=summary_rows,
+        formatters={
+            "requested_window_seconds": lambda value: f"{value:.3f}",
+            "pyntbci_accuracy_mean": lambda value: f"{value:.4f}",
+            "rust_exact_accuracy_mean": lambda value: f"{value:.4f}",
+            "rust_exact_match_rate_mean": lambda value: f"{value:.4f}",
+        },
+    )

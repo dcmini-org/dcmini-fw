@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import argparse
-import html
-import json
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from cvep_bench.algorithms.pyntbci_models import fit_etrca
+from cvep_bench.benchmarks.reporting import render_tabular_html, write_json_payload
+from cvep_bench.compare.metrics import mean_trial_correlation
 from cvep_bench.datasets.loaders import load_thielen2021_subject
 
 
@@ -31,23 +31,6 @@ def parse_args() -> argparse.Namespace:
         default=Path("crates/cvep-decoder/data/thielen2021_packaged_vs_raw.html"),
     )
     return parser.parse_args()
-
-
-def mean_trial_correlation(
-    lhs: np.ndarray, rhs: np.ndarray
-) -> dict[str, float | list[float]]:
-    corrs = []
-    for idx in range(lhs.shape[0]):
-        a = lhs[idx].reshape(-1) - lhs[idx].mean()
-        b = rhs[idx].reshape(-1) - rhs[idx].mean()
-        denom = np.linalg.norm(a) * np.linalg.norm(b)
-        corrs.append(float(a.dot(b) / denom) if denom else 0.0)
-    return {
-        "mean": float(np.mean(corrs)),
-        "min": float(np.min(corrs)),
-        "max": float(np.max(corrs)),
-        "first10": [float(v) for v in corrs[:10]],
-    }
 
 
 def etrca_cv_accuracy(
@@ -82,21 +65,6 @@ def summarize_variant(
         "first10_trial_corr": stats["first10"],
         "etrca_accuracy": etrca_cv_accuracy(x, y, fs=fs, cycle_size=2.1),
     }
-
-
-def render_html(output: Path, payload: dict[str, Any]) -> None:
-    summary_rows = "\n".join(
-        (
-            "<tr>"
-            f"<td>{html.escape(row['name'])}</td><td>{row['overall_mean']:.8f}</td><td>{row['overall_std']:.8f}</td><td>{row['mean_trial_corr']:.4f}</td><td>{row['etrca_accuracy']:.4f}</td>"
-            "</tr>"
-        )
-        for row in payload["variants"]
-    )
-    output.write_text(
-        f"<!doctype html><html lang='en'><body><pre>{html.escape(json.dumps(payload, indent=2))}</pre><table><tbody>{summary_rows}</tbody></table></body></html>",
-        encoding="utf-8",
-    )
 
 
 def main() -> None:
@@ -146,5 +114,22 @@ def main() -> None:
             np.mean(np.asarray(raw.y, dtype=np.int64) == packaged_y)
         ),
     }
-    args.output_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    render_html(args.output_html, payload)
+    write_json_payload(args.output_json, payload)
+    render_tabular_html(
+        args.output_html,
+        title="Thielen2021 Packaged vs Raw",
+        subtitle="Packaged-vs-raw parity diagnostics.",
+        config={
+            "subject": args.subject,
+            "fs": args.target_fs,
+            "trialtime": args.trialtime,
+        },
+        summary_columns=[
+            ("Variant", "name"),
+            ("Mean", "overall_mean"),
+            ("Std", "overall_std"),
+            ("Mean Trial Corr", "mean_trial_corr"),
+            ("eTRCA", "etrca_accuracy"),
+        ],
+        summary_rows=payload["variants"],
+    )

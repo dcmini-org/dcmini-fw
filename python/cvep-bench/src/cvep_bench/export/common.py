@@ -4,21 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-
-def chronological_split(
-    x: np.ndarray, y: np.ndarray, folds: int, fold_index: int
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    n_trials = x.shape[0]
-    if n_trials % folds != 0:
-        raise ValueError(
-            f"Expected trial count divisible by folds, got {n_trials=} and {folds=}"
-        )
-    if not 0 <= fold_index < folds:
-        raise ValueError(f"fold_index must be in [0, {folds}), got {fold_index}")
-    split = np.repeat(np.arange(folds), n_trials // folds)
-    train_mask = split != fold_index
-    test_mask = ~train_mask
-    return x[train_mask], y[train_mask], x[test_mask], y[test_mask]
+from cvep_bench.evaluation.splits import chronological_split
 
 
 def load_npz_dataset(

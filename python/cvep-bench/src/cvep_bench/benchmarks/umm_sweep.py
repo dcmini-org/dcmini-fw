@@ -1,14 +1,9 @@
 from __future__ import annotations
 
 import argparse
-import html
-import json
-from pathlib import Path
 from typing import Any, cast
 
-import numpy as np
 from rich.console import Console
-from rich.table import Table
 
 from cvep_bench.algorithms.umm_features import (
     ConfidenceModelName,
@@ -20,16 +15,25 @@ from cvep_bench.algorithms.umm_features import (
     make_structure,
 )
 from cvep_bench.benchmarks.pyntbci_vs_rust import DEFAULT_DATA_DIR
-from cvep_bench.datasets.loaders import (
-    load_subject,
-    subject_list_for_dataset,
-    validate_target_fs,
+from cvep_bench.benchmarks.reporting import (
+    render_rich_table,
+    render_tabular_html,
+    rows_to_csv,
+    write_json_payload,
 )
-from cvep_bench.datasets.windows import (
-    decode_window_requests,
-    fold_slices,
-    seconds_to_samples,
+from cvep_bench.cli.arg_groups import (
+    add_data_dir_arg,
+    add_dataset_args,
+    add_fold_args,
+    add_output_args,
+    add_target_fs_args,
+    add_window_args,
+    parse_bool_choice_grid,
+    resolve_fold_indices,
 )
+from cvep_bench.datasets.loaders import load_subject, validate_target_fs
+from cvep_bench.datasets.windows import decode_window_requests, seconds_to_samples
+from cvep_bench.evaluation.splits import fold_slices
 
 
 DEFAULT_DATASETS = ["Thielen2021", "Thielen2015", "CastillosCVEP40", "CastillosCVEP100"]
@@ -37,31 +41,12 @@ DEFAULT_DATASETS = ["Thielen2021", "Thielen2015", "CastillosCVEP40", "CastillosC
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
-    parser.add_argument(
-        "--output-json",
-        type=Path,
-        default=DEFAULT_DATA_DIR / "umm_benchmark_results.json",
-    )
-    parser.add_argument(
-        "--output-csv",
-        type=Path,
-        default=DEFAULT_DATA_DIR / "umm_benchmark_results.csv",
-    )
-    parser.add_argument(
-        "--output-html",
-        type=Path,
-        default=DEFAULT_DATA_DIR / "umm_benchmark_results.html",
-    )
-    parser.add_argument("--datasets", nargs="+", default=DEFAULT_DATASETS)
-    parser.add_argument("--subjects", type=int, nargs="+", default=None)
-    parser.add_argument("--max-subjects", type=int, default=None)
-    parser.add_argument("--folds", type=int, default=5)
-    parser.add_argument("--fold-index", type=int, nargs="+", default=None)
-    parser.add_argument("--target-fs", type=int, default=250)
-    parser.add_argument("--target-fs-grid", type=int, nargs="+", default=None)
-    parser.add_argument("--window-step-seconds", type=float, default=None)
-    parser.add_argument("--window-seconds-grid", type=float, nargs="+", default=None)
+    add_data_dir_arg(parser, DEFAULT_DATA_DIR)
+    add_output_args(parser, output_dir=DEFAULT_DATA_DIR, stem="umm_benchmark_results")
+    add_dataset_args(parser, default_datasets=DEFAULT_DATASETS)
+    add_fold_args(parser)
+    add_target_fs_args(parser, default=250, include_grid=True)
+    add_window_args(parser, default_grid=None, include_step=True)
     parser.add_argument("--epoch-seconds-grid", type=float, nargs="+", default=[0.3])
     parser.add_argument(
         "--epoch-schedules",
@@ -98,37 +83,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def rows_to_csv(rows: list[dict[str, Any]]) -> str:
-    keys = [
-        "variant",
-        "dataset",
-        "subject",
-        "fold_index",
-        "target_fs",
-        "requested_window_seconds",
-        "window_seconds",
-        "epoch_seconds",
-        "epoch_schedule",
-        "lag_seconds",
-        "layout",
-        "trial_demean",
-        "epoch_demean",
-        "confidence_model",
-        "classes",
-        "channels",
-        "feature_count",
-        "epochs_per_trial",
-        "trials",
-        "accuracy",
-    ]
-    lines = [",".join(keys)]
-    for row in rows:
-        lines.append(
-            ",".join("" if row.get(key) is None else str(row[key]) for key in keys)
-        )
-    return "\n".join(lines) + "\n"
-
-
 def grouped_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     grouped: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
     for row in rows:
@@ -146,7 +100,7 @@ def grouped_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             row["confidence_model"],
         )
         grouped.setdefault(key, []).append(row)
-    summary_rows = []
+    out = []
     for key, members in sorted(grouped.items()):
         (
             variant,
@@ -161,7 +115,7 @@ def grouped_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             epoch_demean,
             confidence_model,
         ) = key
-        summary_rows.append(
+        out.append(
             {
                 "variant": variant,
                 "dataset": dataset,
@@ -175,44 +129,30 @@ def grouped_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "epoch_demean": epoch_demean,
                 "confidence_model": confidence_model,
                 "subjects": len({row["subject"] for row in members}),
-                "mean_accuracy": float(np.mean([row["accuracy"] for row in members])),
+                "mean_accuracy": sum(row["accuracy"] for row in members) / len(members),
             }
         )
-    return summary_rows
-
-
-def render_html_report(
-    output: Path, config: dict[str, Any], rows: list[dict[str, Any]]
-) -> None:
-    summary = grouped_summary(rows)
-    summary_rows = "\n".join(
-        (
-            "<tr>"
-            f"<td>{html.escape(row['variant'])}</td><td>{html.escape(row['dataset'])}</td><td>{row['target_fs']}</td><td>{row['requested_window_seconds']:.3f}</td><td>{row['epoch_seconds']:.3f}</td><td>{html.escape(row['epoch_schedule'])}</td><td>{row['lag_seconds']:.3f}</td><td>{html.escape(row['layout'])}</td><td>{html.escape(str(row['trial_demean']))}</td><td>{html.escape(str(row['epoch_demean']))}</td><td>{html.escape(str(row['confidence_model']))}</td><td>{row['subjects']}</td><td>{row['mean_accuracy']:.4f}</td>"
-            "</tr>"
-        )
-        for row in summary
-    )
-    output.write_text(
-        f"<!doctype html><html lang='en'><body><pre>{html.escape(json.dumps(config, indent=2))}</pre><table><tbody>{summary_rows}</tbody></table></body></html>",
-        encoding="utf-8",
-    )
+    return out
 
 
 def main() -> None:
     args = parse_args()
     target_fs_grid = args.target_fs_grid or [args.target_fs]
-    trial_demean_grid = [value == "true" for value in args.trial_demean_grid]
-    epoch_demean_grid = [value == "true" for value in args.epoch_demean_grid]
+    trial_demean_grid = parse_bool_choice_grid(args.trial_demean_grid)
+    epoch_demean_grid = parse_bool_choice_grid(args.epoch_demean_grid)
     console = Console()
     rows: list[dict[str, Any]] = []
     for target_fs in target_fs_grid:
         validate_target_fs(target_fs)
         for dataset in args.datasets:
-            subjects = args.subjects or subject_list_for_dataset(dataset)
+            subjects = args.subjects or []
+            if not subjects:
+                from cvep_bench.datasets.loaders import subject_list_for_dataset
+
+                subjects = subject_list_for_dataset(dataset)
             if args.max_subjects is not None:
                 subjects = subjects[: args.max_subjects]
-            fold_indices = args.fold_index or list(range(args.folds))
+            fold_indices = resolve_fold_indices(args.folds, args.fold_index)
             for subject in subjects:
                 data = load_subject(dataset, subject, args.data_dir, target_fs)
                 window_requests = decode_window_requests(
@@ -299,10 +239,10 @@ def main() -> None:
                                                                 ]
                                                             ),
                                                             "accuracy": float(
-                                                                np.mean(
+                                                                (
                                                                     predictions
                                                                     == y_test
-                                                                )
+                                                                ).mean()
                                                             ),
                                                         }
                                                     )
@@ -359,16 +299,13 @@ def main() -> None:
                                                                     ]
                                                                 ),
                                                                 "accuracy": float(
-                                                                    np.mean(
+                                                                    (
                                                                         predictions
                                                                         == y_test
-                                                                    )
+                                                                    ).mean()
                                                                 ),
                                                             }
                                                         )
-                                                console.print(
-                                                    f"[blue]umm[/blue] dataset={dataset} subject={subject} fold={fold_idx} window={window_samples / data.fs:.3f}s epoch={epoch_seconds:.3f}s schedule={epoch_schedule} lag={lag_seconds:.3f}s layout={layout} trial_demean={trial_demean} epoch_demean={epoch_demean}"
-                                                )
     payload = {
         "config": {
             "datasets": args.datasets,
@@ -392,41 +329,81 @@ def main() -> None:
         },
         "results": rows,
     }
-    args.output_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    args.output_csv.write_text(rows_to_csv(rows), encoding="utf-8")
-    render_html_report(args.output_html, payload["config"], rows)
-    summary = grouped_summary(rows)
-    table = Table(title="UMM benchmark summary")
-    for col in [
-        "variant",
-        "dataset",
-        "fs",
-        "window",
-        "epoch",
-        "schedule",
-        "lag",
-        "layout",
-        "trial_demean",
-        "epoch_demean",
-        "confidence",
-        "subjects",
-        "mean_acc",
-    ]:
-        table.add_column(col)
-    for row in summary:
-        table.add_row(
-            row["variant"],
-            row["dataset"],
-            str(row["target_fs"]),
-            f"{row['requested_window_seconds']:.3f}",
-            f"{row['epoch_seconds']:.3f}",
-            row["epoch_schedule"],
-            f"{row['lag_seconds']:.3f}",
-            row["layout"],
-            str(row["trial_demean"]),
-            str(row["epoch_demean"]),
-            str(row["confidence_model"]),
-            str(row["subjects"]),
-            f"{row['mean_accuracy']:.4f}",
-        )
-    console.print(table)
+    write_json_payload(args.output_json, payload)
+    args.output_csv.write_text(
+        rows_to_csv(
+            rows,
+            [
+                "variant",
+                "dataset",
+                "subject",
+                "fold_index",
+                "target_fs",
+                "requested_window_seconds",
+                "window_seconds",
+                "epoch_seconds",
+                "epoch_schedule",
+                "lag_seconds",
+                "layout",
+                "trial_demean",
+                "epoch_demean",
+                "confidence_model",
+                "classes",
+                "channels",
+                "feature_count",
+                "epochs_per_trial",
+                "trials",
+                "accuracy",
+            ],
+        ),
+        encoding="utf-8",
+    )
+    summary_rows = grouped_summary(rows)
+    render_tabular_html(
+        args.output_html,
+        title="UMM benchmark summary",
+        subtitle="UMM design-space sweep across datasets and feature settings.",
+        config=payload["config"],
+        summary_columns=[
+            ("Variant", "variant"),
+            ("Dataset", "dataset"),
+            ("fs", "target_fs"),
+            ("Window", "requested_window_seconds"),
+            ("Epoch", "epoch_seconds"),
+            ("Schedule", "epoch_schedule"),
+            ("Lag", "lag_seconds"),
+            ("Layout", "layout"),
+            ("Trial Demean", "trial_demean"),
+            ("Epoch Demean", "epoch_demean"),
+            ("Confidence", "confidence_model"),
+            ("Subjects", "subjects"),
+            ("Mean Accuracy", "mean_accuracy"),
+        ],
+        summary_rows=summary_rows,
+    )
+    render_rich_table(
+        console,
+        title="UMM benchmark summary",
+        columns=[
+            ("variant", "variant"),
+            ("dataset", "dataset"),
+            ("fs", "target_fs"),
+            ("window", "requested_window_seconds"),
+            ("epoch", "epoch_seconds"),
+            ("schedule", "epoch_schedule"),
+            ("lag", "lag_seconds"),
+            ("layout", "layout"),
+            ("trial_demean", "trial_demean"),
+            ("epoch_demean", "epoch_demean"),
+            ("confidence", "confidence_model"),
+            ("subjects", "subjects"),
+            ("mean_acc", "mean_accuracy"),
+        ],
+        rows=summary_rows,
+        formatters={
+            "requested_window_seconds": lambda value: f"{value:.3f}",
+            "epoch_seconds": lambda value: f"{value:.3f}",
+            "lag_seconds": lambda value: f"{value:.3f}",
+            "mean_accuracy": lambda value: f"{value:.4f}",
+        },
+    )
