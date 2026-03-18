@@ -30,9 +30,12 @@ dev = [
 [project.scripts]
 benchmark_pyntbci_vs_rust = "cvep_bench.cli.benchmark_pyntbci_vs_rust:main"
 benchmark_cca_vs_rust = "cvep_bench.cli.benchmark_cca_vs_rust:main"
+benchmark_umm_vs_rust = "cvep_bench.cli.benchmark_umm_vs_rust:main"
 benchmark_125hz_profile_matrix = "cvep_bench.cli.benchmark_125hz_profile_matrix:main"
 search_best_125hz_configs = "cvep_bench.cli.search_best_125hz_configs:main"
 search_best_125hz_cca_inprocess = "cvep_bench.cli.search_best_125hz_cca_inprocess:main"
+compare_thielen2021_packaged_vs_raw = "cvep_bench.cli.compare_thielen2021_packaged_vs_raw:main"
+compare_rust_preprocessing_to_python = "cvep_bench.cli.compare_rust_preprocessing_to_python:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cvep_bench"]
