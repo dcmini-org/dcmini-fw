@@ -82,7 +82,7 @@ This repository's runtime path is exactly that projected-correlation form:
 - scoring in
   [crates/cvep-decoder/src/decoder.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/decoder.rs)
 - supervised fitting in
-  [crates/cvep-decoder/scripts/export_pyntbci_etrca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/scripts/export_pyntbci_etrca.py)
+  [crates/cvep_bench/src/cvep_bench/export/pyntbci_etrca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep_bench/src/cvep_bench/export/pyntbci_etrca.py)
 
 Why it is not a zero-training option:
 
@@ -175,7 +175,7 @@ This is the closest match to the existing `UrCcaDecoder`:
 - stateful online update in
   [crates/cvep-decoder/src/urcca.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/urcca.rs)
 - host-side export of class encodings in
-  [crates/cvep-decoder/scripts/export_pyntbci_urcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/scripts/export_pyntbci_urcca.py)
+  [crates/cvep_bench/src/cvep_bench/export/pyntbci_urcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep_bench/src/cvep_bench/export/pyntbci_urcca.py)
 
 Important distinction:
 
@@ -387,6 +387,6 @@ Repository references used:
 - [crates/cvep-decoder/src/decoder.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/decoder.rs)
 - [crates/cvep-decoder/src/banks.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/banks.rs)
 - [crates/cvep-decoder/src/urcca.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/urcca.rs)
-- [crates/cvep-decoder/scripts/export_pyntbci_etrca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/scripts/export_pyntbci_etrca.py)
-- [crates/cvep-decoder/scripts/export_pyntbci_rcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/scripts/export_pyntbci_rcca.py)
-- [crates/cvep-decoder/scripts/export_pyntbci_urcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/scripts/export_pyntbci_urcca.py)
+- [crates/cvep_bench/src/cvep_bench/export/pyntbci_etrca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep_bench/src/cvep_bench/export/pyntbci_etrca.py)
+- [crates/cvep_bench/src/cvep_bench/export/pyntbci_rcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep_bench/src/cvep_bench/export/pyntbci_rcca.py)
+- [crates/cvep_bench/src/cvep_bench/export/pyntbci_urcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep_bench/src/cvep_bench/export/pyntbci_urcca.py)

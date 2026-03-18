@@ -40,6 +40,10 @@ export_pyntbci_etrca = "cvep_bench.cli.export_pyntbci_etrca:main"
 export_pyntbci_rcca = "cvep_bench.cli.export_pyntbci_rcca:main"
 export_pyntbci_urcca = "cvep_bench.cli.export_pyntbci_urcca:main"
 analyze_cvep_benchmark_results = "cvep_bench.cli.analyze_cvep_benchmark_results:main"
+benchmark_causal_preprocessing_vs_reference = "cvep_bench.cli.benchmark_causal_preprocessing_vs_reference:main"
+compare_reference_vs_causal_preprocessing = "cvep_bench.cli.compare_reference_vs_causal_preprocessing:main"
+download_cvep_datasets = "cvep_bench.cli.download_cvep_datasets:main"
+benchmark_pyntbci_example3_etrca = "cvep_bench.cli.benchmark_pyntbci_example3_etrca:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cvep_bench"]
