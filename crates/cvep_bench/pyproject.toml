@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cvep-bench"
+version = "0.1.0"
+description = "Reusable c-VEP benchmarking and analysis tooling"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "h5py>=3.16.0",
+  "mne>=1.11.0",
+  "numpy>=2.2.6",
+  "pyntbci>=1.8.3",
+  "rich>=14.3.3",
+  "scipy>=1.15.3",
+]
+
+[project.optional-dependencies]
+analysis = [
+  "matplotlib>=3.9.0",
+  "pandas>=2.3.0",
+]
+dev = [
+  "pytest>=8.3.0",
+  "ruff>=0.8.0",
+]
+
+[project.scripts]
+benchmark_pyntbci_vs_rust = "cvep_bench.cli.benchmark_pyntbci_vs_rust:main"
+benchmark_cca_vs_rust = "cvep_bench.cli.benchmark_cca_vs_rust:main"
+benchmark_125hz_profile_matrix = "cvep_bench.cli.benchmark_125hz_profile_matrix:main"
+search_best_125hz_configs = "cvep_bench.cli.search_best_125hz_configs:main"
+search_best_125hz_cca_inprocess = "cvep_bench.cli.search_best_125hz_cca_inprocess:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cvep_bench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
