@@ -243,11 +243,8 @@ This path:
 
 Benchmark repeated short-window CCA with within-trial score accumulation:
 
-This command still uses the legacy script path until the sliding-window CLI is
-ported into `cvep_bench`.
-
 ```bash
-uv run --script crates/cvep-decoder/scripts/benchmark_cca_sliding_windows.py \
+uv run --project crates/cvep_bench benchmark_cca_sliding_windows \
   --datasets Thielen2021 \
   --subjects 1 \
   --fold-index 0 \
@@ -280,11 +277,8 @@ templates. It is intentionally explicit about:
 
 Export UMM features for one dataset subject:
 
-This command still uses the legacy script path until the UMM feature export CLI
-is ported into `cvep_bench`.
-
 ```bash
-uv run --script crates/cvep-decoder/scripts/export_umm_features.py \
+uv run --project crates/cvep_bench export_umm_features \
   --dataset Thielen2021 \
   --subject 1 \
   --output /tmp/thielen2021_sub-01_umm_features.npz \
@@ -301,11 +295,8 @@ This export contains:
 
 Benchmark UMM variants directly on the downloaded datasets:
 
-This command still uses the legacy script path until the UMM variant sweep CLI
-is ported into `cvep_bench`.
-
 ```bash
-uv run --script crates/cvep-decoder/scripts/benchmark_umm_variants.py \
+uv run --project crates/cvep_bench benchmark_umm_variants \
   --datasets Thielen2021 Thielen2015 \
   --max-subjects 1 \
   --fold-index 0 \
