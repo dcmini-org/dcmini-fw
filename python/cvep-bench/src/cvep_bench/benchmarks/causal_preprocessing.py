@@ -1,52 +1,58 @@
 from __future__ import annotations
 
 import argparse
-import html
-import json
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
-import numpy as np
 import mne
+import numpy as np
 from rich.console import Console
-from rich.table import Table
 from scipy import signal
 
-from cvep_bench.benchmarks import pyntbci_vs_rust as benchmark
-from cvep_bench.benchmarks.pyntbci_vs_rust import DEFAULT_DATA_DIR
+import cvep_bench.datasets.loaders as loaders
+from cvep_bench.benchmarks.orchestration import ensure_output_dirs, resolve_subjects
+from cvep_bench.benchmarks.pyntbci_vs_rust import (
+    DEFAULT_DATA_DIR,
+    benchmark_subject_fold_windows,
+)
+from cvep_bench.benchmarks.reporting import (
+    render_rich_table,
+    render_tabular_html,
+    write_json_payload,
+)
+from cvep_bench.cli.arg_groups import (
+    add_adc_args,
+    add_data_dir_arg,
+    add_dataset_args,
+    add_fold_args,
+    add_output_args,
+    add_target_fs_args,
+    add_window_args,
+    resolve_fold_indices,
+)
+from cvep_bench.datasets.loaders import load_subject, trial_seconds_for_dataset
 from cvep_bench.datasets.profiles import default_preprocessing_options
+from cvep_bench.datasets.windows import decode_window_requests
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
-    parser.add_argument(
-        "--output-json",
-        type=Path,
-        default=DEFAULT_DATA_DIR / "benchmark_causal_vs_reference.json",
-    )
-    parser.add_argument(
-        "--output-html",
-        type=Path,
-        default=DEFAULT_DATA_DIR / "benchmark_causal_vs_reference.html",
+    add_data_dir_arg(parser, DEFAULT_DATA_DIR)
+    add_output_args(
+        parser,
+        output_dir=DEFAULT_DATA_DIR,
+        stem="benchmark_causal_vs_reference",
+        include_csv=False,
     )
     parser.add_argument(
         "--algorithms", nargs="+", choices=["etrca", "rcca"], default=["etrca", "rcca"]
     )
-    parser.add_argument(
-        "--datasets", nargs="+", default=["Thielen2021", "CastillosCVEP100"]
-    )
-    parser.add_argument("--subjects", type=int, nargs="+", default=None)
-    parser.add_argument("--max-subjects", type=int, default=None)
-    parser.add_argument("--folds", type=int, default=5)
-    parser.add_argument("--fold-index", type=int, nargs="+", default=None)
-    parser.add_argument("--target-fs", type=int, default=250)
-    parser.add_argument("--target-fs-grid", type=int, nargs="+", default=None)
-    parser.add_argument("--window-step-seconds", type=float, default=None)
-    parser.add_argument("--window-seconds-grid", type=float, nargs="+", default=None)
-    parser.add_argument("--adc-bits", type=int, default=24)
-    parser.add_argument("--adc-headroom", type=float, default=0.95)
+    add_dataset_args(parser, default_datasets=["Thielen2021", "CastillosCVEP100"])
+    add_fold_args(parser)
+    add_target_fs_args(parser, default=250, include_grid=True)
+    add_window_args(parser, default_grid=None, include_step=True)
+    add_adc_args(parser)
     parser.add_argument("--encoding-length", type=float, default=0.3)
     parser.add_argument("--event", type=str, default="refe")
     parser.add_argument("--band-low", type=float, default=1.0)
@@ -105,66 +111,90 @@ def causal_epoch_and_resample_factory(
 def causal_loader_patch(
     band_low: float, band_high: float, band_order: int, notch_q: float
 ) -> Iterator[None]:
-    original = benchmark.load_subject.__globals__["epoch_and_resample"]
-    benchmark.load_subject.__globals__["epoch_and_resample"] = (
-        causal_epoch_and_resample_factory(band_low, band_high, band_order, notch_q)
+    original = loaders.epoch_and_resample
+    loaders.epoch_and_resample = causal_epoch_and_resample_factory(
+        band_low, band_high, band_order, notch_q
     )
     try:
         yield
     finally:
-        benchmark.load_subject.__globals__["epoch_and_resample"] = original
+        loaders.epoch_and_resample = original
 
 
-def render_html(output: Path, payload: dict[str, Any]) -> None:
-    rows = "\n".join(
-        (
-            "<tr>"
-            f"<td>{html.escape(row['algorithm'])}</td><td>{html.escape(row['dataset'])}</td><td>{row['target_fs']}</td><td>{row['requested_window_seconds']:.3f}</td><td>{row['reference_accuracy']:.4f}</td><td>{row['causal_accuracy']:.4f}</td><td>{row['causal_minus_reference']:.4f}</td>"
-            "</tr>"
+def grouped_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str, int, float], list[dict[str, Any]]] = {}
+    for row in rows:
+        key = (
+            row["algorithm"],
+            row["dataset"],
+            row["target_fs"],
+            row["requested_window_seconds"],
         )
-        for row in payload["results"]
-    )
-    output.write_text(
-        f"<!doctype html><html lang='en'><body><pre>{html.escape(json.dumps(payload['config'], indent=2))}</pre><table><tbody>{rows}</tbody></table></body></html>",
-        encoding="utf-8",
-    )
+        grouped.setdefault(key, []).append(row)
+    out = []
+    for (algorithm, dataset, target_fs, requested_window_seconds), members in sorted(
+        grouped.items()
+    ):
+        out.append(
+            {
+                "algorithm": algorithm,
+                "dataset": dataset,
+                "target_fs": target_fs,
+                "requested_window_seconds": requested_window_seconds,
+                "subjects": len({row["subject"] for row in members}),
+                "reference_accuracy": float(
+                    np.mean([row["reference_accuracy"] for row in members])
+                ),
+                "causal_accuracy": float(
+                    np.mean([row["causal_accuracy"] for row in members])
+                ),
+                "causal_minus_reference": float(
+                    np.mean([row["causal_minus_reference"] for row in members])
+                ),
+            }
+        )
+    return out
+
+
+def serialize_config(args: argparse.Namespace) -> dict[str, Any]:
+    config = vars(args).copy()
+    for key, value in list(config.items()):
+        if isinstance(value, Path):
+            config[key] = str(value)
+    return config
 
 
 def main() -> None:
     args = parse_args()
-    rust_binary = None
+    ensure_output_dirs([args.output_json, args.output_html])
     target_fs_grid = args.target_fs_grid or [args.target_fs]
-    fold_indices = (
-        args.fold_index if args.fold_index is not None else list(range(args.folds))
-    )
+    fold_indices = resolve_fold_indices(args.folds, args.fold_index)
     results = []
     for dataset in args.datasets:
-        subjects = args.subjects or benchmark.subject_list_for_dataset(dataset)
-        if args.max_subjects is not None:
-            subjects = subjects[: args.max_subjects]
+        subjects = resolve_subjects(dataset, args.subjects, args.max_subjects)
         for subject in subjects:
             for target_fs in target_fs_grid:
-                full_trial_seconds = benchmark.trial_seconds_for_dataset(dataset)
-                window_requests = benchmark.decode_window_requests(
+                full_trial_seconds = trial_seconds_for_dataset(dataset)
+                window_requests = decode_window_requests(
                     full_trial_seconds,
                     args.window_seconds_grid,
                     args.window_step_seconds,
                 )
-                reference_data = benchmark.load_subject(
+                reference_data = load_subject(
                     dataset, subject, args.data_dir, target_fs
                 )
                 with causal_loader_patch(
                     args.band_low, args.band_high, args.band_order, args.notch_q
                 ):
-                    causal_data = benchmark.load_subject(
+                    causal_data = load_subject(
                         dataset, subject, args.data_dir, target_fs
                     )
                 for algorithm in args.algorithms:
                     for fold_idx in fold_indices:
-                        ref_rows = benchmark.benchmark_subject_fold_windows(
+                        ref_rows = benchmark_subject_fold_windows(
                             algorithm,
                             reference_data,
-                            rust_binary,
+                            None,
                             fold_idx,
                             args.folds,
                             window_requests,
@@ -175,10 +205,10 @@ def main() -> None:
                             default_preprocessing_options(),
                             "reference",
                         )
-                        causal_rows = benchmark.benchmark_subject_fold_windows(
+                        causal_rows = benchmark_subject_fold_windows(
                             algorithm,
                             causal_data,
-                            rust_binary,
+                            None,
                             fold_idx,
                             args.folds,
                             window_requests,
@@ -210,20 +240,55 @@ def main() -> None:
                                     - ref_row["pyntbci_accuracy"],
                                 }
                             )
-    payload = {"config": vars(args), "results": results}
-    args.output_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    render_html(args.output_html, payload)
-    table = Table(title="Causal vs Reference Preprocessing")
-    for col in ["algorithm", "dataset", "fs", "window", "reference", "causal", "delta"]:
-        table.add_column(col)
-    for row in results[:20]:
-        table.add_row(
-            row["algorithm"],
-            row["dataset"],
-            str(row["target_fs"]),
-            f"{row['requested_window_seconds']:.3f}",
-            f"{row['reference_accuracy']:.4f}",
-            f"{row['causal_accuracy']:.4f}",
-            f"{row['causal_minus_reference']:.4f}",
-        )
-    Console().print(table)
+    payload = {"config": serialize_config(args), "results": results}
+    write_json_payload(args.output_json, payload)
+    summary = grouped_summary(results)
+    render_tabular_html(
+        args.output_html,
+        title="Causal vs Reference Preprocessing",
+        subtitle="Compare reference MNE preprocessing against causal SOS filtering before epoch extraction.",
+        config=payload["config"],
+        summary_columns=[
+            ("Algorithm", "algorithm"),
+            ("Dataset", "dataset"),
+            ("fs", "target_fs"),
+            ("Window", "requested_window_seconds"),
+            ("Subjects", "subjects"),
+            ("Reference", "reference_accuracy"),
+            ("Causal", "causal_accuracy"),
+            ("Delta", "causal_minus_reference"),
+        ],
+        summary_rows=summary,
+        detail_columns=[
+            ("Algorithm", "algorithm"),
+            ("Dataset", "dataset"),
+            ("Subject", "subject"),
+            ("Fold", "fold_index"),
+            ("fs", "target_fs"),
+            ("Window", "requested_window_seconds"),
+            ("Reference", "reference_accuracy"),
+            ("Causal", "causal_accuracy"),
+            ("Delta", "causal_minus_reference"),
+        ],
+        detail_rows=results,
+    )
+    render_rich_table(
+        Console(),
+        title="Causal vs Reference Preprocessing",
+        columns=[
+            ("algorithm", "algorithm"),
+            ("dataset", "dataset"),
+            ("fs", "target_fs"),
+            ("window", "requested_window_seconds"),
+            ("reference", "reference_accuracy"),
+            ("causal", "causal_accuracy"),
+            ("delta", "causal_minus_reference"),
+        ],
+        rows=summary[:20],
+        formatters={
+            "requested_window_seconds": lambda value: f"{value:.3f}",
+            "reference_accuracy": lambda value: f"{value:.4f}",
+            "causal_accuracy": lambda value: f"{value:.4f}",
+            "causal_minus_reference": lambda value: f"{value:.4f}",
+        },
+    )

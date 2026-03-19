@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import argparse
 import base64
-import html
 import io
-import json
 from pathlib import Path
 
 import matplotlib
@@ -13,9 +11,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from cvep_bench.benchmarks import pyntbci_vs_rust as benchmark
 from cvep_bench.benchmarks.causal_preprocessing import causal_loader_patch
 from cvep_bench.benchmarks.pyntbci_vs_rust import DEFAULT_DATA_DIR
+from cvep_bench.benchmarks.reporting import render_tabular_html, write_json_payload
+from cvep_bench.compare.metrics import mean_trial_correlation
+from cvep_bench.datasets.loaders import load_subject
 
 
 def parse_args() -> argparse.Namespace:
@@ -43,23 +43,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def mean_trial_correlation(
-    lhs: np.ndarray, rhs: np.ndarray
-) -> dict[str, float | list[float]]:
-    corrs = []
-    for idx in range(lhs.shape[0]):
-        a = lhs[idx].reshape(-1) - lhs[idx].mean()
-        b = rhs[idx].reshape(-1) - rhs[idx].mean()
-        denom = np.linalg.norm(a) * np.linalg.norm(b)
-        corrs.append(float(a.dot(b) / denom) if denom else 0.0)
-    return {
-        "mean": float(np.mean(corrs)),
-        "min": float(np.min(corrs)),
-        "max": float(np.max(corrs)),
-        "first10": [float(v) for v in corrs[:10]],
-    }
-
-
 def plot_overlay(
     reference: np.ndarray, causal: np.ndarray, fs: int, seconds: float
 ) -> str:
@@ -82,31 +65,26 @@ def plot_overlay(
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
-def render_html(output: Path, payload: dict) -> None:
-    output.write_text(
-        f"<!doctype html><html lang='en'><body><pre>{html.escape(json.dumps(payload, indent=2))}</pre><img src='data:image/png;base64,{payload['overlay_png_base64']}' /></body></html>",
-        encoding="utf-8",
-    )
-
-
 def main() -> None:
     args = parse_args()
-    original = benchmark.trial_seconds_for_dataset
-    benchmark.trial_seconds_for_dataset = lambda ds: (
-        args.trial_seconds if ds == args.dataset else original(ds)
+    import cvep_bench.datasets.loaders as loaders
+
+    original_fn = loaders.trial_seconds_for_dataset
+    loaders.trial_seconds_for_dataset = lambda ds: (
+        args.trial_seconds if ds == args.dataset else original_fn(ds)
     )
     try:
-        reference = benchmark.load_subject(
+        reference = load_subject(
             args.dataset, args.subject, args.data_dir, args.target_fs
         )
         with causal_loader_patch(
             args.band_low, args.band_high, args.band_order, args.notch_q
         ):
-            causal = benchmark.load_subject(
+            causal = load_subject(
                 args.dataset, args.subject, args.data_dir, args.target_fs
             )
     finally:
-        benchmark.trial_seconds_for_dataset = original
+        loaders.trial_seconds_for_dataset = original_fn
     payload = {
         "dataset": args.dataset,
         "subject": args.subject,
@@ -117,5 +95,29 @@ def main() -> None:
             reference.x, causal.x, args.target_fs, args.plot_seconds
         ),
     }
-    args.output_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    render_html(args.output_html, payload)
+    write_json_payload(args.output_json, payload)
+    render_tabular_html(
+        args.output_html,
+        title="Reference vs Causal Preprocessing",
+        subtitle="Waveform-level comparison between reference and causal preprocessing paths.",
+        config={
+            "dataset": args.dataset,
+            "subject": args.subject,
+            "target_fs": args.target_fs,
+            "trial_seconds": args.trial_seconds,
+        },
+        summary_columns=[
+            ("Mean Corr", "mean"),
+            ("Min Corr", "min"),
+            ("Max Corr", "max"),
+        ],
+        summary_rows=[payload["correlation"]],
+    )
+    html_path = args.output_html
+    html_path.write_text(
+        html_path.read_text(encoding="utf-8").replace(
+            "</main>",
+            f"<div class='card'><h2>Overlay</h2><img src='data:image/png;base64,{payload['overlay_png_base64']}' /></div></main>",
+        ),
+        encoding="utf-8",
+    )

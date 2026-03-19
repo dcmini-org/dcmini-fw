@@ -35,7 +35,12 @@ def parse_args() -> argparse.Namespace:
 
 def etrca_cv_accuracy(
     x: np.ndarray, y: np.ndarray, fs: int, cycle_size: float, folds: int = 5
-) -> float:
+) -> float | None:
+    cycle_samples = cycle_size * fs
+    if not np.isclose(cycle_samples, round(cycle_samples), atol=1e-9):
+        return None
+    if x.shape[2] % int(round(cycle_samples)) != 0:
+        return None
     fold_ids = np.repeat(np.arange(folds), x.shape[0] // folds)
     accuracy = []
     for fold in range(folds):
@@ -55,6 +60,7 @@ def summarize_variant(
     name: str, x: np.ndarray, packaged_x: np.ndarray, y: np.ndarray, fs: int
 ) -> dict[str, Any]:
     stats = mean_trial_correlation(x, packaged_x)
+    etrca_accuracy = etrca_cv_accuracy(x, y, fs=fs, cycle_size=2.1)
     return {
         "name": name,
         "overall_std": float(x.std()),
@@ -63,7 +69,7 @@ def summarize_variant(
         "min_trial_corr": stats["min"],
         "max_trial_corr": stats["max"],
         "first10_trial_corr": stats["first10"],
-        "etrca_accuracy": etrca_cv_accuracy(x, y, fs=fs, cycle_size=2.1),
+        "etrca_accuracy": etrca_accuracy,
     }
 
 

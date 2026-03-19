@@ -53,6 +53,52 @@ Two different costs matter:
 - host-side setup cost: anything computed before deployment or before a run
 - on-device online cost: what the MCU must do per trial or per update
 
+There is also a deployment detail that changes how the zero-training options
+should be interpreted in this repository:
+
+- the embedded decoder will run continuously,
+- the stimulator will continuously emit exact stimulus-presentation events,
+- the decoder does not need to behave like an offline script that starts from
+  scratch for every isolated `1 s` trial.
+
+That means the practical embedded question is not:
+
+- "can a zero-training decoder learn everything it needs from only one fresh
+  `1 s` window?"
+
+It is:
+
+- "can a zero-training decoder make a decision from roughly `1 s` of fresh EEG
+  while carrying synchronized state accumulated from the ongoing event stream?"
+
+That distinction strongly favors the cumulative methods.
+
+## Continuous-Stream Interpretation
+
+Because the stimulator provides exact event timing continuously, the embedded
+runtime can retain several kinds of information even if the desired *decision
+latency* is only around `1 s`:
+
+- **within-window evidence:** the newest EEG chunk being scored right now
+- **within-trial accumulation:** overlapping or repeated short windows inside the
+  current fixation period
+- **across-trial state:** running covariance / mean statistics updated from past
+  decisions
+- **stimulus synchronization:** exact knowledge of which code bit was on screen
+  at each sample boundary
+
+This does **not** automatically make `1 s` zero-training decoding easy. It does
+mean the MCU can approach each `1 s` decision with a much better initialized
+model than an offline one-shot benchmark would suggest.
+
+In practice, the most useful consequence is:
+
+- keep the *decision window* short,
+- but let the decoder keep *state* over much longer periods.
+
+That is the most important systems-level argument for cumulative CCA, and to a
+lesser extent cumulative UMM.
+
 ## Summary Table
 
 | Method            | Needs supervised calibration? | Uses known stimulus codebook?        | Online adaptation? | Typical MCU fit                                         |
@@ -208,6 +254,9 @@ MCU take:
 - more stateful than instantaneous CCA, but not asymptotically worse
 - often the best candidate if you want no calibration and can afford matrix
   state
+- it benefits directly from a continuously synchronized event stream, because it
+  can treat each new decision as another aligned update to a subject/session
+  specific response model
 - the main deployment risk is error reinforcement:
   - if early predictions are wrong, the model can drift in the wrong direction
 
@@ -296,6 +345,9 @@ MCU take:
   epoch features and simple running moments
 - likely less MCU-friendly if it depends on dense covariance or Mahalanobis
   updates in a large feature space
+- it also benefits from continuous event timing, especially because covariance
+  can be accumulated continuously, but it still depends more heavily than CCA on
+  the exact target / nontarget assignment logic and confidence model
 
 ## Complexity Comparison
 
@@ -315,6 +367,20 @@ factor for MCU deployment.
 If the requirement is "no supervised calibration session", the decision is
 mostly about whether you can afford full online model adaptation on the MCU.
 
+For this repository's intended embedded mode, one further implication matters:
+
+- **a `1 s` latency target does not imply a stateless `1 s` decoder.**
+
+If the runtime is always receiving event timing from the stimulator, then the
+real comparison is:
+
+- `eTRCA` / `rCCA`: short-latency decisions from a supervised bank
+- cumulative CCA / UMM: short-latency decisions from a continuously adapting,
+  zero-calibration state machine
+
+That makes cumulative CCA much more relevant than a naive reading of
+"zero-training at `1 s`" would suggest.
+
 ### Best fit when MCU resources are tight
 
 - `eTRCA` remains the cheapest runtime, but it is not zero-training
@@ -329,6 +395,9 @@ mostly about whether you can afford full online model adaptation on the MCU.
   decoders in c-VEP
 - it also aligns best with the direction already present in this repository via
   `urCCA`
+- it is also the method that best exploits the planned always-on event stream,
+  because it can continuously refine session-specific statistics while still
+  emitting relatively short-window decisions
 
 ### Best fit when you want low implementation risk in this repo
 
@@ -360,6 +429,148 @@ Reason:
 - UMM is credible from the papers, but it is a more distinct implementation
   path and the public material available here was not detailed enough to pin
   down an exact MCU-oriented formulation
+
+## Current Repository Findings
+
+The current package benchmarks in `python/cvep-bench/` support a more concrete
+deployment-oriented interpretation:
+
+- `rCCA` and `eTRCA` are still the strongest performers at roughly `1 s`
+- cumulative zero-training CCA becomes strong by roughly `2.1-4.2 s`
+- UMM remains much weaker than CCA in the current implementation
+
+Representative `Thielen2021` results at `125 Hz` from the current benchmark
+stack are:
+
+| Method | 1.05 s | 2.1 s | 4.2 s |
+|---|---:|---:|---:|
+| `rcca` | 0.7050 | 0.8800 | 0.9333 |
+| `etrca` | 0.6867 | 0.8267 | 0.9017 |
+| `instantaneous_cca` | 0.0983 | 0.3233 | 0.6117 |
+| `cumulative_cca` | 0.1000 | 0.4550 | 0.8333 |
+| `instantaneous_umm` | 0.1100 | 0.1617 | 0.1600 |
+| `cumulative_umm` | 0.1000 | 0.1783 | 0.1883 |
+
+The key deployment takeaway is:
+
+- if you need the very best `~1 s` accuracy, the supervised projected baselines
+  still win,
+- if you need a true no-calibration path, cumulative CCA is the method that is
+  currently both plausible in the literature and promising in the codebase,
+- the most realistic target is not "instantaneous zero-training at `1 s` with no
+  prior state", but rather "continuous zero-training adaptation that can emit a
+  decision after about `1-4 s` of fresh evidence."
+
+For a more detailed snapshot of the current benchmark outputs and preprocessing
+diagnostics, see
+[docs/cvep_decoder_benchmark_findings.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_decoder_benchmark_findings.md).
+
+For the concrete next prototype that evaluates short fresh windows with
+continuous retained decoder state, see
+[docs/cvep_continuous_state_prototype_plan.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_continuous_state_prototype_plan.md).
+
+## How To Prototype This With Current Data And Tooling
+
+The current `cvep_bench` package is enough to prototype the continuous-state
+story with the available offline datasets.
+
+### 1. Establish the supervised ceiling
+
+Use the projected benchmark path to measure `eTRCA` and `rCCA` at the target
+latencies:
+
+```bash
+uv run --package cvep-bench benchmark_pyntbci_vs_rust \
+  --profile matched_embedded_125 \
+  --datasets Thielen2021 \
+  --algorithms etrca rcca \
+  --window-seconds-grid 1.05 2.1 4.2 5.25 10.5 31.5 \
+  --skip-rust
+```
+
+This gives the practical upper bound if calibration is allowed.
+
+### 2. Measure the zero-training fixed-window baseline
+
+Use the dedicated zero-training CCA path:
+
+```bash
+uv run --package cvep-bench benchmark_cca_vs_rust \
+  --profile matched_embedded_125 \
+  --datasets Thielen2021 \
+  --algorithms instantaneous_cca cumulative_cca \
+  --window-seconds-grid 1.05 2.1 4.2 5.25 10.5 31.5 \
+  --skip-rust
+```
+
+This answers the offline question, "how much does past pseudo-labeled state help
+if each decision is still reported at fixed trial cutoffs?"
+
+### 3. Probe within-trial evidence accumulation
+
+Use the sliding-window CCA benchmark to simulate continuous scoring inside the
+same fixation period:
+
+```bash
+uv run --package cvep-bench benchmark_cca_sliding_windows \
+  --datasets Thielen2021 \
+  --target-fs 125 \
+  --window-seconds-grid 1.0 \
+  --step-seconds 0.25
+```
+
+This does **not** reproduce the full embedded deployment story, but it is the
+best current offline proxy for:
+
+- repeated short-window inference,
+- within-trial score accumulation,
+- dynamic-stopping style behavior.
+
+### 4. Probe long-lived zero-training state
+
+The most deployment-relevant experiments right now are the cumulative ones:
+
+- `benchmark_cca_vs_rust` with `cumulative_cca`
+- `benchmark_umm_vs_rust` with `cumulative_umm`
+
+These let us estimate how much the decoder improves once it has already seen a
+stream of previous events and decisions.
+
+### 5. Check preprocessing fidelity explicitly
+
+Before trusting any zero-training result, use the waveform diagnostics:
+
+```bash
+uv run --package cvep-bench compare_thielen2021_packaged_vs_raw \
+  --subject 1 \
+  --target-fs 125 \
+  --trialtime 4.2
+```
+
+and, if needed,
+
+```bash
+uv run --package cvep-bench compare_reference_vs_causal_preprocessing \
+  --dataset Thielen2021 \
+  --subject 1 \
+  --target-fs 125 \
+  --trial-seconds 4.2
+```
+
+This is especially important for zero-training methods because they are more
+timing-sensitive than the projected baselines.
+
+### 6. Recommended prototype order
+
+Given the current code and results, the most useful prototype path is:
+
+1. `rCCA` / `eTRCA` as the latency ceiling
+2. cumulative zero-training CCA as the main no-calibration candidate
+3. sliding-window CCA as a proxy for dynamic stopping
+4. UMM only after the CCA path is well understood
+
+That order matches both the literature and the current benchmark evidence in
+this repository.
 
 ## Sources
 
