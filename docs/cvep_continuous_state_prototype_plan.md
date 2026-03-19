@@ -60,6 +60,25 @@ and a CLI wrapper:
 
 - `python/cvep-bench/src/cvep_bench/cli/benchmark_continuous_state_cca.py`
 
+The prototype now exists and can be invoked as:
+
+```bash
+uv run --package cvep-bench benchmark_continuous_state_cca \
+  --datasets Thielen2021 \
+  --target-fs 250 \
+  --window-seconds 1.0 \
+  --update-seconds 0.25 \
+  --max-dwell-seconds 4.2 \
+  --modes stateless_instantaneous within_trial_accumulated cross_trial_cumulative hybrid_continuous_cumulative \
+  --stop-rules fixed_dwell margin_threshold \
+  --margin-thresholds 0.05 0.10
+```
+
+The current implementation is intentionally labeled as a prototype because the
+cross-trial modes still use an optimistic pseudo-label update policy and the
+short-window CCA fit path can become numerically ill-conditioned for some
+updates.
+
 ## Proposed experiment semantics
 
 ### Input assumptions

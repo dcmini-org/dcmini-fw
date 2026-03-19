@@ -38,6 +38,7 @@ benchmark_cca_sliding_windows = "cvep_bench.cli.benchmark_cca_sliding_windows:ma
 benchmark_umm_sliding_windows = "cvep_bench.cli.benchmark_umm_sliding_windows:main"
 benchmark_umm_variants = "cvep_bench.cli.benchmark_umm_variants:main"
 export_umm_features = "cvep_bench.cli.export_umm_features:main"
+benchmark_continuous_state_cca = "cvep_bench.cli.benchmark_continuous_state_cca:main"
 
 [build-system]
 requires = ["hatchling>=1.27.0"]
