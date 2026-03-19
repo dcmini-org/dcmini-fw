@@ -8,6 +8,9 @@ families, see
 [docs/cvep_zero_training_decoder_options.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_zero_training_decoder_options.md).
 For dataset readiness and suggested benchmark order, see
 [docs/cvep_dataset_readiness_for_zero_training.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_dataset_readiness_for_zero_training.md).
+For a concise description of the stimulus timing and code structure in the
+supported datasets, see
+[docs/cvep_dataset_stimulus_structure.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_dataset_stimulus_structure.md).
 For the latest benchmark outcomes and interpretation across decoder families,
 see
 [docs/cvep_decoder_benchmark_findings.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_decoder_benchmark_findings.md).
@@ -37,7 +40,7 @@ The canonical Python tooling now lives in the `cvep_bench` package, so the
 simplest path is:
 
 ```bash
-uv run --project crates/cvep-decoder export_pyntbci_etrca --help
+uv run export_pyntbci_etrca --help
 ```
 
 If you prefer to manage the environment yourself, installing `pyntbci`
@@ -52,13 +55,13 @@ To download the broader open c-VEP benchmark set into
 run:
 
 ```bash
-uv run --project crates/cvep-decoder download_cvep_datasets
+uv run download_cvep_datasets
 ```
 
 To download multiple datasets concurrently, add `--jobs`:
 
 ```bash
-uv run --project crates/cvep-decoder download_cvep_datasets --jobs 2
+uv run download_cvep_datasets --jobs 2
 ```
 
 The live progress display tracks byte progress for the current file being
@@ -71,7 +74,7 @@ To benchmark the real Rust `cvep-decoder` projected-correlation runtime against
 `pyntbci` on the downloaded datasets, run:
 
 ```bash
-uv run --project crates/cvep-decoder benchmark_pyntbci_vs_rust \
+uv run benchmark_pyntbci_vs_rust \
   --datasets Thielen2021 CastillosCVEP100 \
   --algorithms etrca rcca \
   --max-subjects 1 \
@@ -99,14 +102,14 @@ The benchmark script:
 For a broader run across all downloaded datasets:
 
 ```bash
-uv run --project crates/cvep-decoder benchmark_pyntbci_vs_rust \
+uv run benchmark_pyntbci_vs_rust \
   --algorithms etrca rcca
 ```
 
 To compute subject-level statistics from the benchmark JSON:
 
 ```bash
-uv run --project crates/cvep-decoder analyze_cvep_benchmark_results \
+uv run analyze_cvep_benchmark_results \
   --input-json crates/cvep-decoder/data/benchmark_results.json
 ```
 
@@ -151,7 +154,7 @@ preprocessed `thielen2021_sub-XX.npz` files that ship with `pyntbci`, run:
 
 ```bash
 MPLCONFIGDIR=/tmp/matplotlib \
-uv run --project crates/cvep-decoder benchmark_pyntbci_example3_etrca
+uv run benchmark_pyntbci_example3_etrca
 ```
 
 This reference script:
@@ -179,7 +182,7 @@ evaluation.
 Run the `eTRCA` exporter with a local Thielen 2021 file:
 
 ```bash
-uv run --project crates/cvep-decoder export_pyntbci_etrca \
+uv run export_pyntbci_etrca \
   --input /path/to/thielen2021_sub-01.npz \
   --output /tmp/thielen2021_sub-01_etrca_bank.npz \
   --metadata-json /tmp/thielen2021_sub-01_etrca_bank.json
@@ -188,7 +191,7 @@ uv run --project crates/cvep-decoder export_pyntbci_etrca \
 Run the `rCCA` exporter:
 
 ```bash
-uv run --project crates/cvep-decoder export_pyntbci_rcca \
+uv run export_pyntbci_rcca \
   --input /path/to/thielen2021_sub-01.npz \
   --output /tmp/thielen2021_sub-01_rcca_bank.npz \
   --metadata-json /tmp/thielen2021_sub-01_rcca_bank.json
@@ -197,7 +200,7 @@ uv run --project crates/cvep-decoder export_pyntbci_rcca \
 Run the `urCCA` exporter:
 
 ```bash
-uv run --project crates/cvep-decoder export_pyntbci_urcca \
+uv run export_pyntbci_urcca \
   --input /path/to/thielen2021_sub-01.npz \
   --output /tmp/thielen2021_sub-01_urcca_bank.npz \
   --metadata-json /tmp/thielen2021_sub-01_urcca_bank.json
@@ -222,7 +225,7 @@ projected-correlation bank exporters.
 Benchmark Python reference CCA against the Rust CCA runtime:
 
 ```bash
-uv run --project crates/cvep-decoder benchmark_cca_vs_rust \
+uv run benchmark_cca_vs_rust \
   --datasets Thielen2021 \
   --subjects 1 \
   --fold-index 0 \
@@ -234,7 +237,7 @@ uv run --project crates/cvep-decoder benchmark_cca_vs_rust \
 This path:
 
 - reuses the same raw dataset loader and chronological fold splits as
-  [cvep_bench projected benchmark runner](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/python/cvep_bench/benchmarks/pyntbci_vs_rust.py)
+  [cvep_bench projected benchmark runner](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/benchmarks/pyntbci_vs_rust.py)
 - uses PyntBCI `urCCA` behavior as the host-side reference for both
   instantaneous and cumulative CCA
 - exports a Rust fixture containing full encodings, float trials, and quantized
@@ -247,7 +250,7 @@ This path:
 Benchmark repeated short-window CCA with within-trial score accumulation:
 
 ```bash
-uv run --project crates/cvep-decoder benchmark_cca_sliding_windows \
+uv run benchmark_cca_sliding_windows \
   --datasets Thielen2021 \
   --subjects 1 \
   --fold-index 0 \
@@ -281,7 +284,7 @@ templates. It is intentionally explicit about:
 Export UMM features for one dataset subject:
 
 ```bash
-uv run --project crates/cvep-decoder export_umm_features \
+uv run export_umm_features \
   --dataset Thielen2021 \
   --subject 1 \
   --output /tmp/thielen2021_sub-01_umm_features.npz \
@@ -299,7 +302,7 @@ This export contains:
 Benchmark UMM variants directly on the downloaded datasets:
 
 ```bash
-uv run --project crates/cvep-decoder benchmark_umm_variants \
+uv run benchmark_umm_variants \
   --datasets Thielen2021 Thielen2015 \
   --max-subjects 1 \
   --fold-index 0 \
@@ -311,7 +314,7 @@ uv run --project crates/cvep-decoder benchmark_umm_variants \
 This benchmark:
 
 - reuses the same raw dataset loaders as
-  [cvep_bench projected benchmark runner](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/python/cvep_bench/benchmarks/pyntbci_vs_rust.py)
+  [cvep_bench projected benchmark runner](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/benchmarks/pyntbci_vs_rust.py)
 - extracts explicit stimulus-locked epoch features
 - evaluates both instantaneous and cumulative UMM
 - sweeps feature layout and confidence model
@@ -330,7 +333,7 @@ Important source note:
 Benchmark the corrected Python UMM reference against the Rust UMM runtime:
 
 ```bash
-uv run --project crates/cvep-decoder benchmark_umm_vs_rust \
+uv run benchmark_umm_vs_rust \
   --datasets Thielen2021 \
   --subjects 1 \
   --fold-index 0 \

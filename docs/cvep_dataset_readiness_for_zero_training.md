@@ -342,6 +342,6 @@ For first evaluation work, prefer:
 
 ## Repository References
 
-- [crates/cvep-decoder/python/cvep_bench/benchmarks/pyntbci_vs_rust.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/python/cvep_bench/benchmarks/pyntbci_vs_rust.py)
+- [python/cvep-bench/src/cvep_bench/benchmarks/pyntbci_vs_rust.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/benchmarks/pyntbci_vs_rust.py)
 - [crates/cvep-decoder/data/download_manifest.json](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data/download_manifest.json)
 - [docs/cvep_zero_training_decoder_options.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_zero_training_decoder_options.md)

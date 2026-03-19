@@ -12,6 +12,10 @@ structure and from the current runtime design in this repository.
 For a dataset-by-dataset readiness and evaluation-order recommendation, see
 [docs/cvep_dataset_readiness_for_zero_training.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_dataset_readiness_for_zero_training.md).
 
+For the concrete stimulus timing and code structure of the supported datasets,
+see
+[docs/cvep_dataset_stimulus_structure.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_dataset_stimulus_structure.md).
+
 For a source-to-implementation correctness review of the current Rust modules,
 see
 [docs/cvep_source_implementation_review.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_source_implementation_review.md).
@@ -128,7 +132,7 @@ This repository's runtime path is exactly that projected-correlation form:
 - scoring in
   [crates/cvep-decoder/src/decoder.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/decoder.rs)
 - supervised fitting in
-  [crates/cvep-decoder/python/cvep_bench/export/pyntbci_etrca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/python/cvep_bench/export/pyntbci_etrca.py)
+  [python/cvep-bench/src/cvep_bench/export/pyntbci_etrca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/export/pyntbci_etrca.py)
 
 Why it is not a zero-training option:
 
@@ -221,7 +225,7 @@ This is the closest match to the existing `UrCcaDecoder`:
 - stateful online update in
   [crates/cvep-decoder/src/urcca.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/urcca.rs)
 - host-side export of class encodings in
-  [crates/cvep-decoder/python/cvep_bench/export/pyntbci_urcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/python/cvep_bench/export/pyntbci_urcca.py)
+  [python/cvep-bench/src/cvep_bench/export/pyntbci_urcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/export/pyntbci_urcca.py)
 
 Important distinction:
 
@@ -439,8 +443,8 @@ deployment-oriented interpretation:
 - cumulative zero-training CCA becomes strong by roughly `2.1-4.2 s`
 - UMM remains much weaker than CCA in the current implementation
 
-Representative `Thielen2021` results at `125 Hz` from the current benchmark
-stack are:
+Representative `Thielen2021` fixed-window results at `125 Hz` from the current
+benchmark stack are:
 
 | Method | 1.05 s | 2.1 s | 4.2 s |
 |---|---:|---:|---:|
@@ -461,6 +465,11 @@ The key deployment takeaway is:
   prior state", but rather "continuous zero-training adaptation that can emit a
   decision after about `1-4 s` of fresh evidence."
 
+The current continuous-state prototype does **not** yet show the hoped-for
+improvement from longer device use. The prototype infrastructure now exists, but
+the current cross-trial update rule has not yet produced a convincing
+"performance improves as the session continues" effect.
+
 For a more detailed snapshot of the current benchmark outputs and preprocessing
 diagnostics, see
 [docs/cvep_decoder_benchmark_findings.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_decoder_benchmark_findings.md).
@@ -480,7 +489,7 @@ Use the projected benchmark path to measure `eTRCA` and `rCCA` at the target
 latencies:
 
 ```bash
-uv run --package cvep-bench benchmark_pyntbci_vs_rust \
+uv run benchmark_pyntbci_vs_rust \
   --profile matched_embedded_125 \
   --datasets Thielen2021 \
   --algorithms etrca rcca \
@@ -495,7 +504,7 @@ This gives the practical upper bound if calibration is allowed.
 Use the dedicated zero-training CCA path:
 
 ```bash
-uv run --package cvep-bench benchmark_cca_vs_rust \
+uv run benchmark_cca_vs_rust \
   --profile matched_embedded_125 \
   --datasets Thielen2021 \
   --algorithms instantaneous_cca cumulative_cca \
@@ -512,7 +521,7 @@ Use the sliding-window CCA benchmark to simulate continuous scoring inside the
 same fixation period:
 
 ```bash
-uv run --package cvep-bench benchmark_cca_sliding_windows \
+uv run benchmark_cca_sliding_windows \
   --datasets Thielen2021 \
   --target-fs 125 \
   --window-seconds-grid 1.0 \
@@ -541,7 +550,7 @@ stream of previous events and decisions.
 Before trusting any zero-training result, use the waveform diagnostics:
 
 ```bash
-uv run --package cvep-bench compare_thielen2021_packaged_vs_raw \
+uv run compare_thielen2021_packaged_vs_raw \
   --subject 1 \
   --target-fs 125 \
   --trialtime 4.2
@@ -550,7 +559,7 @@ uv run --package cvep-bench compare_thielen2021_packaged_vs_raw \
 and, if needed,
 
 ```bash
-uv run --package cvep-bench compare_reference_vs_causal_preprocessing \
+uv run compare_reference_vs_causal_preprocessing \
   --dataset Thielen2021 \
   --subject 1 \
   --target-fs 125 \
@@ -598,6 +607,6 @@ Repository references used:
 - [crates/cvep-decoder/src/decoder.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/decoder.rs)
 - [crates/cvep-decoder/src/banks.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/banks.rs)
 - [crates/cvep-decoder/src/urcca.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/urcca.rs)
-- [crates/cvep-decoder/python/cvep_bench/export/pyntbci_etrca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/python/cvep_bench/export/pyntbci_etrca.py)
-- [crates/cvep-decoder/python/cvep_bench/export/pyntbci_rcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/python/cvep_bench/export/pyntbci_rcca.py)
-- [crates/cvep-decoder/python/cvep_bench/export/pyntbci_urcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/python/cvep_bench/export/pyntbci_urcca.py)
+- [python/cvep-bench/src/cvep_bench/export/pyntbci_etrca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/export/pyntbci_etrca.py)
+- [python/cvep-bench/src/cvep_bench/export/pyntbci_rcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/export/pyntbci_rcca.py)
+- [python/cvep-bench/src/cvep_bench/export/pyntbci_urcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/export/pyntbci_urcca.py)
