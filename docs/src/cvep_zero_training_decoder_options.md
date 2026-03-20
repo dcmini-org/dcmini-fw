@@ -456,6 +456,8 @@ The key deployment takeaway is:
 
 - if you need the very best `~1 s` accuracy, the supervised projected baselines
   still win,
+- and even very small subject-specific `eTRCA` calibration sets are already
+  strong in the current repository benchmarks,
 - if you need a true no-calibration path, cumulative CCA is the method that is
   currently both plausible in the literature and promising in the codebase,
 - the most realistic target is not "instantaneous zero-training at `1 s` with no

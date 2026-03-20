@@ -32,6 +32,28 @@ Main outputs used here:
 - `cross_family_projected_125.json`
 - `etrca_sensitivity_*.json`
 
+### `benchmark_etrca_training_curve`
+
+Measures:
+
+- how many labeled `eTRCA` training trials per class are needed before
+  subject-specific performance becomes strong,
+- and whether `eTRCA` transfers across subjects when the stimulus protocol is
+  the same.
+
+It answers two practical deployment questions:
+
+- how short can the calibration session be?
+- can cross-subject training be used as a substitute for subject-specific
+  calibration, or only as a weak warm start?
+
+Main outputs used here:
+
+- `etrca_training_curve_allsubjects_full.json`
+- `etrca_training_curve_allsubjects_2trials.json`
+- `etrca_training_curve_probe.json`
+- `etrca_training_window_probe.json`
+
 ### `benchmark_cca_vs_rust`
 
 Measures:
@@ -109,6 +131,24 @@ These are the most useful headline results currently available.
 - best `~1 s` result seen so far:
   - `matched_250_1.05` `eTRCA`: `0.7060`
   - `125 Hz` cross-family `rCCA`: `0.7050`
+
+### Best short-calibration `eTRCA` performance so far
+
+Using `benchmark_etrca_training_curve` on all `30` `Thielen2021` subjects at
+`250 Hz`, within-subject calibration with only `2` trials per class gives:
+
+- `1.05 s`: `0.6397`
+- `2.1 s`: `0.8103`
+- `4.2 s`: `0.8940`
+
+With `4` trials per class, the same benchmark gives:
+
+- `1.05 s`: `0.7060`
+- `2.1 s`: `0.8760`
+- `4.2 s`: `0.9460`
+
+This is strong evidence that `eTRCA` reaches useful performance with a very
+small subject-specific calibration set.
 
 ### Best zero-training fixed-window performance
 
@@ -204,6 +244,135 @@ Related outputs:
 - `crates/cvep-decoder/data/etrca_sensitivity_matched_250_1p05.json`
 - `crates/cvep-decoder/data/etrca_sensitivity_legacy_125_1p05.json`
 - `crates/cvep-decoder/data/etrca_sensitivity_matched_125_1p05.json`
+
+## eTRCA training-trial scaling and transfer
+
+We added a dedicated benchmark to determine how many subject-specific training
+trials `eTRCA` needs, and whether the same trained decoder transfers across
+participants.
+
+### Within-subject training curves (`benchmark_etrca_training_curve`)
+
+All-subject `Thielen2021`, `250 Hz`, within-subject calibration:
+
+| Trials per class | 1.05 s | 2.1 s | 4.2 s |
+|---|---:|---:|---:|
+| `1` | 0.0790 | 0.0983 | 0.1317 |
+| `2` | 0.6397 | 0.8103 | 0.8940 |
+| `3` | 0.6820 | 0.8600 | 0.9317 |
+| `4` | 0.7060 | 0.8760 | 0.9460 |
+
+Interpretation:
+
+- one trial per class is not enough,
+- two trials per class already produce useful `eTRCA`,
+- most of the gain arrives by `2-4` trials per class,
+- this makes short calibration sessions look realistic.
+
+### Training-window-length probe
+
+We also extended the benchmark to vary the *training window length* while still
+respecting full-cycle `eTRCA` training constraints.
+
+Why this matters:
+
+- the current `eTRCA` implementation cannot be trained on arbitrary `1.0 s`
+  windows,
+- but it **can** be trained on shorter windows if those windows contain an
+  integer number of full stimulus cycles.
+
+For `Thielen2021`, one cycle is `2.1 s`, so the valid training-window probe was:
+
+- `2.1 s`
+- `4.2 s`
+- `31.5 s`
+
+On an 8-subject probe at `250 Hz`, using `2` trials per class:
+
+| Test window | Train 2.1 s | Train 4.2 s | Train 31.5 s |
+|---|---:|---:|---:|
+| `1.05 s` | 0.4562 | 0.6312 | 0.7688 |
+| `2.1 s` | 0.6125 | 0.7562 | 0.9375 |
+| `4.2 s` | 0.6813 | 0.8438 | 0.9688 |
+
+Interpretation:
+
+- yes, shorter supervised training windows do work if they are full-cycle,
+- but they cost noticeable accuracy,
+- and the best current `eTRCA` results still come from longer training windows,
+- especially when trying to maximize short-window inference accuracy.
+
+This means the practical calibration question is not "can we train on only
+`1 s`?" but rather "how short can we make the subject-specific training windows
+while still keeping full-cycle structure?"
+
+We also ran a concrete all-subject example with:
+
+- `3` training trials per class
+- training window `4.2 s`
+- all `30` `Thielen2021` subjects
+- `250 Hz`
+
+Result:
+
+- test `1.05 s`: `0.6167`
+- test `2.1 s`: `0.7513`
+- test `4.2 s`: `0.8170`
+
+Compared with `3` trials per class trained on the full `31.5 s` windows:
+
+- test `1.05 s`: `0.6820`
+- test `2.1 s`: `0.8600`
+- test `4.2 s`: `0.9317`
+
+So `3` trials per class with `4.2 s` training windows is viable, but clearly
+inferior to using the full training windows. The main practical lesson is:
+
+- shortening the number of training trials is less damaging than shortening the
+  training windows themselves.
+
+### Cross-subject transfer
+
+We also probed cross-subject `eTRCA` by training on `20` subjects and testing on
+the remaining `10` at `250 Hz`.
+
+Mean held-out accuracy:
+
+- `1.05 s`: `0.456`
+- `2.1 s`: `0.653`
+- `4.2 s`: `0.765`
+
+Interpretation:
+
+- yes, `eTRCA` transfers across subjects when the stimulus is the same,
+- but it is clearly weaker than even a tiny amount of within-subject training,
+- so cross-subject `eTRCA` should be treated as a warm start or fallback, not a
+  replacement for subject-specific calibration.
+
+### Training/runtime cost note
+
+Running the all-subject `2`-trials-per-class benchmark over `30` subjects,
+three windows (`1.05 / 2.1 / 4.2 s`), and one fold took about `155 s` on the
+current development machine. That is a whole benchmark sweep, not the cost of
+fitting one subject model once.
+
+The practical takeaway is that benchmark-time cost is modest, and a real
+subject-specific training fit is far cheaper than the full sweep.
+
+### Calibration strategy implication
+
+The most realistic supervised strategy now looks like:
+
+1. use full-cycle training windows,
+2. keep the number of labeled trials per class very small,
+3. prefer short *counts* of trials over aggressively shortening the cycle-based
+   training window.
+
+In other words:
+
+- two or more trials per class is already promising,
+- but shrinking the training windows themselves hurts faster than shrinking the
+  number of training trials.
 
 ## Zero-training CCA status
 
