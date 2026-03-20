@@ -4,16 +4,13 @@ This repository now includes offline export paths for benchmarking the firmware
 CVEP decoder against `pyntbci` on the open Thielen 2021 c-VEP data.
 
 For a deployment-oriented comparison of supervised and zero-training decoder
-families, see
-[docs/cvep_zero_training_decoder_options.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_zero_training_decoder_options.md).
+families, see `cvep_zero_training_decoder_options.md`.
 For dataset readiness and suggested benchmark order, see
-[docs/cvep_dataset_readiness_for_zero_training.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_dataset_readiness_for_zero_training.md).
+`cvep_dataset_readiness_for_zero_training.md`.
 For a concise description of the stimulus timing and code structure in the
-supported datasets, see
-[docs/cvep_dataset_stimulus_structure.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_dataset_stimulus_structure.md).
+supported datasets, see `cvep_dataset_stimulus_structure.md`.
 For the latest benchmark outcomes and interpretation across decoder families,
-see
-[docs/cvep_decoder_benchmark_findings.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_decoder_benchmark_findings.md).
+see `cvep_decoder_benchmark_findings.md`.
 
 ## Scope
 
@@ -51,7 +48,7 @@ pip install pyntbci
 ```
 
 To download the broader open c-VEP benchmark set into
-[crates/cvep-decoder/data](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data),
+`crates/cvep-decoder/data`,
 run:
 
 ```bash
@@ -96,8 +93,7 @@ The benchmark script:
   - `Castillos*`: `2.2 s`
 - fits `pyntbci` on each subject/fold,
 - exports a fixture and replays it through the real Rust benchmark binary,
-- writes JSON, CSV, and HTML summaries under
-  [crates/cvep-decoder/data](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data).
+- writes JSON, CSV, and HTML summaries under `crates/cvep-decoder/data`.
 
 For a broader run across all downloaded datasets:
 
@@ -164,8 +160,7 @@ This reference script:
 - runs chronological `5`-fold cross-validation over the `5` packaged subjects,
 - computes the example-style learning and decoding curves,
 - replays each fold through the Rust projected-correlation runtime,
-- writes JSON, CSV, and HTML outputs under
-  [crates/cvep-decoder/data](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data).
+- writes JSON, CSV, and HTML outputs under `crates/cvep-decoder/data`.
 
 On the current packaged example set, this script reproduces the same headline
 average shown in the example docs:
@@ -237,15 +232,14 @@ uv run benchmark_cca_vs_rust \
 This path:
 
 - reuses the same raw dataset loader and chronological fold splits as
-  [cvep_bench projected benchmark runner](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/benchmarks/pyntbci_vs_rust.py)
+  `python/cvep-bench/src/cvep_bench/benchmarks/pyntbci_vs_rust.py`
 - uses PyntBCI `urCCA` behavior as the host-side reference for both
   instantaneous and cumulative CCA
 - exports a Rust fixture containing full encodings, float trials, and quantized
   integer trials
 - compares Python reference accuracy against both the Rust exact float path and
   the Rust fixed integer path
-- writes JSON, CSV, and HTML outputs under
-  [crates/cvep-decoder/data](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data)
+- writes JSON, CSV, and HTML outputs under `crates/cvep-decoder/data`
 
 Benchmark repeated short-window CCA with within-trial score accumulation:
 
@@ -268,8 +262,7 @@ This sliding-window path:
   - `instantaneous_accumulated`
 - treats score accumulation as a within-trial evidence combination rule rather
   than as cumulative cross-trial adaptation
-- writes JSON, CSV, and HTML summaries under
-  [crates/cvep-decoder/data](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data)
+- writes JSON, CSV, and HTML summaries under `crates/cvep-decoder/data`
 
 ## UMM Export And Benchmark
 
@@ -314,12 +307,11 @@ uv run benchmark_umm_variants \
 This benchmark:
 
 - reuses the same raw dataset loaders as
-  [cvep_bench projected benchmark runner](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/benchmarks/pyntbci_vs_rust.py)
+  `python/cvep-bench/src/cvep_bench/benchmarks/pyntbci_vs_rust.py`
 - extracts explicit stimulus-locked epoch features
 - evaluates both instantaneous and cumulative UMM
 - sweeps feature layout and confidence model
-- writes JSON, CSV, and HTML summaries under
-  [crates/cvep-decoder/data](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data)
+- writes JSON, CSV, and HTML summaries under `crates/cvep-decoder/data`
 
 Important source note:
 

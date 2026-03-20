@@ -1,0 +1,12 @@
+[book]
+title = "dcmini-fw"
+authors = ["Preston Peranich"]
+language = "en"
+src = "src"
+
+[build]
+build-dir = "book"
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"

@@ -18,10 +18,10 @@ same algorithms, or whether they should be treated as approximations.
 
 | Module | Status vs source | Notes |
 | --- | --- | --- |
-| [crates/cvep-decoder/src/instantaneous_cca.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/instantaneous_cca.rs) | Broadly aligned | Stateless zero-training CCA over known encodings. |
-| [crates/cvep-decoder/src/cumulative_cca.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/cumulative_cca.rs) | Broadly aligned | Matches the `urCCA` update pattern used in the PyntBCI reference code. |
-| [crates/cvep-decoder/src/instantaneous_umm.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/instantaneous_umm.rs) | More closely aligned | Captures the mean-difference / Mahalanobis scoring idea and supports tapered block-Toeplitz covariance when the feature layout is known. |
-| [crates/cvep-decoder/src/cumulative_umm.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/cumulative_umm.rs) | More closely aligned | Includes confidence-weighted cumulative updates and tapered block-Toeplitz covariance scoring when the feature layout is known. |
+| `crates/cvep-decoder/src/instantaneous_cca.rs` | Broadly aligned | Stateless zero-training CCA over known encodings. |
+| `crates/cvep-decoder/src/cumulative_cca.rs` | Broadly aligned | Matches the `urCCA` update pattern used in the PyntBCI reference code. |
+| `crates/cvep-decoder/src/instantaneous_umm.rs` | More closely aligned | Captures the mean-difference / Mahalanobis scoring idea and supports tapered block-Toeplitz covariance when the feature layout is known. |
+| `crates/cvep-decoder/src/cumulative_umm.rs` | More closely aligned | Includes confidence-weighted cumulative updates and tapered block-Toeplitz covariance scoring when the feature layout is known. |
 
 ## Sources Used
 
@@ -55,11 +55,11 @@ CCA variant that decodes each trial independently from the known stimulus
 encoding. The Rust module does that:
 
 - it uses a known encoding bank per class in
-  [crates/cvep-decoder/src/instantaneous_cca.rs#L19](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/instantaneous_cca.rs#L19)
+  `crates/cvep-decoder/src/instantaneous_cca.rs`
 - it computes trial EEG covariance once per trial in
-  [crates/cvep-decoder/src/instantaneous_cca.rs#L46](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/instantaneous_cca.rs#L46)
+  `crates/cvep-decoder/src/instantaneous_cca.rs`
 - it scores each class by top canonical correlation against the class encoding in
-  [crates/cvep-decoder/src/instantaneous_cca.rs#L65](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/instantaneous_cca.rs#L65)
+  `crates/cvep-decoder/src/instantaneous_cca.rs`
 
 I do not see a source-level mismatch here from the accessible material. This is
 best read as the stateless zero-training CCA baseline.
@@ -79,9 +79,9 @@ Reference code:
 Rust behavior:
 
 - score all classes from the shared running state in
-  [crates/cvep-decoder/src/cumulative_cca.rs#L130](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/cumulative_cca.rs#L130)
+  `crates/cvep-decoder/src/cumulative_cca.rs`
 - update persistent running state only with the winning class in
-  [crates/cvep-decoder/src/cumulative_cca.rs#L195](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/cumulative_cca.rs#L195)
+  `crates/cvep-decoder/src/cumulative_cca.rs`
 
 Because all class hypotheses are scored from the same pre-update shared state,
 this is operationally very close to the PyntBCI `urCCA` pattern. I do not see a
@@ -95,13 +95,13 @@ structured covariance estimate. The 2024 poster explicitly refers to
 matrix. The Rust implementation now uses:
 
 - empirical covariance over epochs in
-  [crates/cvep-decoder/src/instantaneous_umm.rs#L138](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/instantaneous_umm.rs#L138)
+  `crates/cvep-decoder/src/instantaneous_umm.rs`
 - optional tapered block-Toeplitz projection, using channel-prime feature order,
-  in [crates/cvep-decoder/src/instantaneous_umm.rs#L313](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/instantaneous_umm.rs#L313)
+  in `crates/cvep-decoder/src/instantaneous_umm.rs`
 - simple diagonal regularization in
-  [crates/cvep-decoder/src/instantaneous_umm.rs#L381](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/instantaneous_umm.rs#L381)
+  `crates/cvep-decoder/src/instantaneous_umm.rs`
 - Mahalanobis scoring of the target-minus-nontarget mean difference in
-  [crates/cvep-decoder/src/instantaneous_umm.rs#L222](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/instantaneous_umm.rs#L222)
+  `crates/cvep-decoder/src/instantaneous_umm.rs`
 
 This is substantially closer to the published `UMM_t11` variant than the
 previous dense-covariance implementation. The remaining uncertainty is whether
@@ -125,11 +125,11 @@ The current Rust implementation now:
 - optionally projects that covariance onto the tapered block-Toeplitz family
   before scoring
 - combines target and nontarget means with a confidence-derived weight in
-  [crates/cvep-decoder/src/cumulative_umm.rs#L164](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/cumulative_umm.rs#L164)
+  `crates/cvep-decoder/src/cumulative_umm.rs`
 - updates persistent state with confidence-weighted running summaries in
-  [crates/cvep-decoder/src/cumulative_umm.rs#L209](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/cumulative_umm.rs#L209)
+  `crates/cvep-decoder/src/cumulative_umm.rs`
 - derives confidence from the winner-vs-runner-up score gap in
-  [crates/cvep-decoder/src/cumulative_umm.rs#L268](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/cumulative_umm.rs#L268)
+  `crates/cvep-decoder/src/cumulative_umm.rs`
 
 This closes the largest gaps from the accessible source material. The remaining
 uncertainty is narrower: the confidence function is plausible and source-aligned
@@ -140,9 +140,9 @@ To avoid hiding that uncertainty in the API, the current Rust code now makes
 both dimensions explicit:
 
 - the block-Toeplitz covariance path takes an explicit feature layout via
-  [crates/cvep-decoder/src/instantaneous_umm.rs#L6](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/instantaneous_umm.rs#L6)
+  `crates/cvep-decoder/src/instantaneous_umm.rs`
 - the cumulative UMM path takes an explicit confidence model via
-  [crates/cvep-decoder/src/cumulative_umm.rs#L8](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/cumulative_umm.rs#L8)
+  `crates/cvep-decoder/src/cumulative_umm.rs`
 
 ## What I Trust Today
 

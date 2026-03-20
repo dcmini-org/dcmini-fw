@@ -10,19 +10,16 @@ complexity estimates below are engineering inferences from the algorithm
 structure and from the current runtime design in this repository.
 
 For a dataset-by-dataset readiness and evaluation-order recommendation, see
-[docs/cvep_dataset_readiness_for_zero_training.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_dataset_readiness_for_zero_training.md).
+`cvep_dataset_readiness_for_zero_training.md`.
 
 For the concrete stimulus timing and code structure of the supported datasets,
-see
-[docs/cvep_dataset_stimulus_structure.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_dataset_stimulus_structure.md).
+see `cvep_dataset_stimulus_structure.md`.
 
 For a source-to-implementation correctness review of the current Rust modules,
-see
-[docs/cvep_source_implementation_review.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_source_implementation_review.md).
+see `cvep_source_implementation_review.md`.
 
 For the concrete offline export and benchmark workflow now available for the
-UMM path, see
-[docs/cvep_offline_workflow.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_offline_workflow.md).
+UMM path, see `cvep_offline_workflow.md`.
 
 ## Scope
 
@@ -37,9 +34,9 @@ The papers point to these alternatives for the same decoding problem:
 The current crate already contains:
 
 - a projected-correlation runtime for exported `eTRCA` / `rCCA` banks in
-  [crates/cvep-decoder/src/decoder.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/decoder.rs)
+  `crates/cvep-decoder/src/decoder.rs`
 - an online adaptive `urCCA`-style runtime in
-  [crates/cvep-decoder/src/urcca.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/urcca.rs)
+  `crates/cvep-decoder/src/urcca.rs`
 
 ## Notation
 
@@ -128,11 +125,11 @@ High-level idea:
 This repository's runtime path is exactly that projected-correlation form:
 
 - bank storage in
-  [crates/cvep-decoder/src/banks.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/banks.rs)
+  `crates/cvep-decoder/src/banks.rs`
 - scoring in
-  [crates/cvep-decoder/src/decoder.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/decoder.rs)
+  `crates/cvep-decoder/src/decoder.rs`
 - supervised fitting in
-  [python/cvep-bench/src/cvep_bench/export/pyntbci_etrca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/export/pyntbci_etrca.py)
+  `python/cvep-bench/src/cvep_bench/export/pyntbci_etrca.py`
 
 Why it is not a zero-training option:
 
@@ -223,9 +220,9 @@ High-level idea:
 This is the closest match to the existing `UrCcaDecoder`:
 
 - stateful online update in
-  [crates/cvep-decoder/src/urcca.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/urcca.rs)
+  `crates/cvep-decoder/src/urcca.rs`
 - host-side export of class encodings in
-  [python/cvep-bench/src/cvep_bench/export/pyntbci_urcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/export/pyntbci_urcca.py)
+  `python/cvep-bench/src/cvep_bench/export/pyntbci_urcca.py`
 
 Important distinction:
 
@@ -472,11 +469,11 @@ the current cross-trial update rule has not yet produced a convincing
 
 For a more detailed snapshot of the current benchmark outputs and preprocessing
 diagnostics, see
-[docs/cvep_decoder_benchmark_findings.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_decoder_benchmark_findings.md).
+`cvep_decoder_benchmark_findings.md`.
 
 For the concrete next prototype that evaluates short fresh windows with
 continuous retained decoder state, see
-[docs/cvep_continuous_state_prototype_plan.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_continuous_state_prototype_plan.md).
+`cvep_continuous_state_prototype_plan.md`.
 
 ## How To Prototype This With Current Data And Tooling
 
@@ -604,9 +601,9 @@ Primary sources used:
 
 Repository references used:
 
-- [crates/cvep-decoder/src/decoder.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/decoder.rs)
-- [crates/cvep-decoder/src/banks.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/banks.rs)
-- [crates/cvep-decoder/src/urcca.rs](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/src/urcca.rs)
-- [python/cvep-bench/src/cvep_bench/export/pyntbci_etrca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/export/pyntbci_etrca.py)
-- [python/cvep-bench/src/cvep_bench/export/pyntbci_rcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/export/pyntbci_rcca.py)
-- [python/cvep-bench/src/cvep_bench/export/pyntbci_urcca.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/export/pyntbci_urcca.py)
+- `crates/cvep-decoder/src/decoder.rs`
+- `crates/cvep-decoder/src/banks.rs`
+- `crates/cvep-decoder/src/urcca.rs`
+- `python/cvep-bench/src/cvep_bench/export/pyntbci_etrca.py`
+- `python/cvep-bench/src/cvep_bench/export/pyntbci_rcca.py`
+- `python/cvep-bench/src/cvep_bench/export/pyntbci_urcca.py`

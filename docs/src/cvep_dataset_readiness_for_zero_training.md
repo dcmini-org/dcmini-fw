@@ -7,8 +7,7 @@ This note answers two practical questions:
 2. Which datasets should be used first, in what order, when evaluating
    zero-training alternatives on this repository?
 
-It is intended to complement
-[docs/cvep_zero_training_decoder_options.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_zero_training_decoder_options.md).
+It is intended to complement `cvep_zero_training_decoder_options.md`.
 
 ## Short Answer
 
@@ -37,8 +36,8 @@ trustworthy from the downloaded files alone.
 
 Relevant local files:
 
-- [sub-01_test_sync_1.gdf](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data/MNE-thielen2015-data/dcc/DSC_2018.00047_553_v3/sourcedata/sub-01/test_sync_1/sub-01_test_sync_1.gdf)
-- [sub-01_test_sync_1.mat](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data/MNE-thielen2015-data/dcc/DSC_2018.00047_553_v3/sourcedata/sub-01/test_sync_1/sub-01_test_sync_1.mat)
+- `crates/cvep-decoder/data/MNE-thielen2015-data/dcc/DSC_2018.00047_553_v3/sourcedata/sub-01/test_sync_1/sub-01_test_sync_1.gdf`
+- `crates/cvep-decoder/data/MNE-thielen2015-data/dcc/DSC_2018.00047_553_v3/sourcedata/sub-01/test_sync_1/sub-01_test_sync_1.mat`
 
 What is available:
 
@@ -64,9 +63,9 @@ Assessment:
 
 Relevant local files:
 
-- [sub-01_20181128_block_1_main_eeg.gdf](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data/MNE-thielen2021-data/dcc/DSC_2018.00122_448_v3/sourcedata/offline/sub-01/block_1/sub-01_20181128_block_1_main_eeg.gdf)
-- [trainlabels.mat](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data/MNE-thielen2021-data/dcc/DSC_2018.00122_448_v3/sourcedata/offline/sub-01/block_1/trainlabels.mat)
-- [mgold_61_6521_flip_balanced_20.mat](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data/MNE-thielen2021-data/dcc/DSC_2018.00122_448_v3/resources/mgold_61_6521_flip_balanced_20.mat)
+- `crates/cvep-decoder/data/MNE-thielen2021-data/dcc/DSC_2018.00122_448_v3/sourcedata/offline/sub-01/block_1/sub-01_20181128_block_1_main_eeg.gdf`
+- `crates/cvep-decoder/data/MNE-thielen2021-data/dcc/DSC_2018.00122_448_v3/sourcedata/offline/sub-01/block_1/trainlabels.mat`
+- `crates/cvep-decoder/data/MNE-thielen2021-data/dcc/DSC_2018.00122_448_v3/resources/mgold_61_6521_flip_balanced_20.mat`
 
 What is available:
 
@@ -93,8 +92,8 @@ Assessment:
 
 Relevant local files:
 
-- [P1_mseq40.set](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data/MNE-4class-vep-data/records/8255618/files/4Class-CVEP/P1/P1_mseq40.set)
-- [P1_mseq100.set](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data/MNE-4class-vep-data/records/8255618/files/4Class-CVEP/P1/P1_mseq100.set)
+- `crates/cvep-decoder/data/MNE-4class-vep-data/records/8255618/files/4Class-CVEP/P1/P1_mseq40.set`
+- `crates/cvep-decoder/data/MNE-4class-vep-data/records/8255618/files/4Class-CVEP/P1/P1_mseq100.set`
 
 What is available:
 
@@ -122,8 +121,8 @@ Assessment:
 
 Relevant local files:
 
-- [P1_burst40.set](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data/MNE-4class-vep-data/records/8255618/files/4Class-CVEP/P1/P1_burst40.set)
-- [P1_burst100.set](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data/MNE-4class-vep-data/records/8255618/files/4Class-CVEP/P1/P1_burst100.set)
+- `crates/cvep-decoder/data/MNE-4class-vep-data/records/8255618/files/4Class-CVEP/P1/P1_burst40.set`
+- `crates/cvep-decoder/data/MNE-4class-vep-data/records/8255618/files/4Class-CVEP/P1/P1_burst100.set`
 
 What is available:
 
@@ -342,6 +341,6 @@ For first evaluation work, prefer:
 
 ## Repository References
 
-- [python/cvep-bench/src/cvep_bench/benchmarks/pyntbci_vs_rust.py](/Users/peranpl1/Documents/repos/oss/dcmini-fw/python/cvep-bench/src/cvep_bench/benchmarks/pyntbci_vs_rust.py)
-- [crates/cvep-decoder/data/download_manifest.json](/Users/peranpl1/Documents/repos/oss/dcmini-fw/crates/cvep-decoder/data/download_manifest.json)
-- [docs/cvep_zero_training_decoder_options.md](/Users/peranpl1/Documents/repos/oss/dcmini-fw/docs/cvep_zero_training_decoder_options.md)
+- `python/cvep-bench/src/cvep_bench/benchmarks/pyntbci_vs_rust.py`
+- `crates/cvep-decoder/data/download_manifest.json`
+- `cvep_zero_training_decoder_options.md`
