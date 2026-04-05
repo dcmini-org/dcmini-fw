@@ -41,9 +41,19 @@ pub async fn update_device_info_characteristics(
     software_rev: &str,
     manufacturer: &str,
 ) {
-    let hw_rev = heapless::String::<32>::try_from(hardware_rev).unwrap();
-    let sw_rev = heapless::String::<32>::try_from(software_rev).unwrap();
-    let mfg = heapless::String::<32>::try_from(manufacturer).unwrap();
+    let (hw_rev, hw_truncated) = bounded_heapless_string::<32>(hardware_rev);
+    let (sw_rev, sw_truncated) =
+        bounded_heapless_string::<32>(software_rev);
+    let (mfg, mfg_truncated) =
+        bounded_heapless_string::<32>(manufacturer);
+    if hw_truncated || sw_truncated || mfg_truncated {
+        report_status(
+            icd::SubsystemId::BleStream,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::MetadataTruncated,
+        )
+        .await;
+    }
 
     unwrap!(server.set(&server.device_info.hardware_revision, &hw_rev));
     unwrap!(server.set(&server.device_info.software_revision, &sw_rev));

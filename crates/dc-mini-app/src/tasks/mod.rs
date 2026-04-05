@@ -45,7 +45,17 @@ pub use usb::*;
 // Keeps our system alive
 #[embassy_executor::task]
 pub async fn watchdog_task(wdt: Peri<'static, WDT>) {
-    let wdt_config = wdt::Config::try_new(&wdt).unwrap();
+    let Some(wdt_config) = wdt::Config::try_new(&wdt) else {
+        report_status(
+            icd::SubsystemId::Power,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::WatchdogInitFailed,
+        )
+        .await;
+        loop {
+            Timer::after(Duration::from_secs(1)).await;
+        }
+    };
     let (_wdt, [mut handle]) = match Watchdog::try_new(wdt, wdt_config) {
         Ok(x) => x,
         Err(_) => {
@@ -118,8 +128,9 @@ pub async fn heap_usage() {
 #[embassy_executor::task]
 pub async fn log_stats() {
     const MSECS_PER_LOG: u64 = 1000;
-    let mut receiver =
-        ADS_MEAS_CH.subscriber().expect("Failed to create subscriber.");
+    let Ok(mut receiver) = ADS_MEAS_CH.subscriber() else {
+        return;
+    };
     let mut num_samps = 0;
     let mut last_ts = Instant::now();
     loop {

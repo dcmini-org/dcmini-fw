@@ -7,19 +7,50 @@ use portable_atomic::Ordering;
 #[embassy_executor::task]
 pub async fn haptic_task(bus_manager: &'static I2cBusManager) {
     HAPTIC_ACTIVE.store(true, Ordering::SeqCst);
+    report_status(
+        icd::SubsystemId::Haptic,
+        icd::SubsystemState::Active,
+        icd::FaultCode::None,
+    )
+    .await;
 
     // Acquire bus handle - configures bus if needed
-    let handle = bus_manager.acquire().await.unwrap();
+    let handle = match bus_manager.acquire().await {
+        Ok(handle) => handle,
+        Err(_) => {
+            report_status(
+                icd::SubsystemId::Haptic,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::BusUnavailable,
+            )
+            .await;
+            HAPTIC_ACTIVE.store(false, Ordering::SeqCst);
+            return;
+        }
+    };
     let mut haptic = Drv260x::new(I2cDevice::new(handle.bus()));
 
     // Initialize with retry loop
+    let mut initialized = false;
     for i in 0..5 {
         if haptic.init_async().await.is_ok() {
+            initialized = true;
             break;
         } else {
             info!("Retry connection attempt {:?} to DRV2605L...", i);
             Timer::after_millis(1000).await;
         }
+    }
+
+    if !initialized {
+        report_status(
+            icd::SubsystemId::Haptic,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::HapticInitFailed,
+        )
+        .await;
+        HAPTIC_ACTIVE.store(false, Ordering::SeqCst);
+        return;
     }
 
     info!("DRV2605L haptic driver initialized.");
@@ -62,4 +93,10 @@ pub async fn haptic_task(bus_manager: &'static I2cBusManager) {
 
     HAPTIC_CMD_SIG.reset();
     HAPTIC_ACTIVE.store(false, Ordering::SeqCst);
+    report_status(
+        icd::SubsystemId::Haptic,
+        icd::SubsystemState::Ready,
+        icd::FaultCode::None,
+    )
+    .await;
 }

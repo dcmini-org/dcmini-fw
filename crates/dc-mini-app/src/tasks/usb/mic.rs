@@ -62,11 +62,31 @@ pub async fn mic_set_config(
 }
 
 async fn mic_stream_usb(sender: Sender<super::AppTx>, config: &MicConfig) {
-    let mut sub = MIC_STREAM_CH
-        .dyn_subscriber()
-        .expect("Failed to create mic subscriber");
-    let mut mic_watcher =
-        MIC_WATCH.dyn_receiver().expect("Failed to create mic watcher");
+    let Some(mut sub) = MIC_STREAM_CH.dyn_subscriber() else {
+        report_status(
+            icd::SubsystemId::UsbStream,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::Busy,
+        )
+        .await;
+        return;
+    };
+    let Some(mut mic_watcher) = MIC_WATCH.dyn_receiver() else {
+        report_status(
+            icd::SubsystemId::UsbStream,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::Busy,
+        )
+        .await;
+        return;
+    };
+
+    report_status(
+        icd::SubsystemId::UsbStream,
+        icd::SubsystemState::Active,
+        icd::FaultCode::None,
+    )
+    .await;
 
     let sample_rate = config.sample_rate.as_hz();
     let mut encoder = AdpcmEncoder::new();

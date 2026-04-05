@@ -1,6 +1,5 @@
 use crate::prelude::*;
 use dc_mini_bsp::usb::UsbDriverBuilder;
-use embassy_futures::join::join;
 use embassy_nrf::usb::Driver;
 use embassy_usb::Config;
 use static_cell::ConstStaticCell;
@@ -27,6 +26,7 @@ mod dfu;
 mod mic;
 mod profile;
 mod session;
+mod system;
 
 use ads::*;
 use battery::*;
@@ -35,6 +35,7 @@ use dfu::*;
 use mic::*;
 use profile::*;
 use session::*;
+use system::*;
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 
@@ -90,6 +91,7 @@ define_dispatch! {
         | SessionSetIdEndpoint      | async     | session_set_id                |
         | SessionStartEndpoint      | async     | session_start                 |
         | SessionStopEndpoint       | async     | session_stop                  |
+        | SystemStatusGetEndpoint   | async     | system_status_get             |
         | DfuBeginEndpoint          | async     | dfu_begin                     |
         | DfuWriteEndpoint          | async     | dfu_write                     |
         | DfuFinishEndpoint         | async     | dfu_finish                    |
@@ -163,6 +165,8 @@ pub async fn usb_task(
         vkk,
     );
 
+    let status_fut = system_status_topic_task(server.sender());
+
     let server_fut = async {
         // Need to allow time for the USB driver to intialize prior to running the postcard server.
         Timer::after(Duration::from_secs(2)).await;
@@ -170,6 +174,12 @@ pub async fn usb_task(
         server.run().await;
     };
 
-    let _ = join(server_fut, device.run()).await;
+    let status_fut = async {
+        Timer::after(Duration::from_secs(2)).await;
+        status_fut.await;
+    };
+
+    let _ = embassy_futures::join::join3(server_fut, device.run(), status_fut)
+        .await;
     warn!("Exiting usb_task!!");
 }

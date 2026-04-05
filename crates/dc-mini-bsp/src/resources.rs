@@ -20,6 +20,7 @@ use embedded_sdmmc::SdCard;
 use grounded::uninit::GroundedArrayCell;
 use heapless::Vec;
 use icm_45605::Icm45605;
+use core::convert::Infallible;
 
 /// Destructor token for recovering TWIM1 peripheral resources.
 pub struct Twim1Destructor;
@@ -267,9 +268,12 @@ impl Spi3BusResources {
 impl SdCardResources {
     pub fn get_card<'a>(
         &'a mut self,
-    ) -> SdCard<
-        ExclusiveDevice<spim::Spim<'a>, Output<'a>, embassy_time::Delay>,
-        embassy_time::Delay,
+    ) -> Result<
+        SdCard<
+            ExclusiveDevice<spim::Spim<'a>, Output<'a>, embassy_time::Delay>,
+            embassy_time::Delay,
+        >,
+        Infallible,
     > {
         let mut config = spim::Config::default();
         config.mode = spim::MODE_0;
@@ -298,9 +302,8 @@ impl SdCardResources {
         cs_pin.set_high();
         // Note: SD card initialization is now handled by the SdCard driver itself
 
-        let spi = ExclusiveDevice::new(spi, cs_pin, embassy_time::Delay)
-            .expect("Failed to create SD card spi device.");
-        SdCard::new(spi, embassy_time::Delay)
+        let spi = ExclusiveDevice::new(spi, cs_pin, embassy_time::Delay)?;
+        Ok(SdCard::new(spi, embassy_time::Delay))
     }
 }
 
@@ -309,7 +312,7 @@ impl ExternalFlashResources {
     ///
     /// # Returns
     /// An initialized `ExternalFlash` instance.
-    pub fn configure<'a>(&'a mut self) -> ExternalFlash<'a> {
+    pub fn configure<'a>(&'a mut self) -> Result<ExternalFlash<'a>, qspi::Error> {
         bind_interrupts!(struct Irqs {
             QSPI => qspi::InterruptHandler<peripherals::QSPI>;
         });
@@ -337,14 +340,14 @@ impl ExternalFlashResources {
 
         // Setup QSPI
         let mut status = [4; 2];
-        q.blocking_custom_instruction(0x05, &[], &mut status[..1]).unwrap();
+        q.blocking_custom_instruction(0x05, &[], &mut status[..1])?;
 
-        q.blocking_custom_instruction(0x35, &[], &mut status[1..2]).unwrap();
+        q.blocking_custom_instruction(0x35, &[], &mut status[1..2])?;
 
         if status[1] & 0x02 == 0 {
             status[1] |= 0x02;
-            q.blocking_custom_instruction(0x01, &status, &mut []).unwrap();
+            q.blocking_custom_instruction(0x01, &status, &mut [])?;
         }
-        q
+        Ok(q)
     }
 }

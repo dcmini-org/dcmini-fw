@@ -19,11 +19,24 @@ pub(crate) async fn mic_stream_notify<T: MicStreamNotifier>(
     notifier: &T,
     _mtu: usize,
 ) {
-    let mut mic_watcher =
-        MIC_WATCH.dyn_receiver().expect("Failed to create mic watcher");
-    let mut sub = MIC_STREAM_CH
-        .dyn_subscriber()
-        .expect("Failed to create mic subscriber");
+    let Some(mut mic_watcher) = MIC_WATCH.dyn_receiver() else {
+        report_status(
+            icd::SubsystemId::BleStream,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::Busy,
+        )
+        .await;
+        return;
+    };
+    let Some(mut sub) = MIC_STREAM_CH.dyn_subscriber() else {
+        report_status(
+            icd::SubsystemId::BleStream,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::Busy,
+        )
+        .await;
+        return;
+    };
 
     let mut encoder = AdpcmEncoder::new();
     let mut packet_counter: u64 = 0;
@@ -46,7 +59,15 @@ pub(crate) async fn mic_stream_notify<T: MicStreamNotifier>(
                 };
 
                 let mut out_buffer = alloc::vec::Vec::new();
-                frame.encode(&mut out_buffer).unwrap();
+                if frame.encode(&mut out_buffer).is_err() {
+                    report_status(
+                        icd::SubsystemId::BleStream,
+                        icd::SubsystemState::Degraded,
+                        icd::FaultCode::EncodingOverflow,
+                    )
+                    .await;
+                    continue;
+                }
 
                 att_payload.clear();
                 if att_payload.extend_from_slice(&out_buffer).is_err() {

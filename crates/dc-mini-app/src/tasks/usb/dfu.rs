@@ -23,15 +23,20 @@ pub async fn dfu_begin(
     }
 
     // Check if recording is active
-    {
-        let app_ctx = context.app.lock().await;
-        if app_ctx.state.recording_status {
-            return DfuResult {
-                success: false,
-                message: heapless::String::try_from("Recording active")
-                    .unwrap(),
-            };
-        }
+    if crate::tasks::session::SESSION_ACTIVE.load(
+        portable_atomic::Ordering::SeqCst,
+    ) {
+        return DfuResult {
+            success: false,
+            message: heapless::String::try_from("Recording active").unwrap(),
+        };
+    }
+
+    if !context.dfu.available().await {
+        return DfuResult {
+            success: false,
+            message: heapless::String::try_from("DFU unavailable").unwrap(),
+        };
     }
 
     // Try to claim DFU lock
@@ -52,6 +57,12 @@ pub async fn dfu_begin(
         let capacity = partition.capacity();
         if let Err(_e) = partition.erase(0, capacity as u32).await {
             context.dfu.finish();
+            report_status(
+                icd::SubsystemId::Dfu,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::DfuFailed,
+            )
+            .await;
             #[cfg(feature = "defmt")]
             warn!("[usb-dfu] Erase failed: {:?}", defmt::Debug2Format(&_e));
             return DfuResult {
@@ -96,6 +107,12 @@ pub async fn dfu_write(
     let mut partition = context.dfu.dfu_partition();
     if let Err(_e) = partition.write(req.offset, &buf[..aligned_len]).await {
         context.dfu.finish();
+        report_status(
+            icd::SubsystemId::Dfu,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::DfuFailed,
+        )
+        .await;
         #[cfg(feature = "defmt")]
         warn!(
             "[usb-dfu] Write failed at offset {}: {:?}",
@@ -148,6 +165,12 @@ pub async fn dfu_finish(
     match context.dfu.mark_updated() {
         Ok(()) => {
             context.dfu.finish();
+            report_status(
+                icd::SubsystemId::Dfu,
+                icd::SubsystemState::Ready,
+                icd::FaultCode::None,
+            )
+            .await;
             {
                 let app_ctx = context.app.lock().await;
                 app_ctx.event_sender.send(DfuEvent::Complete.into()).await;
@@ -165,6 +188,12 @@ pub async fn dfu_finish(
         }
         Err(_e) => {
             context.dfu.finish();
+            report_status(
+                icd::SubsystemId::Dfu,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::DfuFailed,
+            )
+            .await;
             {
                 let app_ctx = context.app.lock().await;
                 app_ctx.event_sender.send(DfuEvent::Failed.into()).await;
@@ -186,6 +215,12 @@ pub async fn dfu_abort(
 ) -> DfuResult {
     if context.dfu.is_active() {
         context.dfu.finish();
+        report_status(
+            icd::SubsystemId::Dfu,
+            icd::SubsystemState::Ready,
+            icd::FaultCode::None,
+        )
+        .await;
         {
             let app_ctx = context.app.lock().await;
             app_ctx.event_sender.send(DfuEvent::Aborted.into()).await;

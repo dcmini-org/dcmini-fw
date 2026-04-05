@@ -14,6 +14,17 @@ use heapless::String;
 use portable_atomic::Ordering;
 use prost::Message;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SessionError {
+    CardUnavailable,
+    MountFailed,
+    OpenFailed,
+    EncodeFailed,
+    WriteFailed,
+    FlushFailed,
+    ChannelUnavailable,
+}
+
 pub struct RealTimeSource;
 
 impl TimeSource for RealTimeSource {
@@ -38,28 +49,73 @@ pub async fn recording_task(
     sd: &'static Mutex<CriticalSectionRawMutex, SdCardResources>,
     id: Option<SessionId>,
 ) {
-    SESSION_ACTIVE.store(true, Ordering::SeqCst);
+    report_status(
+        icd::SubsystemId::Storage,
+        icd::SubsystemState::Active,
+        icd::FaultCode::None,
+    )
+    .await;
+
+    let result = recording_task_inner(sd, id).await;
+    if let Err(err) = result {
+        warn!("Recording stopped due to storage error: {:?}", err);
+        let fault = match err {
+            SessionError::CardUnavailable | SessionError::MountFailed => {
+                icd::FaultCode::StorageUnavailable
+            }
+            SessionError::WriteFailed => icd::FaultCode::StorageWriteFailed,
+            SessionError::FlushFailed => icd::FaultCode::StorageFlushFailed,
+            SessionError::EncodeFailed => icd::FaultCode::EncodingOverflow,
+            SessionError::OpenFailed | SessionError::ChannelUnavailable => {
+                icd::FaultCode::StorageUnavailable
+            }
+        };
+        report_status(
+            icd::SubsystemId::Storage,
+            icd::SubsystemState::Degraded,
+            fault,
+        )
+        .await;
+    } else {
+        report_status(
+            icd::SubsystemId::Storage,
+            icd::SubsystemState::Ready,
+            icd::FaultCode::None,
+        )
+        .await;
+    }
+    SESSION_ACTIVE.store(false, Ordering::SeqCst);
+}
+
+async fn recording_task_inner(
+    sd: &'static Mutex<CriticalSectionRawMutex, SdCardResources>,
+    id: Option<SessionId>,
+) -> Result<(), SessionError> {
 
     let mut sd_resources = sd.lock().await;
 
-    let sd_card = sd_resources.get_card();
+    let sd_card = sd_resources
+        .get_card()
+        .map_err(|_| SessionError::CardUnavailable)?;
 
     // Initialize SD card
-    info!("SD card initialized, size: {} bytes", sd_card.num_bytes().unwrap());
+    let num_bytes = sd_card.num_bytes().map_err(|_| SessionError::MountFailed)?;
+    info!("SD card initialized, size: {} bytes", num_bytes);
 
     // Create volume manager
     let volume_mgr = VolumeManager::new(sd_card, RealTimeSource);
 
     let mut ads_watcher =
-        ADS_WATCH.receiver().expect("Failed to get ADS watch receiver");
+        ADS_WATCH.receiver().ok_or(SessionError::ChannelUnavailable)?;
     let mut ads_subscriber = ADS_MEAS_CH
         .subscriber()
-        .expect("Failed to get ADS measurement subscriber");
+        .map_err(|_| SessionError::ChannelUnavailable)?;
 
     // Initialize recording
     let volume =
-        volume_mgr.open_volume(VolumeIdx(0)).expect("Open volume failed.");
-    let root_dir = volume.open_root_dir().expect("Failed to open root dir.");
+        volume_mgr.open_volume(VolumeIdx(0)).map_err(|_| SessionError::MountFailed)?;
+    let root_dir =
+        volume.open_root_dir().map_err(|_| SessionError::OpenFailed)?;
 
     let mut filename: String<MAX_FILENAME_LEN> = String::new();
     if CLOCK_SET.load(Ordering::SeqCst) {
@@ -79,12 +135,16 @@ pub async fn recording_task(
                 date.minute(),
                 file_num
             )
-            .unwrap();
+            .map_err(|_| SessionError::OpenFailed)?;
             // Add ID if present
             if let Some(recording_id) = &id {
-                filename.push_str("_").unwrap();
-                filename.push_str(recording_id.0.as_str()).unwrap();
-                filename.push_str(".dat").unwrap();
+                filename.push_str("_").map_err(|_| SessionError::OpenFailed)?;
+                filename
+                    .push_str(recording_id.0.as_str())
+                    .map_err(|_| SessionError::OpenFailed)?;
+                filename
+                    .push_str(".dat")
+                    .map_err(|_| SessionError::OpenFailed)?;
             }
 
             // Check if file exists
@@ -99,13 +159,18 @@ pub async fn recording_task(
         loop {
             filename.clear();
 
-            write!(filename, "{:03}", file_num).unwrap();
+            write!(filename, "{:03}", file_num)
+                .map_err(|_| SessionError::OpenFailed)?;
             if let Some(recording_id) = &id {
-                filename.push_str("_").unwrap();
-                filename.push_str(recording_id.0.as_str()).unwrap();
+                filename.push_str("_").map_err(|_| SessionError::OpenFailed)?;
+                filename
+                    .push_str(recording_id.0.as_str())
+                    .map_err(|_| SessionError::OpenFailed)?;
             }
 
-            filename.push_str(".dat").unwrap();
+            filename
+                .push_str(".dat")
+                .map_err(|_| SessionError::OpenFailed)?;
 
             if root_dir.find_directory_entry(filename.as_str()).is_err() {
                 break;
@@ -115,7 +180,7 @@ pub async fn recording_task(
     }
     let file = root_dir
         .open_file_in_dir(filename.as_str(), Mode::ReadWriteCreateOrAppend)
-        .expect("Failed to open file.");
+        .map_err(|_| SessionError::OpenFailed)?;
 
     let batch_sz: usize = 100;
     let mut packet_counter = 0;
@@ -140,10 +205,14 @@ pub async fn recording_task(
                 message.samples.push(ads_sample);
                 if message.samples.len() >= batch_sz {
                     out_buffer.clear();
-                    message.encode(&mut out_buffer).unwrap();
+                    message
+                        .encode(&mut out_buffer)
+                        .map_err(|_| SessionError::EncodeFailed)?;
                     let size = out_buffer.len() as u32;
-                    file.write(&size.to_le_bytes()).unwrap();
-                    file.write(out_buffer.as_slice()).unwrap();
+                    file.write(&size.to_le_bytes())
+                        .map_err(|_| SessionError::WriteFailed)?;
+                    file.write(out_buffer.as_slice())
+                        .map_err(|_| SessionError::WriteFailed)?;
                     message.samples.clear();
                     packet_counter += 1;
                     message.packet_counter = packet_counter;
@@ -163,6 +232,6 @@ pub async fn recording_task(
         }
     }
     // Probably need to also write any data that is still in the buffer out here.
-    file.flush().unwrap();
-    SESSION_ACTIVE.store(false, Ordering::SeqCst);
+    file.flush().map_err(|_| SessionError::FlushFailed)?;
+    Ok(())
 }

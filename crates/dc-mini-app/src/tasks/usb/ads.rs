@@ -27,11 +27,20 @@ pub async fn ads_start_handler(
     let config = {
         let mut ctx = context.app.lock().await;
         ctx.event_sender.send(AdsEvent::StartStream.into()).await;
-        ctx.profile_manager
-            .get_ads_config()
-            .await
-            .expect("Unable to get ADS config.")
-            .clone()
+        match ctx.profile_manager.get_ads_config().await.cloned() {
+            Some(config) => config,
+            None => {
+                report_status(
+                    icd::SubsystemId::Ads,
+                    icd::SubsystemState::Degraded,
+                    icd::FaultCode::ConfigReseeded,
+                )
+                .await;
+                let config = default_ads_settings(0);
+                let _ = ctx.profile_manager.set_ads_config(config.clone()).await;
+                config
+            }
+        }
     };
 
     if sender.reply::<AdsStartEndpoint>(header.seq_no, &config).await.is_err()
@@ -63,8 +72,8 @@ pub async fn ads_get_config(
     ctx.profile_manager
         .get_ads_config()
         .await
-        .expect("Unable to get ADS config.")
-        .clone()
+        .cloned()
+        .unwrap_or_else(|| default_ads_settings(0))
 }
 
 pub async fn ads_set_config(
@@ -179,10 +188,31 @@ async fn collect_batch(
 }
 
 async fn ads_stream_usb(sender: Sender<super::AppTx>) {
-    let mut sub =
-        ADS_MEAS_CH.dyn_subscriber().expect("Failed to create subscriber");
-    let mut ads_watcher =
-        ADS_WATCH.dyn_receiver().expect("Failed to create watcher");
+    let Some(mut sub) = ADS_MEAS_CH.dyn_subscriber() else {
+        report_status(
+            icd::SubsystemId::UsbStream,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::Busy,
+        )
+        .await;
+        return;
+    };
+    let Some(mut ads_watcher) = ADS_WATCH.dyn_receiver() else {
+        report_status(
+            icd::SubsystemId::UsbStream,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::Busy,
+        )
+        .await;
+        return;
+    };
+
+    report_status(
+        icd::SubsystemId::UsbStream,
+        icd::SubsystemState::Active,
+        icd::FaultCode::None,
+    )
+    .await;
 
     let mut packet_counter = 0u8;
     let mut next_batch_time = Instant::now() + BATCH_INTERVAL;

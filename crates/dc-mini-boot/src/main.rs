@@ -31,7 +31,12 @@ fn main() -> ! {
         WatchdogFlash::start(Nvmc::new(board.nvmc), board.wdt, wdt_config);
     let flash = Mutex::new(RefCell::new(flash));
 
-    let external_flash = board.external_flash.configure();
+    let external_flash = match board.external_flash.configure() {
+        Ok(external_flash) => external_flash,
+        Err(_) => loop {
+            cortex_m::peripheral::SCB::sys_reset();
+        },
+    };
     let external_flash = Mutex::new(RefCell::new(external_flash));
 
     let config = BootLoaderConfig::from_linkerfile_blocking(

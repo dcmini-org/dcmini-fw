@@ -43,10 +43,11 @@ impl SessionManager {
     pub async fn handle_event(&mut self, event: SessionEvent) {
         match event {
             SessionEvent::StartRecording => {
-                if SESSION_ACTIVE.load(Ordering::SeqCst) {
+                if is_active() {
                     warn!("Tried to StartRecording while recording already active!");
                     return;
                 }
+                SESSION_ACTIVE.store(true, Ordering::SeqCst);
                 SESSION_SIG.reset();
                 let mut app_ctx = self.app.lock().await;
                 let id =
@@ -56,7 +57,7 @@ impl SessionManager {
                     .must_spawn(recording_task(self.sd, id));
             }
             SessionEvent::StopRecording => {
-                if !SESSION_ACTIVE.load(Ordering::SeqCst) {
+                if !is_active() {
                     warn!("Tried to StopRecording while recording already stopped!");
                     return;
                 }

@@ -13,13 +13,27 @@ pub async fn mic_stream_task(
     config: MicConfig,
 ) {
     MIC_STREAMING.store(true, Ordering::SeqCst);
+    report_status(
+        icd::SubsystemId::Mic,
+        icd::SubsystemState::Active,
+        icd::FaultCode::None,
+    )
+    .await;
 
     let mut mic_resources = mic.lock().await;
-    let publisher = MIC_STREAM_CH
-        .publisher()
-        .expect("This is the only expected publisher of MIC data.");
+    let Ok(publisher) = MIC_STREAM_CH.publisher() else {
+        report_status(
+            icd::SubsystemId::Mic,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::Busy,
+        )
+        .await;
+        MIC_STREAMING.store(false, Ordering::SeqCst);
+        return;
+    };
 
     let mut active_config = config;
+    let mut faulted = false;
 
     'stream: loop {
         let mut spk = mic_resources.configure(to_driver_config_with_channel(
@@ -53,6 +67,13 @@ pub async fn mic_stream_task(
 
         if let Err(e) = run_result {
             error!("Error sampling microphone: {:?}", e);
+            faulted = true;
+            report_status(
+                icd::SubsystemId::Mic,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::MicInitFailed,
+            )
+            .await;
             break;
         }
 
@@ -76,6 +97,14 @@ pub async fn mic_stream_task(
     // Drop any stale stop/reconfigure request when the stream exits.
     MIC_STREAM_SIG.reset();
     MIC_STREAMING.store(false, Ordering::SeqCst);
+    if !faulted {
+        report_status(
+            icd::SubsystemId::Mic,
+            icd::SubsystemState::Ready,
+            icd::FaultCode::None,
+        )
+        .await;
+    }
 }
 
 #[embassy_executor::task]
@@ -96,11 +125,12 @@ pub async fn mic_single_sample_task(
     let mut buf = [0i16; MIC_BUF_SAMPLES];
     match spk.sample(&mut buf).await {
         Ok(()) => {
-            let publisher = MIC_STREAM_CH
-                .publisher()
-                .expect("This is the only expected publisher of MIC data.");
-            if let Err(_) = publisher.try_publish(buf) {
-                warn!("Failed to publish single mic sample!");
+            if let Ok(publisher) = MIC_STREAM_CH.publisher() {
+                if publisher.try_publish(buf).is_err() {
+                    warn!("Failed to publish single mic sample!");
+                }
+            } else {
+                warn!("MIC publisher busy for single sample");
             }
         }
         Err(e) => {

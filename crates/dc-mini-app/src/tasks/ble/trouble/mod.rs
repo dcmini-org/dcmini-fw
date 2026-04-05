@@ -8,6 +8,7 @@ pub mod gatt;
 pub mod mic;
 pub mod profile;
 pub mod session;
+pub mod status;
 
 use dc_mini_bsp::ble::{MultiprotocolServiceLayer, SoftdeviceController};
 use trouble_host::prelude::*;
@@ -21,6 +22,7 @@ pub use gatt::*;
 pub use mic::*;
 pub use profile::*;
 pub use session::*;
+pub use status::*;
 
 use super::Error;
 
@@ -111,8 +113,16 @@ async fn app_task<'values>(
                 );
                 let ads = ads_stream_notify(server, &conn);
                 let mic = mic_stream_notify(server, &conn);
-                futures::pin_mut!(gatt, ads, mic);
-                embassy_futures::select::select3(gatt, ads, mic).await;
+                let status = async {
+                    status_notify(server, &conn).await;
+                    core::future::pending::<()>().await;
+                };
+                let main = async {
+                    futures::pin_mut!(gatt, ads, mic);
+                    embassy_futures::select::select3(gatt, ads, mic).await;
+                };
+                futures::pin_mut!(main, status);
+                embassy_futures::select::select(main, status).await;
                 // Release DFU lock if connection drops mid-transfer
                 dfu_resources.finish();
             }

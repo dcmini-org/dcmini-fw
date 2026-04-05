@@ -52,7 +52,7 @@ impl AdsManager {
         Self { bus, ads, app }
     }
 
-    pub async fn get_num_channels(&self) -> u8 {
+    pub async fn get_num_channels(&self) -> Option<u8> {
         let mut bus_resources = self.bus.lock().await;
         let bus = bus_resources.get_bus::<CriticalSectionRawMutex>();
 
@@ -61,7 +61,15 @@ impl AdsManager {
 
         // We don't need to reset because we have already done that when we configured the frontend
         // above.
-        unwrap!(frontend.init().await);
+        if frontend.init().await.is_err() {
+            report_status(
+                icd::SubsystemId::Ads,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::AdsInitFailed,
+            )
+            .await;
+            return None;
+        }
 
         let mut total_channels: u8 = 0;
         for dev in frontend.ads {
@@ -69,7 +77,7 @@ impl AdsManager {
                 total_channels = total_channels + dev.num_chs.unwrap();
             }
         }
-        total_channels
+        Some(total_channels)
     }
 
     pub fn power_down(&self, spawner: SendSpawner) {
@@ -113,12 +121,25 @@ impl AdsManager {
                         ADS_PWDN_SIG.signal(());
                     }
                     let mut app_ctx = self.app.lock().await;
-                    let ads_config = app_ctx
-                        .profile_manager
-                        .get_ads_config()
-                        .await
-                        .unwrap()
-                        .clone();
+                    let ads_config = if let Some(config) =
+                        app_ctx.profile_manager.get_ads_config().await.cloned()
+                    {
+                        config
+                    } else {
+                        let num_chs = self.get_num_channels().await.unwrap_or(0);
+                        let config = default_ads_settings(num_chs);
+                        let _ = app_ctx
+                            .profile_manager
+                            .set_ads_config(config.clone())
+                            .await;
+                        report_status(
+                            icd::SubsystemId::Ads,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::ConfigReseeded,
+                        )
+                        .await;
+                        config
+                    };
                     app_ctx.high_prio_spawner.must_spawn(ads_measure_task(
                         self.bus, self.ads, ads_config,
                     ));
@@ -141,7 +162,7 @@ impl AdsManager {
                 }
 
                 // Overwrite the current AdsConfig with the default.
-                let num_chs = self.get_num_channels().await;
+                let num_chs = self.get_num_channels().await.unwrap_or(0);
                 let config = default_ads_settings(num_chs);
                 {
                     let mut context = self.app.lock().await;
@@ -159,9 +180,12 @@ impl AdsManager {
             }
             AdsEvent::PrintConfig => {
                 let mut context = self.app.lock().await;
-                let config =
-                    unwrap!(context.profile_manager.get_ads_config().await);
-                info!("PrintConfig Requested: {:?}", config);
+                if let Some(config) = context.profile_manager.get_ads_config().await
+                {
+                    info!("PrintConfig Requested: {:?}", config);
+                } else {
+                    warn!("ADS config missing");
+                }
             }
             AdsEvent::ManualRecord => {
                 let context = self.app.lock().await;

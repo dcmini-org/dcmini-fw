@@ -34,7 +34,9 @@ pub(crate) async fn find_initial_max_samples(
         message.samples.push(ads_sample);
         max_samples += 1;
 
-        message.encode(&mut out_buffer).unwrap();
+        if message.encode(&mut out_buffer).is_err() {
+            continue;
+        }
 
         // Check if the encoded frame fits within att_mtu
         if out_buffer.len() > att_mtu {
@@ -50,7 +52,9 @@ pub(crate) async fn find_initial_max_samples(
             } else {
                 None
             };
-            message.encode(&mut out_buffer).unwrap();
+            if message.encode(&mut out_buffer).is_err() {
+                return (max_samples.saturating_sub(1), out_buffer, carry_over_samples);
+            }
             return (max_samples - 1, out_buffer, carry_over_samples);
         }
     }
@@ -71,7 +75,9 @@ async fn encode_and_send<T: AdsStreamNotifier>(
     notifier: &T,
 ) -> Result<(), super::Error> {
     let mut out_buffer = alloc::vec::Vec::new();
-    message.encode(&mut out_buffer).unwrap();
+    if message.encode(&mut out_buffer).is_err() {
+        return Err(super::Error::HeaplessExtendFromSlice);
+    }
     att_payload
         .extend_from_slice(&out_buffer)
         .map_err(|_| super::Error::HeaplessExtendFromSlice)?;
@@ -118,13 +124,20 @@ fn ensure_mtu_fit(
     let mut current_max_samples = max_samples;
     let mut carry_over_samples = alloc::vec::Vec::new();
 
-    message.encode(&mut out_buffer).unwrap();
+    if message.encode(&mut out_buffer).is_err() {
+        return (current_max_samples, None);
+    }
 
     while out_buffer.len() > mtu {
         out_buffer.clear();
         current_max_samples = current_max_samples.saturating_sub(1);
-        carry_over_samples.push(message.samples.pop().unwrap());
-        message.encode(&mut out_buffer).unwrap();
+        let Some(sample) = message.samples.pop() else {
+            break;
+        };
+        carry_over_samples.push(sample);
+        if message.encode(&mut out_buffer).is_err() {
+            break;
+        }
         warn!("Reduced max_samples to {}", current_max_samples);
     }
 
@@ -141,10 +154,24 @@ pub(crate) async fn ads_stream_notify<T: AdsStreamNotifier>(
     notifier: &T,
     mtu: usize,
 ) {
-    let mut ads_watcher =
-        ADS_WATCH.dyn_receiver().expect("fixme: better error message.");
-    let mut sub =
-        ADS_MEAS_CH.dyn_subscriber().expect("Failed to create subscriber.");
+    let Some(mut ads_watcher) = ADS_WATCH.dyn_receiver() else {
+        report_status(
+            icd::SubsystemId::BleStream,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::Busy,
+        )
+        .await;
+        return;
+    };
+    let Some(mut sub) = ADS_MEAS_CH.dyn_subscriber() else {
+        report_status(
+            icd::SubsystemId::BleStream,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::Busy,
+        )
+        .await;
+        return;
+    };
 
     let mut packet_counter = 0;
     let mut max_samples = 0;

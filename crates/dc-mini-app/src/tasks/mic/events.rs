@@ -35,20 +35,27 @@ impl MicManager {
                     info!("Tried to start mic stream while already running.");
                 } else {
                     let mut app_ctx = self.app.lock().await;
-                    let mut mic_config = app_ctx
+                    let mic_config = if let Some(config) = app_ctx
                         .profile_manager
                         .get_mic_config()
                         .await
-                        .cloned();
-                    if mic_config.is_none() {
-                        mic_config = Some(default_mic_settings());
-                        app_ctx
-                            .save_mic_config(mic_config.clone().unwrap())
-                            .await;
-                    }
+                        .cloned()
+                    {
+                        config
+                    } else {
+                        let config = default_mic_settings();
+                        app_ctx.save_mic_config(config.clone()).await;
+                        report_status(
+                            icd::SubsystemId::Storage,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::ConfigReseeded,
+                        )
+                        .await;
+                        config
+                    };
                     app_ctx.medium_prio_spawner.must_spawn(mic_stream_task(
                         self.mic,
-                        mic_config.unwrap(),
+                        mic_config,
                     ));
                     MIC_WATCH.sender().send(true);
                 }
@@ -66,19 +73,26 @@ impl MicManager {
                     info!("Cannot single-sample while streaming.");
                 } else {
                     let mut app_ctx = self.app.lock().await;
-                    let mut mic_config = app_ctx
+                    let mic_config = if let Some(config) = app_ctx
                         .profile_manager
                         .get_mic_config()
                         .await
-                        .cloned();
-                    if mic_config.is_none() {
-                        mic_config = Some(default_mic_settings());
-                        app_ctx
-                            .save_mic_config(mic_config.clone().unwrap())
-                            .await;
-                    }
+                        .cloned()
+                    {
+                        config
+                    } else {
+                        let config = default_mic_settings();
+                        app_ctx.save_mic_config(config.clone()).await;
+                        report_status(
+                            icd::SubsystemId::Storage,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::ConfigReseeded,
+                        )
+                        .await;
+                        config
+                    };
                     app_ctx.low_prio_spawner.must_spawn(
-                        mic_single_sample_task(self.mic, mic_config.unwrap()),
+                        mic_single_sample_task(self.mic, mic_config),
                     );
                 }
             }

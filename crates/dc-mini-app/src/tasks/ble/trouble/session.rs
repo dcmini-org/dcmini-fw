@@ -14,8 +14,7 @@ pub struct SessionService {
 
     #[characteristic(
         uuid = "32200002-af46-43af-a0ba-4dbeb457f51c",
-        read,
-        notify
+        read
     )]
     pub recording_status: bool,
 
@@ -27,14 +26,15 @@ impl<'d> Server<'d> {
     pub async fn handle_session_read_event(
         &self,
         handle: u16,
-        app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+        _app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
     ) {
-        let _app_ctx = app_context.lock().await;
-
         if handle == self.session.recording_id.handle {
             // No need to handle read for recording_id as it's handled by the characteristic
         } else if handle == self.session.recording_status.handle {
-            // No need to handle read for recording_status as it's handled by the characteristic
+            unwrap!(self.set(
+                &self.session.recording_status,
+                &crate::tasks::session::is_active(),
+            ));
         }
     }
 
@@ -70,11 +70,20 @@ impl<'d> Server<'d> {
 pub async fn update_session_characteristics(
     server: &Server<'_>,
     recording_id: &[u8],
-    is_recording: bool,
+    _is_recording: bool,
 ) {
+    if let Ok(id) = Vec::from_slice(recording_id) {
+        unwrap!(server.set(&server.session.recording_id, &id));
+    } else {
+        report_status(
+            icd::SubsystemId::BleStream,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::InvalidSessionId,
+        )
+        .await;
+    }
     unwrap!(server.set(
-        &server.session.recording_id,
-        &Vec::from_slice(recording_id).unwrap(),
+        &server.session.recording_status,
+        &crate::tasks::session::is_active(),
     ));
-    unwrap!(server.set(&server.session.recording_status, &is_recording));
 }

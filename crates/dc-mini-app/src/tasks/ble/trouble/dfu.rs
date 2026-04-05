@@ -43,12 +43,28 @@ pub async fn handle_dfu_control<'a, DFU: NorFlash, P: PacketPool>(
     dfu: &mut DFU,
     conn: &GattConnection<'_, '_, P>,
 ) -> Option<DfuStatus> {
-    let data: Vec<u8, ATT_MTU> = unwrap!(server.dfu.control.get(server));
+    let Ok(data) = server.dfu.control.get(server) else {
+        report_status(
+            icd::SubsystemId::Dfu,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::DfuFailed,
+        )
+        .await;
+        return None;
+    };
     if let Ok((request, _)) = DfuRequest::decode(&data) {
         let (response, status) = target.process(request, dfu).await;
         let mut buf = [0u8; 32];
         if let Ok(len) = response.encode(&mut buf[..]) {
-            let response = Vec::from_slice(&buf[..len]).unwrap();
+            let Ok(response) = Vec::from_slice(&buf[..len]) else {
+                report_status(
+                    icd::SubsystemId::Dfu,
+                    icd::SubsystemState::Degraded,
+                    icd::FaultCode::EncodingOverflow,
+                )
+                .await;
+                return Some(status);
+            };
             if let Err(e) = server.dfu.control.notify(conn, &response).await {
                 warn!("Error notifying DFU control: {:?}", e);
             }
@@ -70,12 +86,28 @@ pub async fn handle_dfu_packet<'a, DFU: NorFlash, P: PacketPool>(
     dfu: &mut DFU,
     conn: &GattConnection<'_, '_, P>,
 ) -> Option<DfuStatus> {
-    let data: Vec<u8, ATT_MTU> = unwrap!(server.dfu.packet.get(server));
+    let Ok(data) = server.dfu.packet.get(server) else {
+        report_status(
+            icd::SubsystemId::Dfu,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::DfuFailed,
+        )
+        .await;
+        return None;
+    };
     let request = DfuRequest::Write { data: &data[..] };
     let (response, status) = target.process(request, dfu).await;
     let mut buf = [0u8; 32];
     if let Ok(len) = response.encode(&mut buf[..]) {
-        let response = Vec::from_slice(&buf[..len]).unwrap();
+        let Ok(response) = Vec::from_slice(&buf[..len]) else {
+            report_status(
+                icd::SubsystemId::Dfu,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::EncodingOverflow,
+            )
+            .await;
+            return Some(status);
+        };
         if let Err(e) = server.dfu.control.notify(conn, &response).await {
             warn!("Error notifying DFU control: {:?}", e);
         }

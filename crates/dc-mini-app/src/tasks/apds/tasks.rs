@@ -12,19 +12,50 @@ pub async fn apds_task(
     config: ApdsConfig,
 ) {
     APDS_MEAS.store(true, Ordering::SeqCst);
+    report_status(
+        icd::SubsystemId::Apds,
+        icd::SubsystemState::Active,
+        icd::FaultCode::None,
+    )
+    .await;
 
     // Acquire bus handle - configures bus if needed
-    let handle = bus_manager.acquire().await.unwrap();
+    let handle = match bus_manager.acquire().await {
+        Ok(handle) => handle,
+        Err(_) => {
+            report_status(
+                icd::SubsystemId::Apds,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::BusUnavailable,
+            )
+            .await;
+            APDS_MEAS.store(false, Ordering::SeqCst);
+            return;
+        }
+    };
     let mut sensor = Apds9253::new(I2cDevice::new(handle.bus()));
 
     // Initialize sensor with retry loop
+    let mut initialized = false;
     for i in 0..5 {
         if sensor.init_async().await.is_ok() {
+            initialized = true;
             break;
         } else {
             info!("Retry connection attempt {:?} to APDS...", i);
             Timer::after_millis(1000).await;
         }
+    }
+
+    if !initialized {
+        report_status(
+            icd::SubsystemId::Apds,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::ApdsInitFailed,
+        )
+        .await;
+        APDS_MEAS.store(false, Ordering::SeqCst);
+        return;
     }
 
     // Apply all configuration settings
@@ -77,6 +108,12 @@ pub async fn apds_task(
             }
             Either::Second(Err(e)) => {
                 error!("Error reading APDS data: {:?}", e);
+                report_status(
+                    icd::SubsystemId::Apds,
+                    icd::SubsystemState::Degraded,
+                    icd::FaultCode::ApdsInitFailed,
+                )
+                .await;
                 break;
             }
         }
@@ -87,4 +124,10 @@ pub async fn apds_task(
 
     APDS_MEAS_SIG.reset();
     APDS_MEAS.store(false, Ordering::SeqCst);
+    report_status(
+        icd::SubsystemId::Apds,
+        icd::SubsystemState::Ready,
+        icd::FaultCode::None,
+    )
+    .await;
 }

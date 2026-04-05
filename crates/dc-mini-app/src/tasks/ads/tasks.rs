@@ -33,6 +33,12 @@ pub async fn ads_measure_task(
     config: AdsConfig,
 ) {
     ADS_MEAS.store(true, Ordering::SeqCst);
+    report_status(
+        icd::SubsystemId::Ads,
+        icd::SubsystemState::Active,
+        icd::FaultCode::None,
+    )
+    .await;
 
     let mut bus_resources = bus.lock().await;
     let bus = bus_resources.get_bus::<CriticalSectionRawMutex>();
@@ -40,15 +46,42 @@ pub async fn ads_measure_task(
     let mut ads_resources = ads.lock().await;
     let mut frontend = ads_resources.configure(&bus).await;
 
-    frontend.reset(&mut Delay).await.unwrap();
+    if frontend.reset(&mut Delay).await.is_err() {
+        report_status(
+            icd::SubsystemId::Ads,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::AdsInitFailed,
+        )
+        .await;
+        ADS_MEAS.store(false, Ordering::SeqCst);
+        return;
+    }
 
-    apply_ads_config(&mut frontend, &config).await;
+    if !apply_ads_config(&mut frontend, &config).await {
+        report_status(
+            icd::SubsystemId::Ads,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::AdsInitFailed,
+        )
+        .await;
+        ADS_MEAS.store(false, Ordering::SeqCst);
+        return;
+    }
 
     // Create array mapping channel indices to their power state
     let mut config_idx = 0;
     let mut channel_active = [false; 16]; // Max possible channels across all ADSs
     for ads_dev in frontend.ads.iter() {
-        let num_channels = ads_dev.num_chs.unwrap() as usize;
+        let Some(num_channels) = ads_dev.num_chs.map(|v| v as usize) else {
+            report_status(
+                icd::SubsystemId::Ads,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::AdsInitFailed,
+            )
+            .await;
+            ADS_MEAS.store(false, Ordering::SeqCst);
+            return;
+        };
         for i in 0..num_channels {
             channel_active[config_idx + i] =
                 !config.channels[config_idx + i].power_down;
@@ -57,26 +90,66 @@ pub async fn ads_measure_task(
     }
     info!("Channel active: {:?}", channel_active);
 
-    frontend.start_stream().await.unwrap();
-    let publisher = ADS_MEAS_CH
-        .publisher()
-        .expect("This is the only expected publisher of ADS data.");
+    if frontend.start_stream().await.is_err() {
+        report_status(
+            icd::SubsystemId::Ads,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::AdsStreamFailed,
+        )
+        .await;
+        ADS_MEAS.store(false, Ordering::SeqCst);
+        return;
+    }
+    let Ok(publisher) = ADS_MEAS_CH.publisher() else {
+        report_status(
+            icd::SubsystemId::Ads,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::Busy,
+        )
+        .await;
+        let _ = frontend.stop_stream().await;
+        ADS_MEAS.store(false, Ordering::SeqCst);
+        return;
+    };
 
     loop {
         match select(ADS_MEAS_SIG.wait(), frontend.poll()).await {
             Either::First(config) => {
                 if let Some(config) = config {
-                    frontend
-                        .stop_stream()
-                        .await
-                        .expect("Failed to stop ads stream.");
-                    apply_ads_config(&mut frontend, &config).await;
+                    if frontend.stop_stream().await.is_err() {
+                        report_status(
+                            icd::SubsystemId::Ads,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::AdsStreamFailed,
+                        )
+                        .await;
+                        break;
+                    }
+                    if !apply_ads_config(&mut frontend, &config).await {
+                        report_status(
+                            icd::SubsystemId::Ads,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::AdsInitFailed,
+                        )
+                        .await;
+                        break;
+                    }
 
                     // Create array mapping channel indices to their power state
                     let mut config_idx = 0;
                     let mut channel_active = [false; 16]; // Max possible channels across all ADSs
                     for ads_dev in frontend.ads.iter() {
-                        let num_channels = ads_dev.num_chs.unwrap() as usize;
+                        let Some(num_channels) =
+                            ads_dev.num_chs.map(|v| v as usize)
+                        else {
+                            report_status(
+                                icd::SubsystemId::Ads,
+                                icd::SubsystemState::Degraded,
+                                icd::FaultCode::AdsInitFailed,
+                            )
+                            .await;
+                            break;
+                        };
                         for i in 0..num_channels {
                             channel_active[config_idx + i] =
                                 !config.channels[config_idx + i].power_down;
@@ -84,17 +157,32 @@ pub async fn ads_measure_task(
                         config_idx += num_channels;
                     }
                     info!("Channel active: {:?}", channel_active);
-                    frontend
-                        .start_stream()
-                        .await
-                        .expect("Failed to restart ads stream");
+                    if frontend.start_stream().await.is_err() {
+                        report_status(
+                            icd::SubsystemId::Ads,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::AdsStreamFailed,
+                        )
+                        .await;
+                        break;
+                    }
                 } else {
                     break;
                 }
             }
             Either::Second(ads_data) => {
-                let mut ads_data =
-                    ads_data.expect("ADS poll resulted in error.");
+                let mut ads_data = match ads_data {
+                    Ok(ads_data) => ads_data,
+                    Err(_) => {
+                        report_status(
+                            icd::SubsystemId::Ads,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::AdsStreamFailed,
+                        )
+                        .await;
+                        break;
+                    }
+                };
 
                 let mut config_idx = 0;
                 let mut i = 0;
@@ -126,8 +214,14 @@ pub async fn ads_measure_task(
             }
         }
     }
-    frontend.stop_stream().await.unwrap();
+    let _ = frontend.stop_stream().await;
     ADS_MEAS_SIG.reset();
 
     ADS_MEAS.store(false, Ordering::SeqCst);
+    report_status(
+        icd::SubsystemId::Ads,
+        icd::SubsystemState::Ready,
+        icd::FaultCode::None,
+    )
+    .await;
 }

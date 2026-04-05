@@ -8,8 +8,7 @@ pub async fn session_get_status(
     _header: VarHeader,
     _rqst: (),
 ) -> bool {
-    // For now, we'll return false since we're not tracking session status in the profile manager
-    false
+    crate::tasks::session::is_active()
 }
 
 pub async fn session_get_id(
@@ -18,12 +17,27 @@ pub async fn session_get_id(
     _rqst: (),
 ) -> SessionId {
     let mut app_ctx = context.app.lock().await;
-    app_ctx
-        .profile_manager
-        .get_session_id()
-        .await
-        .cloned()
-        .unwrap_or_else(|| SessionId(unwrap!(String::try_from(""))))
+    match app_ctx.profile_manager.get_session_id().await.cloned() {
+        Some(session_id) => session_id,
+        None => {
+            let default = SessionId(unwrap!(String::try_from("")));
+            if app_ctx
+                .profile_manager
+                .set_session_id(default.clone())
+                .await
+                .is_err()
+            {
+                warn!("Failed to persist default session id");
+            }
+            report_status(
+                icd::SubsystemId::Storage,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::ConfigReseeded,
+            )
+            .await;
+            default
+        }
+    }
 }
 
 pub async fn session_set_id(
@@ -32,8 +46,17 @@ pub async fn session_set_id(
     rqst: SessionId,
 ) -> bool {
     let mut app_ctx = context.app.lock().await;
-    unwrap!(app_ctx.profile_manager.set_session_id(rqst).await);
-    true
+    if app_ctx.profile_manager.set_session_id(rqst).await.is_ok() {
+        true
+    } else {
+        report_status(
+            icd::SubsystemId::Storage,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::InvalidSessionId,
+        )
+        .await;
+        false
+    }
 }
 
 pub async fn session_start(

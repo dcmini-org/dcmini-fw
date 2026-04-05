@@ -70,6 +70,7 @@ pub use apds::*;
 // Constants
 pub const MAX_PROFILES: u8 = 16;
 pub const MAX_ID_LEN: usize = 4;
+pub const SUBSYSTEM_STATUS_COUNT: usize = 11;
 
 // Battery Service types
 #[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone)]
@@ -110,6 +111,71 @@ impl TryFrom<u8> for ProfileCommand {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SessionId(pub String<MAX_ID_LEN>);
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum SubsystemId {
+    Power,
+    ExternalFlash,
+    Dfu,
+    Storage,
+    Ads,
+    Imu,
+    Apds,
+    Haptic,
+    Mic,
+    UsbStream,
+    BleStream,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum SubsystemState {
+    Ready,
+    Active,
+    Degraded,
+    Unavailable,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum FaultCode {
+    None,
+    Busy,
+    ConfigReseeded,
+    StorageUnavailable,
+    StorageWriteFailed,
+    StorageFlushFailed,
+    ExternalFlashUnavailable,
+    DfuFailed,
+    BusUnavailable,
+    PmicInitFailed,
+    AdsInitFailed,
+    AdsStreamFailed,
+    ImuInitFailed,
+    ApdsInitFailed,
+    HapticInitFailed,
+    MicInitFailed,
+    EncodingOverflow,
+    MetadataTruncated,
+    InvalidSessionId,
+    BleInitFailed,
+    WatchdogInitFailed,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct SubsystemStatus {
+    pub subsystem: SubsystemId,
+    pub state: SubsystemState,
+    pub fault: FaultCode,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct SystemStatusSnapshot {
+    pub statuses: heapless::Vec<SubsystemStatus, SUBSYSTEM_STATUS_COUNT>,
+}
 
 // DFU types
 /// Begin a DFU transfer with the total firmware size.
@@ -184,6 +250,7 @@ endpoints! {
     | SessionSetIdEndpoint      | SessionId         | bool                  | "session/set_id"  |
     | SessionStartEndpoint      | ()                | bool                  | "session/start"   |
     | SessionStopEndpoint       | ()                | bool                  | "session/stop"    |
+    | SystemStatusGetEndpoint   | ()                | SystemStatusSnapshot  | "system/status"   |
     // DFU endpoints
     | DfuBeginEndpoint          | DfuBegin          | DfuResult             | "dfu/begin"       |
     | DfuWriteEndpoint          | DfuWriteChunk     | DfuResult             | "dfu/write"       |
@@ -206,4 +273,5 @@ topics! {
     | -------                   | ---------     | ----              | ---                           |
     | AdsTopic                  | AdsDataFrame  | "ads/data"        |                               |
     | MicTopic                  | MicDataFrame  | "mic/data"        |                               |
+    | SystemStatusTopic         | SubsystemStatus | "system/status"  |                               |
 }

@@ -57,20 +57,27 @@ impl ApdsManager {
                     info!("Tried to start APDS stream while already running.");
                 } else {
                     let mut app_ctx = self.app.lock().await;
-                    let mut apds_config = app_ctx
+                    let apds_config = if let Some(config) = app_ctx
                         .profile_manager
                         .get_apds_config()
                         .await
-                        .cloned();
-                    if apds_config.is_none() {
-                        apds_config = Some(default_apds_settings());
-                        app_ctx
-                            .save_apds_config(apds_config.clone().unwrap())
-                            .await;
-                    }
+                        .cloned()
+                    {
+                        config
+                    } else {
+                        let config = default_apds_settings();
+                        app_ctx.save_apds_config(config.clone()).await;
+                        report_status(
+                            icd::SubsystemId::Apds,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::ConfigReseeded,
+                        )
+                        .await;
+                        config
+                    };
                     app_ctx.low_prio_spawner.must_spawn(apds_task(
                         self.bus_manager,
-                        apds_config.unwrap(),
+                        apds_config,
                     ));
                     APDS_WATCH.sender().send(true);
                 };
@@ -94,9 +101,13 @@ impl ApdsManager {
             }
             ApdsEvent::PrintConfig => {
                 let mut context = self.app.lock().await;
-                let config =
-                    unwrap!(context.profile_manager.get_apds_config().await);
-                info!("PrintConfig Requested: {:?}", config);
+                if let Some(config) =
+                    context.profile_manager.get_apds_config().await
+                {
+                    info!("PrintConfig Requested: {:?}", config);
+                } else {
+                    warn!("APDS config missing");
+                }
             }
         }
     }

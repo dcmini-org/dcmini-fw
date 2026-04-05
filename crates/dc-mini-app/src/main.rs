@@ -42,6 +42,139 @@ static DFU_RESOURCES: StaticCell<DfuResources> = StaticCell::new();
 static EXT_FLASH_RES: StaticCell<dc_mini_bsp::ExternalFlashResources> =
     StaticCell::new();
 
+async fn init_power_subsystem(
+    i2c_bus_manager: &'static I2cBusManager,
+    power_manager: &mut PowerManager,
+) {
+    use npm1300::{
+        charger::ChargerTerminationVoltage,
+        gpios::{Gpio, GpioConfigBuilder, GpioMode, GpioPolarity},
+        ldsw::LdoVoltage,
+        sysreg::VbusInCurrentLimit,
+        Ldsw1Ldosel, Ldsw1Softstartdisable, Ldsw1Softstartsel,
+        NtcThermistorType, VsysThreshold, NPM1300,
+    };
+
+    report_status(
+        icd::SubsystemId::Power,
+        icd::SubsystemState::Active,
+        icd::FaultCode::None,
+    )
+    .await;
+
+    let handle = match i2c_bus_manager.acquire().await {
+        Ok(handle) => handle,
+        Err(_e) => {
+            warn!("Failed to acquire I2C bus for PMIC init");
+            report_status(
+                icd::SubsystemId::Power,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::BusUnavailable,
+            )
+            .await;
+            report_status(
+                icd::SubsystemId::Ads,
+                icd::SubsystemState::Unavailable,
+                icd::FaultCode::PmicInitFailed,
+            )
+            .await;
+            return;
+        }
+    };
+    let mut npm1300 = NPM1300::new(
+        embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice::new(
+            handle.bus(),
+        ),
+        embassy_time::Delay,
+    );
+
+    power_manager.handle_event(PowerEvent::Enable).await;
+
+    macro_rules! pmic_step {
+        ($expr:expr) => {{
+            let mut success = false;
+            for _ in 0..3 {
+                if $expr.await.is_ok() {
+                    success = true;
+                    break;
+                }
+                Timer::after_millis(100).await;
+            }
+            if !success {
+                warn!("PMIC initialization step failed");
+                report_status(
+                    icd::SubsystemId::Power,
+                    icd::SubsystemState::Degraded,
+                    icd::FaultCode::PmicInitFailed,
+                )
+                .await;
+                report_status(
+                    icd::SubsystemId::Ads,
+                    icd::SubsystemState::Unavailable,
+                    icd::FaultCode::PmicInitFailed,
+                )
+                .await;
+                return;
+            }
+        }};
+    }
+
+    pmic_step!(npm1300.set_ldsw1_gpio_control(
+        Gpio::None,
+        GpioPolarity::NotInverted,
+    ));
+    Timer::after_millis(200).await;
+    pmic_step!(npm1300.set_ldsw2_gpio_control(
+        Gpio::None,
+        GpioPolarity::NotInverted,
+    ));
+    Timer::after_millis(200).await;
+    pmic_step!(npm1300.get_ldsw_status());
+    let _ = npm1300.set_ldsw1_mode(Ldsw1Ldosel::Ldsw).await;
+    let _ = npm1300
+        .configure_ldsw1_soft_start(
+            Ldsw1Softstartdisable::Noeffect,
+            Ldsw1Softstartsel::Ma50,
+        )
+        .await;
+    let _ = npm1300.enable_ldsw1().await;
+    Timer::after_millis(500).await;
+    let _ = npm1300.set_ldsw1_ldo_voltage(LdoVoltage::V3_3).await;
+    let _ = npm1300.set_ldsw1_mode(Ldsw1Ldosel::Ldo).await;
+    pmic_step!(npm1300.get_ldsw_status());
+    pmic_step!(npm1300.clear_charger_errors());
+    pmic_step!(npm1300.set_vbus_in_current_limit(VbusInCurrentLimit::MA100));
+    pmic_step!(npm1300.set_charger_current(32));
+    pmic_step!(npm1300.configure_ntc_resistance(
+        NtcThermistorType::Ntc10K,
+        Some(4250.0),
+    ));
+    pmic_step!(npm1300.set_normal_temperature_termination_voltage(
+        ChargerTerminationVoltage::V4_20,
+    ));
+    pmic_step!(npm1300.set_warm_temperature_termination_voltage(
+        ChargerTerminationVoltage::V4_10,
+    ));
+    pmic_step!(npm1300.enable_battery_charging());
+    pmic_step!(npm1300.get_charger_status());
+    pmic_step!(npm1300.get_charger_error_reason_and_sensor_value());
+    pmic_step!(npm1300.is_power_failure_detection_enabled());
+
+    let plw_config =
+        GpioConfigBuilder::new().mode(GpioMode::GpoPowerLossWarning).build();
+    pmic_step!(npm1300.configure_gpio(1, plw_config.clone()));
+    pmic_step!(npm1300.set_vsys_threshold(VsysThreshold::V32));
+    pmic_step!(npm1300.enable_power_failure_detection(true));
+    pmic_step!(npm1300.is_power_failure_detection_enabled());
+
+    report_status(
+        icd::SubsystemId::Power,
+        icd::SubsystemState::Ready,
+        icd::FaultCode::None,
+    )
+    .await;
+}
+
 // Application main entry point. The spawner can be used to start async tasks.
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -57,21 +190,42 @@ async fn main(spawner: Spawner) {
         use embassy_boot::{BlockingFirmwareUpdater, FirmwareUpdaterConfig};
         use embassy_sync::blocking_mutex::Mutex as BlockingMutex;
 
-        let ext_flash = board.external_flash.configure();
-        let ext_flash =
-            BlockingMutex::<NoopRawMutex, _>::new(RefCell::new(ext_flash));
-        // Safety: NVMC is not used by anything else at this early init stage.
-        let nvmc =
-            unsafe { Nvmc::new(embassy_nrf::peripherals::NVMC::steal()) };
-        let nvmc = BlockingMutex::<NoopRawMutex, _>::new(RefCell::new(nvmc));
+        match board.external_flash.configure() {
+            Ok(ext_flash) => {
+                let ext_flash =
+                    BlockingMutex::<NoopRawMutex, _>::new(RefCell::new(ext_flash));
+                // Safety: NVMC is not used by anything else at this early init stage.
+                let nvmc =
+                    unsafe { Nvmc::new(embassy_nrf::peripherals::NVMC::steal()) };
+                let nvmc =
+                    BlockingMutex::<NoopRawMutex, _>::new(RefCell::new(nvmc));
 
-        let config =
-            FirmwareUpdaterConfig::from_linkerfile_blocking(&ext_flash, &nvmc);
-        let mut aligned = [0u8; 4];
-        let mut updater = BlockingFirmwareUpdater::new(config, &mut aligned);
-        match updater.mark_booted() {
-            Ok(()) => info!("Firmware boot confirmed (mark_booted ok)"),
-            Err(_e) => warn!("mark_booted failed"),
+                let config = FirmwareUpdaterConfig::from_linkerfile_blocking(
+                    &ext_flash, &nvmc,
+                );
+                let mut aligned = [0u8; 4];
+                let mut updater =
+                    BlockingFirmwareUpdater::new(config, &mut aligned);
+                match updater.mark_booted() {
+                    Ok(()) => info!("Firmware boot confirmed (mark_booted ok)"),
+                    Err(_e) => warn!("mark_booted failed"),
+                }
+            }
+            Err(_e) => {
+                warn!("External flash unavailable during boot confirm");
+                report_status(
+                    icd::SubsystemId::ExternalFlash,
+                    icd::SubsystemState::Degraded,
+                    icd::FaultCode::ExternalFlashUnavailable,
+                )
+                .await;
+                report_status(
+                    icd::SubsystemId::Dfu,
+                    icd::SubsystemState::Unavailable,
+                    icd::FaultCode::ExternalFlashUnavailable,
+                )
+                .await;
+            }
         }
         // ext_flash and nvmc dropped here, QSPI/NVMC peripherals freed.
     }
@@ -79,25 +233,79 @@ async fn main(spawner: Spawner) {
     // Initialize persistent DFU resources for firmware updates (BLE + USB).
     // ExternalFlashResources moved to StaticCell so QSPI gets 'static lifetime.
     let ext_flash_res = EXT_FLASH_RES.init(board.external_flash);
-    let dfu_qspi = ext_flash_res.configure();
-    // Safety: This NVMC instance only writes to BOOTLOADER_STATE (0x6000..0x7000).
-    // The ProfileManager's NVMC writes to STORAGE (0xFE000..0x100000).
-    // Non-overlapping regions, serialized by hardware.
-    let dfu_nvmc = unsafe { embassy_nrf::peripherals::NVMC::steal() };
-    let dfu_nvmc = Nvmc::new(dfu_nvmc);
-    let dfu_resources =
-        DFU_RESOURCES.init(DfuResources::new(dfu_qspi, dfu_nvmc));
+    #[allow(unused_variables)]
+    let dfu_resources = match ext_flash_res.configure() {
+        Ok(dfu_qspi) => {
+            report_status(
+                icd::SubsystemId::ExternalFlash,
+                icd::SubsystemState::Ready,
+                icd::FaultCode::None,
+            )
+            .await;
+            // Safety: This NVMC instance only writes to BOOTLOADER_STATE (0x6000..0x7000).
+            // The ProfileManager's NVMC writes to STORAGE (0xFE000..0x100000).
+            // Non-overlapping regions, serialized by hardware.
+            let dfu_nvmc = unsafe { embassy_nrf::peripherals::NVMC::steal() };
+            let dfu_nvmc = Nvmc::new(dfu_nvmc);
+            let resources =
+                DFU_RESOURCES.init(DfuResources::new(Some(dfu_qspi), dfu_nvmc));
+            report_status(
+                icd::SubsystemId::Dfu,
+                icd::SubsystemState::Ready,
+                icd::FaultCode::None,
+            )
+            .await;
+            resources
+        }
+        Err(_e) => {
+            warn!("External flash unavailable for DFU");
+            report_status(
+                icd::SubsystemId::ExternalFlash,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::ExternalFlashUnavailable,
+            )
+            .await;
+            report_status(
+                icd::SubsystemId::Dfu,
+                icd::SubsystemState::Unavailable,
+                icd::FaultCode::ExternalFlashUnavailable,
+            )
+            .await;
+            let dfu_nvmc = unsafe { embassy_nrf::peripherals::NVMC::steal() };
+            let dfu_nvmc = Nvmc::new(dfu_nvmc);
+            DFU_RESOURCES.init(DfuResources::new(None, dfu_nvmc))
+        }
+    };
 
     let mut power_manager = PowerManager::new(board.en5v.into());
 
     #[cfg(feature = "trouble")]
     let sdc = {
-        let (sdc, mpsl) = board
+        let ble_init = board
             .ble
             .init(board.timer0, board.rng)
-            .expect("BLE stack failed to initialize");
-        spawner.must_spawn(mpsl_task(mpsl));
-        sdc
+            .map_err(|_e| {
+                warn!("BLE stack failed to initialize");
+            })
+            .ok();
+        if let Some((sdc, mpsl)) = ble_init {
+            report_status(
+                icd::SubsystemId::BleStream,
+                icd::SubsystemState::Ready,
+                icd::FaultCode::None,
+            )
+            .await;
+            spawner.must_spawn(mpsl_task(mpsl));
+            Some(sdc)
+        } else {
+            report_status(
+                icd::SubsystemId::BleStream,
+                icd::SubsystemState::Unavailable,
+                icd::FaultCode::BleInitFailed,
+            )
+            .await;
+            None
+        }
     };
 
     // Initialize the allocator BEFORE you use it
@@ -116,12 +324,26 @@ async fn main(spawner: Spawner) {
 
     let (medium_prio_spawner, high_prio_spawner) = init_executors();
 
+    let (hardware_revision, hw_truncated) =
+        bounded_heapless_string(HW_VERSION);
+    let (software_revision, sw_truncated) =
+        bounded_heapless_string(FW_VERSION);
+    let (manufacturer_name, manufacturer_truncated) =
+        bounded_heapless_string(MANUFACTURER);
+    if hw_truncated || sw_truncated || manufacturer_truncated {
+        report_status(
+            icd::SubsystemId::Power,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::MetadataTruncated,
+        )
+        .await;
+    }
+
     let app_context = APP_CONTEXT.init(Mutex::new(AppContext {
         device_info: DeviceInfo {
-            hardware_revision: heapless::String::try_from(HW_VERSION).unwrap(),
-            software_revision: heapless::String::try_from(FW_VERSION).unwrap(),
-            manufacturer_name: heapless::String::try_from(MANUFACTURER)
-                .unwrap(),
+            hardware_revision,
+            software_revision,
+            manufacturer_name,
         },
         high_prio_spawner,
         medium_prio_spawner,
@@ -131,7 +353,6 @@ async fn main(spawner: Spawner) {
         state: State {
             usb_powered: false,
             vsys_voltage: 0.0,
-            recording_status: false,
         },
     }));
     let spi3_bus_resources =
@@ -148,122 +369,7 @@ async fn main(spawner: Spawner) {
 
     Timer::after_millis(50).await;
 
-    use npm1300::{
-        charger::ChargerTerminationVoltage,
-        gpios::{Gpio, GpioConfigBuilder, GpioMode, GpioPolarity},
-        ldsw::LdoVoltage,
-        sysreg::VbusInCurrentLimit,
-        Ldsw1Ldosel, Ldsw1Softstartdisable, Ldsw1Softstartsel,
-        NtcThermistorType, VsysThreshold, NPM1300,
-    };
-
-    // Acquire bus handle - configures bus if needed
-    let handle = i2c_bus_manager.acquire().await.unwrap();
-    let mut npm1300 = NPM1300::new(
-        embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice::new(
-            handle.bus(),
-        ),
-        embassy_time::Delay,
-    );
-
-    info!("Created nPM1300 driver!");
-    Timer::after_millis(200).await;
-
-    power_manager.handle_event(PowerEvent::Enable).await;
-
-    npm1300
-        .set_ldsw1_gpio_control(Gpio::None, GpioPolarity::NotInverted)
-        .await
-        .unwrap();
-    Timer::after_millis(200).await;
-    npm1300
-        .set_ldsw2_gpio_control(Gpio::None, GpioPolarity::NotInverted)
-        .await
-        .unwrap();
-    Timer::after_millis(200).await;
-
-    info!("Check Status...");
-    let status = npm1300.get_ldsw_status().await.unwrap();
-    info!("LDSW status: {:?}", status);
-
-    info!("Waiting 2s...");
-    Timer::after_millis(200).await;
-
-    info!("Configuring LDSW1 as Load Switch");
-    let _ = npm1300.set_ldsw1_mode(Ldsw1Ldosel::Ldsw).await;
-    let _ = npm1300
-        .configure_ldsw1_soft_start(
-            Ldsw1Softstartdisable::Noeffect,
-            Ldsw1Softstartsel::Ma50,
-        )
-        .await;
-
-    // Enable LDSW1
-    info!("Pre-charging analog frontend...");
-    let _ = npm1300.enable_ldsw1().await;
-
-    Timer::after_millis(500).await;
-
-    info!("Switching LDSW1 to LDO with 3.3V output...");
-    // Set LDO1 output voltage to 3.3V
-    let _ = npm1300.set_ldsw1_ldo_voltage(LdoVoltage::V3_3).await;
-    info!("After set_ldsw1_ldo_voltage...");
-    // Configure LDSW1 as LDO mode
-    let _ = npm1300.set_ldsw1_mode(Ldsw1Ldosel::Ldo).await;
-    info!("After set_ldsw1_mode...");
-
-    info!("Check Status...");
-    let status = npm1300.get_ldsw_status().await.unwrap();
-    info!("LDSW status: {:?}", status);
-
-    // Clear Charger Errors
-    npm1300.clear_charger_errors().await.unwrap();
-
-    // Set up battery charging
-    npm1300
-        .set_vbus_in_current_limit(VbusInCurrentLimit::MA100)
-        .await
-        .unwrap();
-    npm1300.set_charger_current(32).await.unwrap(); // mA
-    npm1300
-        .configure_ntc_resistance(NtcThermistorType::Ntc10K, Some(4250.0))
-        .await
-        .unwrap();
-    npm1300
-        .set_normal_temperature_termination_voltage(
-            ChargerTerminationVoltage::V4_20,
-        )
-        .await
-        .unwrap();
-    npm1300
-        .set_warm_temperature_termination_voltage(
-            ChargerTerminationVoltage::V4_10,
-        )
-        .await
-        .unwrap();
-    npm1300.enable_battery_charging().await.unwrap();
-
-    Timer::after_millis(500).await;
-
-    let chg_status = npm1300.get_charger_status().await.unwrap();
-    info!("Charger status: {:?}", chg_status);
-
-    let chg_error =
-        npm1300.get_charger_error_reason_and_sensor_value().await.unwrap();
-    info!("Charger Error: {:?}", chg_error);
-
-    let mut pofena =
-        npm1300.is_power_failure_detection_enabled().await.unwrap();
-    info!("Power failure detection enabled: {:?}", pofena);
-
-    let plw_config =
-        GpioConfigBuilder::new().mode(GpioMode::GpoPowerLossWarning).build();
-    npm1300.configure_gpio(1, plw_config).await.unwrap();
-    npm1300.set_vsys_threshold(VsysThreshold::V32).await.unwrap();
-    npm1300.enable_power_failure_detection(true).await.unwrap();
-
-    pofena = npm1300.is_power_failure_detection_enabled().await.unwrap();
-    info!("Power failure detection enabled?: {:?}", pofena);
+    init_power_subsystem(i2c_bus_manager, &mut power_manager).await;
 
     let ads_manager =
         AdsManager::new(spi3_bus_resources, ads_resources, app_context);
@@ -303,7 +409,7 @@ async fn main(spawner: Spawner) {
         let config = context.profile_manager.get_ads_config().await;
         if config.is_none() {
             // create a default config.
-            let num_chs = ads_manager.get_num_channels().await;
+            let num_chs = ads_manager.get_num_channels().await.unwrap_or(0);
             let config = default_ads_settings(num_chs);
             info!("Settings ADS config: {:?}", config);
             context.save_ads_config(config).await;
@@ -324,7 +430,9 @@ async fn main(spawner: Spawner) {
     ));
 
     #[cfg(feature = "trouble")]
-    spawner.must_spawn(ble_run_task(sdc, app_context, dfu_resources));
+    if let Some(sdc) = sdc {
+        spawner.must_spawn(ble_run_task(sdc, app_context, dfu_resources));
+    }
 
     #[cfg(feature = "demo")]
     spawner.must_spawn(demo_task(sender));

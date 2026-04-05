@@ -78,21 +78,28 @@ impl ImuManager {
                     info!("Tried to start IMU stream while already running.");
                 } else {
                     let mut app_ctx = self.app.lock().await;
-                    let mut imu_config = app_ctx
+                    let imu_config = if let Some(config) = app_ctx
                         .profile_manager
                         .get_imu_config()
                         .await
-                        .cloned();
-                    if imu_config.is_none() {
-                        imu_config = Some(default_imu_settings());
-                        app_ctx
-                            .save_imu_config(imu_config.clone().unwrap())
-                            .await;
-                    }
+                        .cloned()
+                    {
+                        config
+                    } else {
+                        let config = default_imu_settings();
+                        app_ctx.save_imu_config(config.clone()).await;
+                        report_status(
+                            icd::SubsystemId::Imu,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::ConfigReseeded,
+                        )
+                        .await;
+                        config
+                    };
                     app_ctx.low_prio_spawner.must_spawn(imu_task(
                         self.bus_manager,
                         self.imu,
-                        imu_config.unwrap(),
+                        imu_config,
                     ));
                     IMU_WATCH.sender().send(true);
                 };
@@ -117,9 +124,13 @@ impl ImuManager {
             }
             ImuEvent::PrintConfig => {
                 let mut context = self.app.lock().await;
-                let config =
-                    unwrap!(context.profile_manager.get_imu_config().await);
-                info!("PrintConfig Requested: {:?}", config);
+                if let Some(config) =
+                    context.profile_manager.get_imu_config().await
+                {
+                    info!("PrintConfig Requested: {:?}", config);
+                } else {
+                    warn!("IMU config missing");
+                }
             }
         }
     }

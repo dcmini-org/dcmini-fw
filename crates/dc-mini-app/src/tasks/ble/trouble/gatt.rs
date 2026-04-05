@@ -1,6 +1,7 @@
-use super::{ads::*, dfu::*, mic::*, session::*};
+use super::{ads::*, dfu::*, mic::*, session::*, status::*};
 use crate::events::DfuEvent;
 use crate::prelude::*;
+use crate::tasks::ads::default_ads_settings;
 use crate::tasks::dfu::{DfuPartition, DfuResources};
 use heapless::Vec;
 use nrf_dfu_target::prelude::DfuStatus;
@@ -88,6 +89,7 @@ macro_rules! handle_vector_field_write {
 pub struct Server {
     pub battery: BatteryService,
     pub device_info: DeviceInfoService,
+    pub status: StatusService,
     pub profile: ProfileService,
     pub ads: AdsService,
     pub mic: MicService,
@@ -96,15 +98,33 @@ pub struct Server {
 }
 
 impl<'d> Server<'d> {
+    async fn load_ads_config(
+        &self,
+        app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+    ) -> AdsConfig {
+        let mut app_ctx = app_context.lock().await;
+        match app_ctx.profile_manager.get_ads_config().await.cloned() {
+            Some(config) => config,
+            None => {
+                let config = default_ads_settings(0);
+                let _ = app_ctx.profile_manager.set_ads_config(config.clone()).await;
+                report_status(
+                    icd::SubsystemId::Ads,
+                    icd::SubsystemState::Degraded,
+                    icd::FaultCode::ConfigReseeded,
+                )
+                .await;
+                config
+            }
+        }
+    }
+
     pub async fn handle_read_event(
         &self,
         handle: u16,
         app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
     ) {
-        let mut app_ctx = app_context.lock().await;
-        let profile_manager = &mut app_ctx.profile_manager;
-        let ads_config =
-            unwrap!(profile_manager.get_ads_config().await).clone();
+        let ads_config = self.load_ads_config(app_context).await;
 
         // Match on characteristic handle
         if handle == self.ads.daisy_en.handle {
@@ -168,17 +188,7 @@ impl<'d> Server<'d> {
             handle_single_field_read!(self, single_shot, ads_config);
         } else if handle == self.ads.pd_loff_comp.handle {
             handle_single_field_read!(self, pd_loff_comp, ads_config);
-        } else if handle >= self.device_info.hardware_revision.handle
-            && handle <= self.device_info.manufacturer_name.handle
-        {
-            self.handle_device_info_read_event(handle, app_context).await;
-        } else if handle >= self.profile.current_profile.handle
-            && handle <= self.profile.command.handle
-        {
-            self.handle_profile_read_event(handle, app_context).await;
-        }
-        // Vector fields
-        else if handle == self.ads.power_down.handle {
+        } else if handle == self.ads.power_down.handle {
             handle_vector_field_read!(self, power_down, ads_config);
         } else if handle == self.ads.gain.handle {
             handle_vector_field_read!(
@@ -209,9 +219,28 @@ impl<'d> Server<'d> {
         handle: u16,
         app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
     ) {
+        if handle >= self.profile.current_profile.handle
+            && handle <= self.profile.command.handle
+        {
+            self.handle_profile_write_event(handle, app_context).await;
+            return;
+        }
+
         let mut app_ctx = app_context.lock().await;
-        let mut ads_config =
-            unwrap!(app_ctx.profile_manager.get_ads_config().await).clone();
+        let mut ads_config = match app_ctx.profile_manager.get_ads_config().await.cloned() {
+            Some(config) => config,
+            None => {
+                let config = default_ads_settings(0);
+                let _ = app_ctx.profile_manager.set_ads_config(config.clone()).await;
+                report_status(
+                    icd::SubsystemId::Ads,
+                    icd::SubsystemState::Degraded,
+                    icd::FaultCode::ConfigReseeded,
+                )
+                .await;
+                config
+            }
+        };
 
         // Match on characteristic handle
         if handle == self.ads.daisy_en.handle {
@@ -279,13 +308,7 @@ impl<'d> Server<'d> {
             handle_single_field_write!(self, single_shot, ads_config);
         } else if handle == self.ads.pd_loff_comp.handle {
             handle_single_field_write!(self, pd_loff_comp, ads_config);
-        } else if handle >= self.profile.current_profile.handle
-            && handle <= self.profile.command.handle
-        {
-            self.handle_profile_write_event(handle, app_context).await;
-        }
-        // Vector fields
-        else if handle == self.ads.power_down.handle {
+        } else if handle == self.ads.power_down.handle {
             handle_vector_field_write!(self, power_down, ads_config);
         } else if handle == self.ads.gain.handle {
             handle_vector_field_write!(
@@ -416,11 +439,7 @@ impl<'d> Server<'d> {
 
         // On first DFU write, acquire lock and check recording
         if !*dfu_started {
-            let recording = {
-                let app_ctx = app_context.lock().await;
-                app_ctx.state.recording_status
-            };
-            if recording {
+            if crate::tasks::session::is_active() {
                 warn!("[ble-dfu] Rejected: recording active");
                 return None;
             }
@@ -505,6 +524,12 @@ pub async fn gatt_server_task<P: PacketPool>(
                         {
                             server
                                 .handle_profile_read_event(handle, app_context)
+                                .await;
+                        } else if handle >= server.status.snapshot.handle
+                            && handle <= server.status.event.handle
+                        {
+                            server
+                                .handle_status_read_event(handle, app_context)
                                 .await;
                         } else if handle >= server.mic.gain_db.handle
                             && handle <= server.mic.command.handle

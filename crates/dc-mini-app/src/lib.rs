@@ -7,6 +7,7 @@ extern crate alloc;
 mod bus_manager;
 mod clock;
 pub mod events;
+mod status;
 pub mod storage;
 pub mod tasks;
 mod util;
@@ -23,6 +24,7 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::{Channel, Receiver, Sender};
 use embassy_sync::mutex::Mutex;
 use embedded_alloc::LlffHeap;
+use heapless::String;
 use static_cell::StaticCell;
 use storage::profile_manager::ProfileManager;
 
@@ -55,10 +57,26 @@ pub type AppProfileManager = ProfileManager<
 
 pub static CLOCK: clock::Clock = clock::Clock::new();
 
+pub fn bounded_heapless_string<const N: usize>(
+    value: &str,
+) -> (String<N>, bool) {
+    match String::try_from(value) {
+        Ok(value) => (value, false),
+        Err(_) => {
+            let mut truncated = String::new();
+            for ch in value.chars() {
+                if truncated.push(ch).is_err() {
+                    break;
+                }
+            }
+            (truncated, true)
+        }
+    }
+}
+
 pub struct State {
     pub usb_powered: bool,
     pub vsys_voltage: f32,
-    pub recording_status: bool,
 }
 
 pub struct AppContext {
@@ -171,7 +189,11 @@ pub mod prelude {
         bus_manager::*, error, events::*, info, init_executors, init_heap,
         storage::*, tasks::*, unwrap, warn, AppContext, AppProfileManager,
         EventReceiver, EventSender, State, CLOCK, FW_VERSION, HW_VERSION,
-        MANUFACTURER,
+        MANUFACTURER, bounded_heapless_string,
+    };
+    pub use crate::status::{
+        report_status, snapshot as status_snapshot, STATUS_WATCH,
+        SYSTEM_STATUS,
     };
     pub use embassy_executor::Spawner;
     pub use embassy_nrf::bind_interrupts;
