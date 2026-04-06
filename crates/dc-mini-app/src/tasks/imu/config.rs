@@ -8,15 +8,21 @@ use icm_45605::FifoConfig;
 pub async fn apply_imu_config<MutexType: RawMutex>(
     imu: &mut Imu<'_, '_, MutexType>,
     config: &ImuConfig,
-) {
+) -> bool {
+    macro_rules! ensure_ok {
+        ($expr:expr) => {
+            if let Err(e) = $expr {
+                warn!("Failed to apply IMU config: {:?}", e);
+                return false;
+            }
+        };
+    }
+
     // Configure gyroscope
-    unwrap!(
-        imu.start_gyro(config.gyro_odr.into(), config.gyro_fsr.into()).await
-    );
+    ensure_ok!(imu.start_gyro(config.gyro_odr.into(), config.gyro_fsr.into()).await);
     // Configure accelerometer
-    unwrap!(
-        imu.start_accel(config.accel_odr.into(), config.accel_fsr.into())
-            .await
+    ensure_ok!(
+        imu.start_accel(config.accel_odr.into(), config.accel_fsr.into()).await
     );
 
     // Configure FIFO if enabled
@@ -29,26 +35,26 @@ pub async fn apply_imu_config<MutexType: RawMutex>(
             watermark: config.fifo_watermark,
             mode: config.fifo_mode.into(),
         };
-        unwrap!(imu.configure_fifo(fifo_config).await);
-        unwrap!(imu.configure_fifo_interrupt(true).await);
+        ensure_ok!(imu.configure_fifo(fifo_config).await);
+        ensure_ok!(imu.configure_fifo_interrupt(true).await);
     }
 
     // Configure motion detection features
     if config.wake_on_motion_enabled {
-        unwrap!(
-            imu.start_wake_on_motion(config.wake_on_motion_threshold).await
-        );
+        ensure_ok!(imu.start_wake_on_motion(config.wake_on_motion_threshold).await);
     }
 
     if config.tap_detection_enabled {
-        unwrap!(imu.start_tap_detection().await);
+        ensure_ok!(imu.start_tap_detection().await);
     }
 
     if config.pedometer_enabled {
-        unwrap!(imu.start_pedometer().await);
+        ensure_ok!(imu.start_pedometer().await);
     }
 
     if config.tilt_detection_enabled {
-        unwrap!(imu.start_tilt_detection().await);
+        ensure_ok!(imu.start_tilt_detection().await);
     }
+
+    true
 }

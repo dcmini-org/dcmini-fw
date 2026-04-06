@@ -59,7 +59,16 @@ pub async fn apds_task(
     }
 
     // Apply all configuration settings
-    apply_apds_config(&mut sensor, &config).await;
+    if !apply_apds_config(&mut sensor, &config).await {
+        report_status(
+            icd::SubsystemId::Apds,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::ApdsInitFailed,
+        )
+        .await;
+        APDS_MEAS.store(false, Ordering::SeqCst);
+        return;
+    }
 
     let sender = APDS_DATA_WATCH.sender();
     let poll_delay_ms = sensor.get_measurement_delay_ms() as u64 + 5;
@@ -96,7 +105,15 @@ pub async fn apds_task(
                 if let Some(config) = config {
                     // Disable sensor before reconfiguring
                     let _ = sensor.enable_async(false).await;
-                    apply_apds_config(&mut sensor, &config).await;
+                    if !apply_apds_config(&mut sensor, &config).await {
+                        report_status(
+                            icd::SubsystemId::Apds,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::ApdsInitFailed,
+                        )
+                        .await;
+                        break;
+                    }
                 } else {
                     break;
                 }

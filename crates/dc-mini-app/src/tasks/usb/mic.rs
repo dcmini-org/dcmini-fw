@@ -62,7 +62,7 @@ pub async fn mic_set_config(
 }
 
 async fn mic_stream_usb(sender: Sender<super::AppTx>, config: &MicConfig) {
-    let Some(mut sub) = MIC_STREAM_CH.dyn_subscriber() else {
+    let Ok(mut sub) = MIC_STREAM_CH.dyn_subscriber() else {
         report_status(
             icd::SubsystemId::UsbStream,
             icd::SubsystemState::Degraded,

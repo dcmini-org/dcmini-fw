@@ -64,7 +64,9 @@ pub async fn orchestrate(
                 }
                 ButtonPress::Hold => {
                     info!("Powering down");
-                    unwrap!(NEOPIX_CHAN.try_send(NeopixEvent::PowerOff));
+                    if NEOPIX_CHAN.try_send(NeopixEvent::PowerOff).is_err() {
+                        warn!("Failed to queue PowerOff neopixel event");
+                    }
                     // TODO: implement SR6 power-off
                 }
             },

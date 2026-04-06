@@ -18,6 +18,7 @@ use panic_reset as _;
 
 use dc_mini_app::tasks::dfu::DfuResources;
 use dc_mini_app::{init_event_channel, prelude::*, FW_VERSION};
+use dc_mini_bsp::ExternalFlashConfigureError;
 use embassy_nrf::nvmc::Nvmc;
 
 static ADS_RESOURCES: StaticCell<
@@ -211,8 +212,23 @@ async fn main(spawner: Spawner) {
                     Err(_e) => warn!("mark_booted failed"),
                 }
             }
-            Err(_e) => {
+            Err(ExternalFlashConfigureError::Unavailable) => {
                 warn!("External flash unavailable during boot confirm");
+                report_status(
+                    icd::SubsystemId::ExternalFlash,
+                    icd::SubsystemState::Degraded,
+                    icd::FaultCode::ExternalFlashUnavailable,
+                )
+                .await;
+                report_status(
+                    icd::SubsystemId::Dfu,
+                    icd::SubsystemState::Unavailable,
+                    icd::FaultCode::ExternalFlashUnavailable,
+                )
+                .await;
+            }
+            Err(ExternalFlashConfigureError::Flash(_e)) => {
+                warn!("External flash init failed during boot confirm");
                 report_status(
                     icd::SubsystemId::ExternalFlash,
                     icd::SubsystemState::Degraded,
@@ -234,7 +250,7 @@ async fn main(spawner: Spawner) {
     // ExternalFlashResources moved to StaticCell so QSPI gets 'static lifetime.
     let ext_flash_res = EXT_FLASH_RES.init(board.external_flash);
     #[allow(unused_variables)]
-    let dfu_resources = match ext_flash_res.configure() {
+    let (dfu_resources, external_flash_available) = match ext_flash_res.configure() {
         Ok(dfu_qspi) => {
             report_status(
                 icd::SubsystemId::ExternalFlash,
@@ -255,9 +271,9 @@ async fn main(spawner: Spawner) {
                 icd::FaultCode::None,
             )
             .await;
-            resources
+            (resources, true)
         }
-        Err(_e) => {
+        Err(ExternalFlashConfigureError::Unavailable) => {
             warn!("External flash unavailable for DFU");
             report_status(
                 icd::SubsystemId::ExternalFlash,
@@ -273,7 +289,31 @@ async fn main(spawner: Spawner) {
             .await;
             let dfu_nvmc = unsafe { embassy_nrf::peripherals::NVMC::steal() };
             let dfu_nvmc = Nvmc::new(dfu_nvmc);
-            DFU_RESOURCES.init(DfuResources::new(None, dfu_nvmc))
+            (
+                DFU_RESOURCES.init(DfuResources::new(None, dfu_nvmc)),
+                false,
+            )
+        }
+        Err(ExternalFlashConfigureError::Flash(_e)) => {
+            warn!("External flash init failed for DFU");
+            report_status(
+                icd::SubsystemId::ExternalFlash,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::ExternalFlashUnavailable,
+            )
+            .await;
+            report_status(
+                icd::SubsystemId::Dfu,
+                icd::SubsystemState::Unavailable,
+                icd::FaultCode::ExternalFlashUnavailable,
+            )
+            .await;
+            let dfu_nvmc = unsafe { embassy_nrf::peripherals::NVMC::steal() };
+            let dfu_nvmc = Nvmc::new(dfu_nvmc);
+            (
+                DFU_RESOURCES.init(DfuResources::new(None, dfu_nvmc)),
+                false,
+            )
         }
     };
 
@@ -353,6 +393,7 @@ async fn main(spawner: Spawner) {
         state: State {
             usb_powered: false,
             vsys_voltage: 0.0,
+            external_flash_available,
         },
     }));
     let spi3_bus_resources =

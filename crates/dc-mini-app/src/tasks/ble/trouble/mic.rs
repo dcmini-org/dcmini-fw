@@ -1,4 +1,7 @@
-use super::{gatt::Server, ATT_MTU};
+use super::{
+    gatt::{ServerWithDfu, ServerWithoutDfu},
+    ATT_MTU,
+};
 use crate::prelude::info;
 use crate::tasks::ble::mic_stream::{self, MicStreamNotifier};
 use heapless::Vec;
@@ -43,8 +46,8 @@ impl<P: PacketPool> MicStreamNotifier for TroubleNotifier<'_, '_, '_, P> {
     }
 }
 
-pub async fn mic_stream_notify<P: PacketPool>(
-    server: &Server<'_>,
+pub async fn mic_stream_notify_with_dfu<P: PacketPool>(
+    server: &ServerWithDfu<'_>,
     conn: &GattConnection<'_, '_, P>,
 ) {
     let notifier =
@@ -55,6 +58,22 @@ pub async fn mic_stream_notify<P: PacketPool>(
 
     let att_mtu = conn.raw().att_mtu() as usize;
     // Subtract ATT notification header (1 opcode + 2 handle) to get max value size.
+    let mtu = att_mtu - 3;
+    info!("Mic ATT mtu = {}, max notify value = {}", att_mtu, mtu);
+
+    mic_stream::mic_stream_notify(&notifier, mtu).await
+}
+
+pub async fn mic_stream_notify_without_dfu<P: PacketPool>(
+    server: &ServerWithoutDfu<'_>,
+    conn: &GattConnection<'_, '_, P>,
+) {
+    let notifier =
+        TroubleNotifier { handle: server.mic.data_stream.clone(), conn };
+
+    embassy_time::Timer::after_secs(1).await;
+
+    let att_mtu = conn.raw().att_mtu() as usize;
     let mtu = att_mtu - 3;
     info!("Mic ATT mtu = {}, max notify value = {}", att_mtu, mtu);
 

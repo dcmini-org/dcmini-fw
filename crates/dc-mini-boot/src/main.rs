@@ -12,6 +12,14 @@ use embassy_nrf::nvmc::Nvmc;
 use embassy_nrf::wdt::{self, HaltConfig, SleepConfig};
 use embassy_sync::blocking_mutex::Mutex;
 
+fn active_partition_start() -> u32 {
+    unsafe extern "C" {
+        static __bootloader_active_start: u32;
+    }
+
+    unsafe { &__bootloader_active_start as *const u32 as u32 }
+}
+
 #[entry]
 fn main() -> ! {
     let mut board = DCMini::default();
@@ -32,20 +40,40 @@ fn main() -> ! {
     let flash = Mutex::new(RefCell::new(flash));
 
     let external_flash = match board.external_flash.configure() {
-        Ok(external_flash) => external_flash,
-        Err(_) => loop {
-            cortex_m::peripheral::SCB::sys_reset();
-        },
+        Ok(external_flash) => Some(external_flash),
+        Err(ExternalFlashConfigureError::Unavailable) => None,
+        Err(ExternalFlashConfigureError::Flash(_)) => {
+            #[cfg(feature = "defmt")]
+            defmt::error!(
+                "External flash init failed on DFU-capable hardware, resetting"
+            );
+            loop {
+                cortex_m::peripheral::SCB::sys_reset();
+            }
+        }
     };
-    let external_flash = Mutex::new(RefCell::new(external_flash));
 
-    let config = BootLoaderConfig::from_linkerfile_blocking(
-        &flash,
-        &external_flash,
-        &flash,
-    );
-    let active_offset = config.active.offset();
-    let bl: BootLoader = BootLoader::prepare(config);
+    let active_start = active_partition_start();
+    let (bl, active_offset): (
+        BootLoader<{ embassy_nrf::nvmc::PAGE_SIZE }>,
+        u32,
+    ) = if let Some(external_flash) = external_flash {
+        let external_flash = Mutex::new(RefCell::new(external_flash));
+        let config = BootLoaderConfig::from_linkerfile_blocking(
+            &flash,
+            &external_flash,
+            &flash,
+        );
+        let active_offset = config.active.offset();
+        (
+            BootLoader::<{ embassy_nrf::nvmc::PAGE_SIZE }>::prepare(config),
+            active_offset,
+        )
+    } else {
+        #[cfg(feature = "defmt")]
+        defmt::warn!("External flash unavailable, booting active image directly");
+        (BootLoader::<{ embassy_nrf::nvmc::PAGE_SIZE }>, active_start)
+    };
 
     #[cfg(feature = "defmt")]
     defmt::info!("Loading Application!");

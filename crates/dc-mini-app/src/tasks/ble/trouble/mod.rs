@@ -27,8 +27,9 @@ pub use status::*;
 use super::Error;
 
 use crate::prelude::{
-    error, info, AppContext, CriticalSectionRawMutex, Mutex,
+    error, info, report_status, AppContext, CriticalSectionRawMutex, Mutex,
 };
+use dc_mini_icd as icd;
 use crate::tasks::dfu::DfuResources;
 
 /// Maximum ATT MTU supported by this device.
@@ -79,42 +80,87 @@ async fn run(
         .set_random_address(address);
     let Host { mut peripheral, runner, .. } = stack.build();
 
-    let server =
-        Server::new_with_config(GapConfig::Peripheral(PeripheralConfig {
-            name: "dc-mini",
-            appearance: &appearance::sensor::MULTI_SENSOR,
-        }))
-        .expect("Error creating Gatt Server");
+    let external_flash_available = {
+        let app_ctx = app_context.lock().await;
+        app_ctx.state.external_flash_available
+    };
 
     info!("Starting BLE advertising and GATT service");
 
-    // Use a scope to ensure `server` is dropped before `resources`.
-    // The join runs forever (app_loop is infinite), so in practice
-    // this drop ordering only matters for compiler verification.
-    let app_loop =
-        app_task(&server, &mut peripheral, app_context, dfu_resources);
-    let _ = embassy_futures::join::join(ble_runner(runner), app_loop).await;
+    if external_flash_available {
+        let server = match ServerWithDfu::new_with_config(GapConfig::Peripheral(
+            PeripheralConfig {
+                name: "dc-mini",
+                appearance: &appearance::sensor::MULTI_SENSOR,
+            },
+        )) {
+            Ok(server) => server,
+            Err(e) => {
+                error!("Error creating GATT server: {:?}", e);
+                report_status(
+                    icd::SubsystemId::BleStream,
+                    icd::SubsystemState::Unavailable,
+                    icd::FaultCode::BleInitFailed,
+                )
+                .await;
+                return;
+            }
+        };
+
+        let app_loop = app_task_with_dfu(
+            &server,
+            &mut peripheral,
+            app_context,
+            dfu_resources,
+        );
+        let _ =
+            embassy_futures::join::join(ble_runner(runner), app_loop).await;
+    } else {
+        let server = match ServerWithoutDfu::new_with_config(
+            GapConfig::Peripheral(PeripheralConfig {
+                name: "dc-mini",
+                appearance: &appearance::sensor::MULTI_SENSOR,
+            }),
+        ) {
+            Ok(server) => server,
+            Err(e) => {
+                error!("Error creating GATT server: {:?}", e);
+                report_status(
+                    icd::SubsystemId::BleStream,
+                    icd::SubsystemState::Unavailable,
+                    icd::FaultCode::BleInitFailed,
+                )
+                .await;
+                return;
+            }
+        };
+
+        let app_loop =
+            app_task_without_dfu(&server, &mut peripheral, app_context);
+        let _ =
+            embassy_futures::join::join(ble_runner(runner), app_loop).await;
+    }
 }
 
-async fn app_task<'values>(
-    server: &Server<'values>,
+async fn app_task_with_dfu<'values>(
+    server: &ServerWithDfu<'values>,
     peripheral: &mut Peripheral<'values, BleController, DefaultPacketPool>,
     app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
     dfu_resources: &'static DfuResources,
 ) {
     loop {
-        match advertise("dc-mini", peripheral, server).await {
+        match advertise_with_dfu("dc-mini", peripheral, server).await {
             Ok(conn) => {
-                let gatt = gatt_server_task(
+                let gatt = gatt_server_task_with_dfu(
                     server,
                     &conn,
                     app_context,
                     dfu_resources,
                 );
-                let ads = ads_stream_notify(server, &conn);
-                let mic = mic_stream_notify(server, &conn);
+                let ads = ads_stream_notify_with_dfu(server, &conn);
+                let mic = mic_stream_notify_with_dfu(server, &conn);
                 let status = async {
-                    status_notify(server, &conn).await;
+                    status_notify_with_dfu(server, &conn).await;
                     core::future::pending::<()>().await;
                 };
                 let main = async {
@@ -125,6 +171,37 @@ async fn app_task<'values>(
                 embassy_futures::select::select(main, status).await;
                 // Release DFU lock if connection drops mid-transfer
                 dfu_resources.finish();
+            }
+            Err(e) => {
+                error!("Advertisement error: {:?}", e);
+                embassy_time::Timer::after_secs(1).await;
+            }
+        }
+    }
+}
+
+async fn app_task_without_dfu<'values>(
+    server: &ServerWithoutDfu<'values>,
+    peripheral: &mut Peripheral<'values, BleController, DefaultPacketPool>,
+    app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+) {
+    loop {
+        match advertise_without_dfu("dc-mini", peripheral, server).await {
+            Ok(conn) => {
+                let gatt =
+                    gatt_server_task_without_dfu(server, &conn, app_context);
+                let ads = ads_stream_notify_without_dfu(server, &conn);
+                let mic = mic_stream_notify_without_dfu(server, &conn);
+                let status = async {
+                    status_notify_without_dfu(server, &conn).await;
+                    core::future::pending::<()>().await;
+                };
+                let main = async {
+                    futures::pin_mut!(gatt, ads, mic);
+                    embassy_futures::select::select3(gatt, ads, mic).await;
+                };
+                futures::pin_mut!(main, status);
+                embassy_futures::select::select(main, status).await;
             }
             Err(e) => {
                 error!("Advertisement error: {:?}", e);

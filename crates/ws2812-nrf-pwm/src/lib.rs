@@ -55,13 +55,13 @@ impl<'d, const N: usize> Ws2812<'d, N> {
     pub fn new(
         pwm: Peri<'d, impl pwm::Instance>,
         pin: Peri<'d, impl Pin>,
-    ) -> Self {
+    ) -> Result<Self, Error> {
         let mut config = Config::default();
         config.sequence_load = SequenceLoad::Common;
         config.prescaler = Prescaler::Div1;
         config.max_duty = PWM_PERIOD; // 1.25us (1s / 16Mhz * 20)
 
-        let seq_pwm = SequencePwm::new_1ch(pwm, pin, config).unwrap();
+        let seq_pwm = SequencePwm::new_1ch(pwm, pin, config)?;
 
         let mut seq_words = [0; N];
         if let Some(last) = seq_words.last_mut() {
@@ -71,7 +71,7 @@ impl<'d, const N: usize> Ws2812<'d, N> {
         let mut seq_config = SequenceConfig::default();
         seq_config.end_delay = RESET_TICKS - 1; // - 1 tick because we've already got one RES;
 
-        Ws2812 { seq_pwm, seq_words, seq_config }
+        Ok(Ws2812 { seq_pwm, seq_words, seq_config })
     }
 }
 
@@ -103,7 +103,7 @@ impl<'d, const N: usize> SmartLedsWriteAsync for Ws2812<'d, N> {
             &self.seq_words,
             self.seq_config.clone(),
         );
-        sequencer.start(SingleSequenceMode::Times(1)).unwrap();
+        sequencer.start(SingleSequenceMode::Times(1))?;
         Timer::after_nanos(DELAY_NS).await;
         sequencer.stop();
 

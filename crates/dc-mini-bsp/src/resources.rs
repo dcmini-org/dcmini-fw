@@ -96,6 +96,12 @@ pub type Haptic<'a, 'b, MutexType> =
 /// Represents a structure for an external flash configuration using the QSPI protocol.
 pub type ExternalFlash<'d> = qspi::Qspi<'d>;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExternalFlashConfigureError {
+    Unavailable,
+    Flash(qspi::Error),
+}
+
 bind_interrupts!(struct SpiIrq {
     SPIM3 => spim::InterruptHandler<peripherals::SPI3>;
     SPI2 => spim::InterruptHandler<peripherals::SPI2>;
@@ -312,7 +318,9 @@ impl ExternalFlashResources {
     ///
     /// # Returns
     /// An initialized `ExternalFlash` instance.
-    pub fn configure<'a>(&'a mut self) -> Result<ExternalFlash<'a>, qspi::Error> {
+    pub fn configure<'a>(
+        &'a mut self,
+    ) -> Result<ExternalFlash<'a>, ExternalFlashConfigureError> {
         bind_interrupts!(struct Irqs {
             QSPI => qspi::InterruptHandler<peripherals::QSPI>;
         });
@@ -338,15 +346,25 @@ impl ExternalFlashResources {
             config,
         );
 
+        let mut jedec_id = [0u8; 3];
+        q.blocking_custom_instruction(0x9F, &[], &mut jedec_id)
+            .map_err(ExternalFlashConfigureError::Flash)?;
+        if jedec_id == [0x00; 3] || jedec_id == [0xFF; 3] {
+            return Err(ExternalFlashConfigureError::Unavailable);
+        }
+
         // Setup QSPI
         let mut status = [4; 2];
-        q.blocking_custom_instruction(0x05, &[], &mut status[..1])?;
+        q.blocking_custom_instruction(0x05, &[], &mut status[..1])
+            .map_err(ExternalFlashConfigureError::Flash)?;
 
-        q.blocking_custom_instruction(0x35, &[], &mut status[1..2])?;
+        q.blocking_custom_instruction(0x35, &[], &mut status[1..2])
+            .map_err(ExternalFlashConfigureError::Flash)?;
 
         if status[1] & 0x02 == 0 {
             status[1] |= 0x02;
-            q.blocking_custom_instruction(0x01, &status, &mut [])?;
+            q.blocking_custom_instruction(0x01, &status, &mut [])
+                .map_err(ExternalFlashConfigureError::Flash)?;
         }
         Ok(q)
     }

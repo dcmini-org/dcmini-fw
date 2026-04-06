@@ -1,4 +1,7 @@
-use super::{Server, ATT_MTU};
+use super::{
+    gatt::{ServerWithDfu, ServerWithoutDfu},
+    ATT_MTU,
+};
 use crate::prelude::*;
 use heapless::Vec;
 use trouble_host::prelude::*;
@@ -24,90 +27,101 @@ fn encode_status<T: serde::Serialize>(value: &T) -> Option<Vec<u8, ATT_MTU>> {
     Vec::from_slice(encoded).ok()
 }
 
-impl<'d> Server<'d> {
-    pub async fn handle_status_read_event(
-        &self,
-        handle: u16,
-        _app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
-    ) {
-        if handle != self.status.snapshot.handle {
-            return;
+macro_rules! impl_status_support {
+    ($server_ty:ident, $notify_fn:ident) => {
+        impl<'d> $server_ty<'d> {
+            pub async fn handle_status_read_event(
+                &self,
+                handle: u16,
+                _app_context: &'static Mutex<
+                    CriticalSectionRawMutex,
+                    AppContext,
+                >,
+            ) {
+                if handle != self.status.snapshot.handle {
+                    return;
+                }
+
+                let snapshot = status_snapshot().await;
+                let Some(payload) = encode_status(&snapshot) else {
+                    report_status(
+                        icd::SubsystemId::BleStream,
+                        icd::SubsystemState::Degraded,
+                        icd::FaultCode::EncodingOverflow,
+                    )
+                    .await;
+                    return;
+                };
+
+                if let Err(_e) = self.set(&self.status.snapshot, &payload) {
+                    report_status(
+                        icd::SubsystemId::BleStream,
+                        icd::SubsystemState::Degraded,
+                        icd::FaultCode::EncodingOverflow,
+                    )
+                    .await;
+                }
+            }
         }
 
-        let snapshot = status_snapshot().await;
-        let Some(payload) = encode_status(&snapshot) else {
-            report_status(
-                icd::SubsystemId::BleStream,
-                icd::SubsystemState::Degraded,
-                icd::FaultCode::EncodingOverflow,
-            )
-            .await;
-            return;
-        };
+        pub async fn $notify_fn<P: PacketPool>(
+            server: &$server_ty<'_>,
+            conn: &GattConnection<'_, '_, P>,
+        ) {
+            loop {
+                let mut receiver = match STATUS_WATCH.dyn_receiver() {
+                    Some(receiver) => receiver,
+                    None => {
+                        warn!("Unable to subscribe to system status watch for BLE");
+                        report_status(
+                            icd::SubsystemId::BleStream,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::Busy,
+                        )
+                        .await;
+                        Timer::after_millis(250).await;
+                        continue;
+                    }
+                };
 
-        if let Err(_e) = self.set(&self.status.snapshot, &payload) {
-            report_status(
-                icd::SubsystemId::BleStream,
-                icd::SubsystemState::Degraded,
-                icd::FaultCode::EncodingOverflow,
-            )
-            .await;
+                loop {
+                    let status = receiver.changed().await;
+                    let Some(payload) = encode_status(&status) else {
+                        report_status(
+                            icd::SubsystemId::BleStream,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::EncodingOverflow,
+                        )
+                        .await;
+                        continue;
+                    };
+
+                    if let Err(_e) = server.set(&server.status.event, &payload) {
+                        report_status(
+                            icd::SubsystemId::BleStream,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::EncodingOverflow,
+                        )
+                        .await;
+                        continue;
+                    }
+
+                    if let Err(e) = server.status.event.notify(conn, &payload).await
+                    {
+                        warn!("Error notifying status update: {:?}", e);
+                        report_status(
+                            icd::SubsystemId::BleStream,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::Busy,
+                        )
+                        .await;
+                        Timer::after_millis(100).await;
+                    }
+                }
+            }
         }
-    }
+    };
 }
 
-pub async fn status_notify<P: PacketPool>(
-    server: &Server<'_>,
-    conn: &GattConnection<'_, '_, P>,
-) {
-    loop {
-        let mut receiver = match STATUS_WATCH.dyn_receiver() {
-            Some(receiver) => receiver,
-            None => {
-                warn!("Unable to subscribe to system status watch for BLE");
-                report_status(
-                    icd::SubsystemId::BleStream,
-                    icd::SubsystemState::Degraded,
-                    icd::FaultCode::Busy,
-                )
-                .await;
-                Timer::after_millis(250).await;
-                continue;
-            }
-        };
-
-        loop {
-            let status = receiver.changed().await;
-            let Some(payload) = encode_status(&status) else {
-                report_status(
-                    icd::SubsystemId::BleStream,
-                    icd::SubsystemState::Degraded,
-                    icd::FaultCode::EncodingOverflow,
-                )
-                .await;
-                continue;
-            };
-
-            if let Err(_e) = server.set(&server.status.event, &payload) {
-                report_status(
-                    icd::SubsystemId::BleStream,
-                    icd::SubsystemState::Degraded,
-                    icd::FaultCode::EncodingOverflow,
-                )
-                .await;
-                continue;
-            }
-
-            if let Err(e) = server.status.event.notify(conn, &payload).await {
-                warn!("Error notifying status update: {:?}", e);
-                report_status(
-                    icd::SubsystemId::BleStream,
-                    icd::SubsystemState::Degraded,
-                    icd::FaultCode::Busy,
-                )
-                .await;
-                Timer::after_millis(100).await;
-            }
-        }
-    }
-}
+impl_status_support!(ServerWithDfu, status_notify_with_dfu);
+impl_status_support!(ServerWithoutDfu, status_notify_without_dfu);

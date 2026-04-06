@@ -2,6 +2,25 @@ use crate::prelude::*;
 use dc_mini_icd::{ProfileCommand, MAX_PROFILES};
 use postcard_rpc::header::VarHeader;
 
+async fn persist_current_profile(
+    app_ctx: &mut AppContext,
+    profile: u8,
+) -> bool {
+    match app_ctx.profile_manager.set_current_profile(profile).await {
+        Ok(()) => true,
+        Err(e) => {
+            warn!("Failed to persist current profile: {:?}", e);
+            report_status(
+                icd::SubsystemId::Storage,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::StorageWriteFailed,
+            )
+            .await;
+            false
+        }
+    }
+}
+
 pub async fn profile_get(
     context: &mut super::Context,
     _header: VarHeader,
@@ -21,8 +40,7 @@ pub async fn profile_set(
         return false;
     }
     let mut app_ctx = context.app.lock().await;
-    unwrap!(app_ctx.profile_manager.set_current_profile(req).await);
-    true
+    persist_current_profile(&mut app_ctx, req).await
 }
 
 pub async fn profile_command(
@@ -34,28 +52,22 @@ pub async fn profile_command(
         let mut app_ctx = context.app.lock().await;
         match req {
             ProfileCommand::Reset => {
-                unwrap!(app_ctx.profile_manager.set_current_profile(0).await);
+                return persist_current_profile(&mut app_ctx, 0).await;
             }
             ProfileCommand::Next => {
                 let current =
                     app_ctx.profile_manager.get_current_profile().await;
                 let next =
                     if current >= MAX_PROFILES { 0 } else { current + 1 };
-                unwrap!(
-                    app_ctx.profile_manager.set_current_profile(next).await
-                );
+                return persist_current_profile(&mut app_ctx, next).await;
             }
             ProfileCommand::Previous => {
                 let current =
                     app_ctx.profile_manager.get_current_profile().await;
                 let prev =
                     if current == 0 { MAX_PROFILES } else { current - 1 };
-                unwrap!(
-                    app_ctx.profile_manager.set_current_profile(prev).await
-                );
+                return persist_current_profile(&mut app_ctx, prev).await;
             }
         }
     }
-
-    true
 }

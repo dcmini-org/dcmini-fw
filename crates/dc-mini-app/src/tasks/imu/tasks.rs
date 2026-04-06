@@ -64,7 +64,16 @@ pub async fn imu_task(
     }
 
     // Apply all configuration settings
-    apply_imu_config(&mut imu, &config).await;
+    if !apply_imu_config(&mut imu, &config).await {
+        report_status(
+            icd::SubsystemId::Imu,
+            icd::SubsystemState::Degraded,
+            icd::FaultCode::ImuInitFailed,
+        )
+        .await;
+        IMU_MEAS.store(false, Ordering::SeqCst);
+        return;
+    }
 
     let sender = IMU_DATA_WATCH.sender();
 
@@ -110,7 +119,15 @@ pub async fn imu_task(
                     }
 
                     // Apply new configuration
-                    apply_imu_config(&mut imu, &config).await;
+                    if !apply_imu_config(&mut imu, &config).await {
+                        report_status(
+                            icd::SubsystemId::Imu,
+                            icd::SubsystemState::Degraded,
+                            icd::FaultCode::ImuInitFailed,
+                        )
+                        .await;
+                        break;
+                    }
                 } else {
                     break;
                 }

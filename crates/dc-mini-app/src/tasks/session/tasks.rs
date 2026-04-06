@@ -15,6 +15,7 @@ use portable_atomic::Ordering;
 use prost::Message;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum SessionError {
     CardUnavailable,
     MountFailed,

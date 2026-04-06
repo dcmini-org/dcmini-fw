@@ -11,7 +11,13 @@ pub async fn sync_time<'a>(
     conn: &Connection<'a, DefaultPacketPool>,
 ) {
     info!("[ble] synchronizing time");
-    let client = unwrap!(GattClient::<_, _, 10>::new(stack, conn).await);
+    let client = match GattClient::<_, _, 10>::new(stack, conn).await {
+        Ok(client) => client,
+        Err(e) => {
+            warn!("[ble] failed to create gatt client: {:?}", e);
+            return;
+        }
+    };
     match select(client.task(), async {
         let services =
             client.services_by_uuid(&Uuid::new_short(0x1805)).await?;
@@ -39,7 +45,9 @@ pub async fn sync_time<'a>(
     })
     .await
     {
-        Either::First(_) => panic!("[ble] gatt client exited prematurely"),
+        Either::First(_) => {
+            warn!("[ble] gatt client exited prematurely");
+        }
         Either::Second(Ok(_)) => {
             info!("[ble] time sync completed");
         }

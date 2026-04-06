@@ -11,14 +11,24 @@ pub type I2cDev<'a> = embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice<
 pub async fn apply_apds_config(
     sensor: &mut Apds9253<I2cDev<'_>>,
     config: &ApdsConfig,
-) {
-    unwrap!(sensor.set_gain_async(config.gain.into()).await);
-    unwrap!(sensor.set_resolution_async(config.resolution.into()).await);
-    unwrap!(
+) -> bool {
+    macro_rules! ensure_ok {
+        ($expr:expr) => {
+            if let Err(e) = $expr {
+                warn!("Failed to apply APDS config: {:?}", e);
+                return false;
+            }
+        };
+    }
+
+    ensure_ok!(sensor.set_gain_async(config.gain.into()).await);
+    ensure_ok!(sensor.set_resolution_async(config.resolution.into()).await);
+    ensure_ok!(
         sensor
             .set_measurement_rate_async(config.measurement_rate.into())
             .await
     );
-    unwrap!(sensor.enable_rgb_mode_async(config.rgb_mode).await);
-    unwrap!(sensor.enable_async(true).await);
+    ensure_ok!(sensor.enable_rgb_mode_async(config.rgb_mode).await);
+    ensure_ok!(sensor.enable_async(true).await);
+    true
 }

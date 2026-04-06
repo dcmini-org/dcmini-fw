@@ -225,10 +225,19 @@ pub async fn neopix_task(
     pin: Peri<'static, AnyPin>,
 ) {
     let receiver = NEOPIX_CHAN.receiver();
-    let mut ws: Ws2812<'_, 25> = Ws2812::new(pwm, pin);
+    let mut ws: Ws2812<'_, 25> = match Ws2812::new(pwm, pin) {
+        Ok(ws) => ws,
+        Err(e) => {
+            warn!("Failed to initialize neopixel driver: {:?}", e);
+            return;
+        }
+    };
     let mut state = NeopixState::new();
     state.handle_event(NeopixEvent::PowerOn);
-    unwrap!(state.update(&mut ws).await);
+    if let Err(e) = state.update(&mut ws).await {
+        warn!("Failed to update neopixel state: {:?}", e);
+        return;
+    }
 
     loop {
         // Check for new events with timeout if we're flashing
@@ -245,6 +254,9 @@ pub async fn neopix_task(
             state.handle_event(evt);
         }
 
-        unwrap!(state.update(&mut ws).await);
+        if let Err(e) = state.update(&mut ws).await {
+            warn!("Failed to update neopixel state: {:?}", e);
+            break;
+        }
     }
 }

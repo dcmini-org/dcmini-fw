@@ -188,7 +188,7 @@ async fn collect_batch(
 }
 
 async fn ads_stream_usb(sender: Sender<super::AppTx>) {
-    let Some(mut sub) = ADS_MEAS_CH.dyn_subscriber() else {
+    let Ok(mut sub) = ADS_MEAS_CH.dyn_subscriber() else {
         report_status(
             icd::SubsystemId::UsbStream,
             icd::SubsystemState::Degraded,

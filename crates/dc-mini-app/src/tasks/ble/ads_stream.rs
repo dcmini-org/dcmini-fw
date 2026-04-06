@@ -163,7 +163,7 @@ pub(crate) async fn ads_stream_notify<T: AdsStreamNotifier>(
         .await;
         return;
     };
-    let Some(mut sub) = ADS_MEAS_CH.dyn_subscriber() else {
+    let Ok(mut sub) = ADS_MEAS_CH.dyn_subscriber() else {
         report_status(
             icd::SubsystemId::BleStream,
             icd::SubsystemState::Degraded,

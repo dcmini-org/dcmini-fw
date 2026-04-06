@@ -1,6 +1,25 @@
-use super::Server;
+use super::gatt::{ServerWithDfu, ServerWithoutDfu};
 use crate::prelude::*;
 use trouble_host::prelude::*;
+
+async fn persist_current_profile(
+    app_ctx: &mut AppContext,
+    profile: u8,
+) -> bool {
+    match app_ctx.profile_manager.set_current_profile(profile).await {
+        Ok(()) => true,
+        Err(e) => {
+            warn!("Failed to persist current profile over BLE: {:?}", e);
+            report_status(
+                icd::SubsystemId::Storage,
+                icd::SubsystemState::Degraded,
+                icd::FaultCode::StorageWriteFailed,
+            )
+            .await;
+            false
+        }
+    }
+}
 
 /// Profile Command types
 #[repr(u8)]
@@ -40,76 +59,94 @@ pub struct ProfileService {
     pub command: u8,
 }
 
-impl<'d> Server<'d> {
-    pub async fn handle_profile_read_event(
-        &self,
-        handle: u16,
-        _app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
-    ) {
-        if handle == self.profile.current_profile.handle {
-            // Profile reads are handled by the characteristic directly
-        }
-    }
+macro_rules! impl_profile_support {
+    ($server_ty:ident, $update_fn:ident) => {
+        impl<'d> $server_ty<'d> {
+            pub async fn handle_profile_read_event(
+                &self,
+                handle: u16,
+                _app_context: &'static Mutex<
+                    CriticalSectionRawMutex,
+                    AppContext,
+                >,
+            ) {
+                if handle == self.profile.current_profile.handle {
+                }
+            }
 
-    pub async fn handle_profile_write_event(
-        &self,
-        handle: u16,
-        app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
-    ) {
-        let mut app_ctx = app_context.lock().await;
-        let _evt_sender = app_ctx.event_sender;
+            pub async fn handle_profile_write_event(
+                &self,
+                handle: u16,
+                app_context: &'static Mutex<
+                    CriticalSectionRawMutex,
+                    AppContext,
+                >,
+            ) {
+                let mut app_ctx = app_context.lock().await;
+                let _evt_sender = app_ctx.event_sender;
 
-        if handle == self.profile.command.handle {
-            if let Ok(value) = self.get(&self.profile.command) {
-                if let Ok(cmd) = ProfileCommand::try_from(value) {
-                    match cmd {
-                        ProfileCommand::Reset => {
-                            unwrap!(
-                                app_ctx
-                                    .profile_manager
-                                    .set_current_profile(0)
-                                    .await
-                            );
-                        }
-                        ProfileCommand::Next => {
-                            let current = app_ctx
-                                .profile_manager
-                                .get_current_profile()
-                                .await;
-                            unwrap!(
-                                app_ctx
-                                    .profile_manager
-                                    .set_current_profile(
-                                        current.wrapping_add(1)
+                if handle == self.profile.command.handle {
+                    if let Ok(value) = self.get(&self.profile.command) {
+                        if let Ok(cmd) = ProfileCommand::try_from(value) {
+                            match cmd {
+                                ProfileCommand::Reset => {
+                                    let _ = persist_current_profile(
+                                        &mut app_ctx,
+                                        0,
                                     )
-                                    .await
-                            );
-                        }
-                        ProfileCommand::Previous => {
-                            let current = app_ctx
-                                .profile_manager
-                                .get_current_profile()
-                                .await;
-                            unwrap!(
-                                app_ctx
-                                    .profile_manager
-                                    .set_current_profile(
-                                        current.wrapping_sub(1)
+                                    .await;
+                                }
+                                ProfileCommand::Next => {
+                                    let current = app_ctx
+                                        .profile_manager
+                                        .get_current_profile()
+                                        .await;
+                                    let next = if current >= MAX_PROFILES {
+                                        0
+                                    } else {
+                                        current + 1
+                                    };
+                                    let _ = persist_current_profile(
+                                        &mut app_ctx,
+                                        next,
                                     )
-                                    .await
-                            );
+                                    .await;
+                                }
+                                ProfileCommand::Previous => {
+                                    let current = app_ctx
+                                        .profile_manager
+                                        .get_current_profile()
+                                        .await;
+                                    let prev = if current == 0 {
+                                        MAX_PROFILES
+                                    } else {
+                                        current - 1
+                                    };
+                                    let _ = persist_current_profile(
+                                        &mut app_ctx,
+                                        prev,
+                                    )
+                                    .await;
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-    }
+
+        pub async fn $update_fn(server: &$server_ty<'_>, current_profile: u8) {
+            if let Err(e) =
+                server.set(&server.profile.current_profile, &current_profile)
+            {
+                warn!("Failed to update BLE profile characteristic: {:?}", e);
+            }
+        }
+    };
 }
 
-/// Updates the profile characteristics
-pub async fn update_profile_characteristics(
-    server: &Server<'_>,
-    current_profile: u8,
-) {
-    unwrap!(server.set(&server.profile.current_profile, &current_profile));
-}
+impl_profile_support!(ServerWithDfu, update_profile_characteristics_with_dfu);
+impl_profile_support!(
+    ServerWithoutDfu,
+    update_profile_characteristics_without_dfu
+);

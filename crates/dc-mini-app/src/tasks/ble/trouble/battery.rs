@@ -1,4 +1,4 @@
-use super::Server;
+use super::gatt::{ServerWithDfu, ServerWithoutDfu};
 use crate::prelude::*;
 use trouble_host::prelude::*;
 
@@ -12,24 +12,34 @@ pub struct BatteryService {
     pub battery_level: u8,
 }
 
-impl<'d> Server<'d> {
-    pub async fn handle_battery_read_event(
-        &self,
-        handle: u16,
-        _app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
-    ) {
-        if handle == self.battery.battery_level.handle {
-            // Battery level reads are handled by the characteristic directly
+macro_rules! impl_battery_support {
+    ($server_ty:ident, $update_fn:ident) => {
+        impl<'d> $server_ty<'d> {
+            pub async fn handle_battery_read_event(
+                &self,
+                handle: u16,
+                _app_context: &'static Mutex<
+                    CriticalSectionRawMutex,
+                    AppContext,
+                >,
+            ) {
+                if handle == self.battery.battery_level.handle {
+                }
+            }
         }
-    }
+
+        pub async fn $update_fn(server: &$server_ty<'_>, battery_level: u8) {
+            let level = battery_level.min(100);
+            unwrap!(server.set(&server.battery.battery_level, &level));
+        }
+    };
 }
 
-/// Updates the battery level characteristic with the current value
-pub async fn update_battery_characteristics(
-    server: &Server<'_>,
-    battery_level: u8,
-) {
-    // Ensure battery level is within valid range (0-100)
-    let level = battery_level.min(100);
-    unwrap!(server.set(&server.battery.battery_level, &level));
-}
+impl_battery_support!(
+    ServerWithDfu,
+    update_battery_characteristics_with_dfu
+);
+impl_battery_support!(
+    ServerWithoutDfu,
+    update_battery_characteristics_without_dfu
+);

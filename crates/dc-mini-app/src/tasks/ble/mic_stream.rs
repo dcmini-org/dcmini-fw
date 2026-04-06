@@ -28,7 +28,7 @@ pub(crate) async fn mic_stream_notify<T: MicStreamNotifier>(
         .await;
         return;
     };
-    let Some(mut sub) = MIC_STREAM_CH.dyn_subscriber() else {
+    let Ok(mut sub) = MIC_STREAM_CH.dyn_subscriber() else {
         report_status(
             icd::SubsystemId::BleStream,
             icd::SubsystemState::Degraded,

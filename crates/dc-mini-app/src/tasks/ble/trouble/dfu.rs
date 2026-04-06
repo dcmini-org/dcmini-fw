@@ -38,7 +38,7 @@ pub struct NrfDfuService {
 /// Decodes the DFU request, processes it via DfuTarget, encodes the response,
 /// and notifies the client via the control characteristic.
 pub async fn handle_dfu_control<'a, DFU: NorFlash, P: PacketPool>(
-    server: &super::gatt::Server<'a>,
+    server: &super::gatt::ServerWithDfu<'a>,
     target: &mut Target,
     dfu: &mut DFU,
     conn: &GattConnection<'_, '_, P>,
@@ -81,7 +81,7 @@ pub async fn handle_dfu_control<'a, DFU: NorFlash, P: PacketPool>(
 /// Wraps the raw data as a DfuRequest::Write, processes it, and notifies
 /// on both control and packet characteristics per the Nordic DFU protocol.
 pub async fn handle_dfu_packet<'a, DFU: NorFlash, P: PacketPool>(
-    server: &super::gatt::Server<'a>,
+    server: &super::gatt::ServerWithDfu<'a>,
     target: &mut Target,
     dfu: &mut DFU,
     conn: &GattConnection<'_, '_, P>,

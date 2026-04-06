@@ -29,6 +29,7 @@ pub enum ADS1299RegisterError {
     InvalidComparatorThreshold(u8),
     InvalidLeadOffCurrent(u8),
     InvalidLeadOffFrequency(u8),
+    InvalidDataHeader(u8),
     AdsNotDetected,
 }
 impl core::fmt::Display for ADS1299RegisterError {
@@ -51,6 +52,9 @@ impl core::fmt::Display for ADS1299RegisterError {
             }
             ADS1299RegisterError::InvalidLeadOffFrequency(value) => {
                 write!(f, "Invalid lead off frequency value: {}", value)
+            }
+            ADS1299RegisterError::InvalidDataHeader(value) => {
+                write!(f, "Invalid ADS data header: 0x{:02x}", value)
             }
             ADS1299RegisterError::AdsNotDetected => {
                 write!(f, "Ads not detected!")

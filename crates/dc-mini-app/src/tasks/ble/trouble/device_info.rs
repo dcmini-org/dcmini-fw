@@ -1,4 +1,4 @@
-use super::Server;
+use super::gatt::{ServerWithDfu, ServerWithoutDfu};
 use crate::prelude::*;
 use trouble_host::prelude::*;
 
@@ -19,43 +19,58 @@ pub struct DeviceInfoService {
     pub manufacturer_name: heapless::String<32>,
 }
 
-impl<'d> Server<'d> {
-    pub async fn handle_device_info_read_event(
-        &self,
-        handle: u16,
-        _app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
-    ) {
-        if handle == self.device_info.hardware_revision.handle
-            || handle == self.device_info.software_revision.handle
-            || handle == self.device_info.manufacturer_name.handle
-        {
-            // Device info reads are handled by the characteristics directly
+macro_rules! impl_device_info_support {
+    ($server_ty:ident, $update_fn:ident) => {
+        impl<'d> $server_ty<'d> {
+            pub async fn handle_device_info_read_event(
+                &self,
+                handle: u16,
+                _app_context: &'static Mutex<
+                    CriticalSectionRawMutex,
+                    AppContext,
+                >,
+            ) {
+                if handle == self.device_info.hardware_revision.handle
+                    || handle == self.device_info.software_revision.handle
+                    || handle == self.device_info.manufacturer_name.handle
+                {
+                }
+            }
         }
-    }
+
+        pub async fn $update_fn(
+            server: &$server_ty<'_>,
+            hardware_rev: &str,
+            software_rev: &str,
+            manufacturer: &str,
+        ) {
+            let (hw_rev, hw_truncated) =
+                bounded_heapless_string::<32>(hardware_rev);
+            let (sw_rev, sw_truncated) =
+                bounded_heapless_string::<32>(software_rev);
+            let (mfg, mfg_truncated) =
+                bounded_heapless_string::<32>(manufacturer);
+            if hw_truncated || sw_truncated || mfg_truncated {
+                report_status(
+                    icd::SubsystemId::BleStream,
+                    icd::SubsystemState::Degraded,
+                    icd::FaultCode::MetadataTruncated,
+                )
+                .await;
+            }
+
+            unwrap!(server.set(&server.device_info.hardware_revision, &hw_rev));
+            unwrap!(server.set(&server.device_info.software_revision, &sw_rev));
+            unwrap!(server.set(&server.device_info.manufacturer_name, &mfg));
+        }
+    };
 }
 
-/// Updates the device information characteristics
-pub async fn update_device_info_characteristics(
-    server: &Server<'_>,
-    hardware_rev: &str,
-    software_rev: &str,
-    manufacturer: &str,
-) {
-    let (hw_rev, hw_truncated) = bounded_heapless_string::<32>(hardware_rev);
-    let (sw_rev, sw_truncated) =
-        bounded_heapless_string::<32>(software_rev);
-    let (mfg, mfg_truncated) =
-        bounded_heapless_string::<32>(manufacturer);
-    if hw_truncated || sw_truncated || mfg_truncated {
-        report_status(
-            icd::SubsystemId::BleStream,
-            icd::SubsystemState::Degraded,
-            icd::FaultCode::MetadataTruncated,
-        )
-        .await;
-    }
-
-    unwrap!(server.set(&server.device_info.hardware_revision, &hw_rev));
-    unwrap!(server.set(&server.device_info.software_revision, &sw_rev));
-    unwrap!(server.set(&server.device_info.manufacturer_name, &mfg));
-}
+impl_device_info_support!(
+    ServerWithDfu,
+    update_device_info_characteristics_with_dfu
+);
+impl_device_info_support!(
+    ServerWithoutDfu,
+    update_device_info_characteristics_without_dfu
+);

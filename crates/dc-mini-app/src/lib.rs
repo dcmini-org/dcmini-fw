@@ -77,6 +77,7 @@ pub fn bounded_heapless_string<const N: usize>(
 pub struct State {
     pub usb_powered: bool,
     pub vsys_voltage: f32,
+    pub external_flash_available: bool,
 }
 
 pub struct AppContext {

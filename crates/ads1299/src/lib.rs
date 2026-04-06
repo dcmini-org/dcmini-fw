@@ -7,6 +7,7 @@ use embedded_hal_async::spi::SpiDevice;
 use heapless::Vec;
 
 pub use crate::errors::Error;
+use crate::errors::ADS1299RegisterError;
 pub use crate::registers::*;
 use core::result::Result;
 
@@ -122,7 +123,11 @@ where
             None | Some(8) => 29,
             Some(6) => 23,
             Some(4) => 17,
-            Some(e) => panic!("Invalid channels count in rdata. This should be unreachable! {:?}", e),
+            Some(e) => {
+                return Err(Error::RegisterError(
+                    ADS1299RegisterError::InvalidChannelCount(e),
+                ));
+            }
         };
 
         self.spi
@@ -143,7 +148,11 @@ where
             None | Some(8) => 27,
             Some(6) => 21,
             Some(4) => 15,
-            Some(e) => panic!("Invalid channels count in rdatac. This should be unreachable! {:?}", e),
+            Some(e) => {
+                return Err(Error::RegisterError(
+                    ADS1299RegisterError::InvalidChannelCount(e),
+                ));
+            }
         };
 
         self.spi
@@ -151,7 +160,9 @@ where
             .await
             .map_err(Error::SpiError)?;
         if (sample[0] & 0xF0) != 0xC0 {
-            panic!("MAGIC DOESN'T EXIST");
+            return Err(Error::RegisterError(
+                ADS1299RegisterError::InvalidDataHeader(sample[0]),
+            ));
         }
         Ok(AdsData::new(sample, *self.num_chs.get_or_insert(8)))
     }
