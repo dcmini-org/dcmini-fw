@@ -4,6 +4,8 @@ use dc_mini_icd::{
 use futures::Stream;
 use futures_lite::StreamExt;
 use std::error::Error;
+use std::io;
+use std::sync::Arc;
 use std::vec::Vec;
 
 mod uuids {
@@ -133,6 +135,7 @@ pub struct BleClient {
     pub device: bluest::Device,
     characteristics: Vec<bluest::Characteristic>,
     adapter: bluest::Adapter,
+    io_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl BleClient {
@@ -195,7 +198,12 @@ impl BleClient {
 
         println!("Discovered {} characteristics", characteristics.len());
 
-        Ok(Self { device, characteristics, adapter: adapter.clone() })
+        Ok(Self {
+            device,
+            characteristics,
+            adapter: adapter.clone(),
+            io_lock: Arc::new(tokio::sync::Mutex::new(())),
+        })
     }
 
     pub async fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>>
@@ -226,6 +234,7 @@ impl BleClient {
         &self,
         uuid: bluest::Uuid,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+        let _guard = self.io_lock.lock().await;
         let characteristic =
             self.get_characteristic(uuid).ok_or("Characteristic not found")?;
         Ok(characteristic.read().await?)
@@ -236,6 +245,7 @@ impl BleClient {
         uuid: bluest::Uuid,
         data: &[u8],
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let _guard = self.io_lock.lock().await;
         let characteristic =
             self.get_characteristic(uuid).ok_or("Characteristic not found")?;
         characteristic.write(data).await?;
@@ -359,88 +369,118 @@ impl BleClient {
     pub async fn get_ads_config(
         &self,
     ) -> Result<icd::AdsConfig, Box<dyn std::error::Error + Send + Sync>> {
+        fn first_byte(
+            value: &[u8],
+            name: &'static str,
+        ) -> Result<u8, Box<dyn Error + Send + Sync>> {
+            value.first().copied().ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("{name} characteristic returned no data"),
+                )
+                .into()
+            })
+        }
+
         let mut config = icd::AdsConfig::default();
 
         // Read all the characteristics and update the config
-        let (
-            daisy_en,
-            clk_en,
-            sample_rate,
-            internal_calibration,
-            calibration_amplitude,
-            calibration_frequency,
-            pd_refbuf,
-            bias_meas,
-            biasref_int,
-            pd_bias,
-            bias_loff_sens,
-            bias_stat,
-            comparator_threshold_pos,
-            lead_off_current,
-            lead_off_frequency,
-            srb1,
-            single_shot,
-            pd_loff_comp,
-            power_down,
-            gain,
-            srb2,
-            mux,
-            bias_sensp,
-            bias_sensn,
-            lead_off_sensp,
-            lead_off_sensn,
-            lead_off_flip,
-        ) = futures::try_join!(
-            self.read_characteristic(DAISY_EN_UUID),
-            self.read_characteristic(CLK_EN_UUID),
-            self.read_characteristic(SAMPLE_RATE_UUID),
-            self.read_characteristic(INTERNAL_CALIBRATION_UUID),
-            self.read_characteristic(CALIBRATION_AMPLITUDE_UUID),
-            self.read_characteristic(CALIBRATION_FREQUENCY_UUID),
-            self.read_characteristic(PD_REFBUF_UUID),
-            self.read_characteristic(BIAS_MEAS_UUID),
-            self.read_characteristic(BIASREF_INT_UUID),
-            self.read_characteristic(PD_BIAS_UUID),
-            self.read_characteristic(BIAS_LOFF_SENS_UUID),
-            self.read_characteristic(BIAS_STAT_UUID),
-            self.read_characteristic(COMPARATOR_THRESHOLD_POS_UUID),
-            self.read_characteristic(LEAD_OFF_CURRENT_UUID),
-            self.read_characteristic(LEAD_OFF_FREQUENCY_UUID),
-            self.read_characteristic(SRB1_UUID),
-            self.read_characteristic(SINGLE_SHOT_UUID),
-            self.read_characteristic(PD_LOFF_COMP_UUID),
-            self.read_characteristic(POWER_DOWN_UUID),
-            self.read_characteristic(GAIN_UUID),
-            self.read_characteristic(SRB2_UUID),
-            self.read_characteristic(MUX_UUID),
-            self.read_characteristic(BIAS_SENSP_UUID),
-            self.read_characteristic(BIAS_SENSN_UUID),
-            self.read_characteristic(LEAD_OFF_SENSP_UUID),
-            self.read_characteristic(LEAD_OFF_SENSN_UUID),
-            self.read_characteristic(LEAD_OFF_FLIP_UUID),
-        )?;
+        let daisy_en = self.read_characteristic(DAISY_EN_UUID).await?;
+        let clk_en = self.read_characteristic(CLK_EN_UUID).await?;
+        let sample_rate = self.read_characteristic(SAMPLE_RATE_UUID).await?;
+        let internal_calibration =
+            self.read_characteristic(INTERNAL_CALIBRATION_UUID).await?;
+        let calibration_amplitude =
+            self.read_characteristic(CALIBRATION_AMPLITUDE_UUID).await?;
+        let calibration_frequency =
+            self.read_characteristic(CALIBRATION_FREQUENCY_UUID).await?;
+        let pd_refbuf = self.read_characteristic(PD_REFBUF_UUID).await?;
+        let bias_meas = self.read_characteristic(BIAS_MEAS_UUID).await?;
+        let biasref_int = self.read_characteristic(BIASREF_INT_UUID).await?;
+        let pd_bias = self.read_characteristic(PD_BIAS_UUID).await?;
+        let bias_loff_sens =
+            self.read_characteristic(BIAS_LOFF_SENS_UUID).await?;
+        let bias_stat = self.read_characteristic(BIAS_STAT_UUID).await?;
+        let comparator_threshold_pos =
+            self.read_characteristic(COMPARATOR_THRESHOLD_POS_UUID).await?;
+        let lead_off_current =
+            self.read_characteristic(LEAD_OFF_CURRENT_UUID).await?;
+        let lead_off_frequency =
+            self.read_characteristic(LEAD_OFF_FREQUENCY_UUID).await?;
+        let srb1 = self.read_characteristic(SRB1_UUID).await?;
+        let single_shot = self.read_characteristic(SINGLE_SHOT_UUID).await?;
+        let pd_loff_comp = self.read_characteristic(PD_LOFF_COMP_UUID).await?;
+        let power_down = self.read_characteristic(POWER_DOWN_UUID).await?;
+        let gain = self.read_characteristic(GAIN_UUID).await?;
+        let srb2 = self.read_characteristic(SRB2_UUID).await?;
+        let mux = self.read_characteristic(MUX_UUID).await?;
+        let bias_sensp = self.read_characteristic(BIAS_SENSP_UUID).await?;
+        let bias_sensn = self.read_characteristic(BIAS_SENSN_UUID).await?;
+        let lead_off_sensp =
+            self.read_characteristic(LEAD_OFF_SENSP_UUID).await?;
+        let lead_off_sensn =
+            self.read_characteristic(LEAD_OFF_SENSN_UUID).await?;
+        let lead_off_flip =
+            self.read_characteristic(LEAD_OFF_FLIP_UUID).await?;
 
-        config.daisy_en = daisy_en[0] != 0;
-        config.clk_en = clk_en[0] != 0;
-        config.sample_rate = sample_rate[0].into();
-        config.internal_calibration = internal_calibration[0] != 0;
-        config.calibration_amplitude = calibration_amplitude[0] != 0;
-        config.calibration_frequency = calibration_frequency[0].into();
-        config.pd_refbuf = pd_refbuf[0] != 0;
-        config.bias_meas = bias_meas[0] != 0;
-        config.biasref_int = biasref_int[0] != 0;
-        config.pd_bias = pd_bias[0] != 0;
-        config.bias_loff_sens = bias_loff_sens[0] != 0;
-        config.bias_stat = bias_stat[0] != 0;
-        config.comparator_threshold_pos = comparator_threshold_pos[0].into();
-        config.lead_off_current = lead_off_current[0].into();
-        config.lead_off_frequency = lead_off_frequency[0].into();
-        config.srb1 = srb1[0] != 0;
-        config.single_shot = single_shot[0] != 0;
-        config.pd_loff_comp = pd_loff_comp[0] != 0;
+        config.daisy_en = first_byte(&daisy_en, "daisy_en")? != 0;
+        config.clk_en = first_byte(&clk_en, "clk_en")? != 0;
+        config.sample_rate = first_byte(&sample_rate, "sample_rate")?.into();
+        config.internal_calibration =
+            first_byte(&internal_calibration, "internal_calibration")? != 0;
+        config.calibration_amplitude =
+            first_byte(&calibration_amplitude, "calibration_amplitude")? != 0;
+        config.calibration_frequency =
+            first_byte(&calibration_frequency, "calibration_frequency")?
+                .into();
+        config.pd_refbuf = first_byte(&pd_refbuf, "pd_refbuf")? != 0;
+        config.bias_meas = first_byte(&bias_meas, "bias_meas")? != 0;
+        config.biasref_int = first_byte(&biasref_int, "biasref_int")? != 0;
+        config.pd_bias = first_byte(&pd_bias, "pd_bias")? != 0;
+        config.bias_loff_sens =
+            first_byte(&bias_loff_sens, "bias_loff_sens")? != 0;
+        config.bias_stat = first_byte(&bias_stat, "bias_stat")? != 0;
+        config.comparator_threshold_pos =
+            first_byte(&comparator_threshold_pos, "comparator_threshold_pos")?
+                .into();
+        config.lead_off_current =
+            first_byte(&lead_off_current, "lead_off_current")?.into();
+        config.lead_off_frequency =
+            first_byte(&lead_off_frequency, "lead_off_frequency")?.into();
+        config.srb1 = first_byte(&srb1, "srb1")? != 0;
+        config.single_shot = first_byte(&single_shot, "single_shot")? != 0;
+        config.pd_loff_comp = first_byte(&pd_loff_comp, "pd_loff_comp")? != 0;
 
         // Update channels
-        for i in 0..power_down.len() {
+        let channel_lengths = [
+            power_down.len(),
+            gain.len(),
+            srb2.len(),
+            mux.len(),
+            bias_sensp.len(),
+            bias_sensn.len(),
+            lead_off_sensp.len(),
+            lead_off_sensn.len(),
+            lead_off_flip.len(),
+        ];
+        let channel_count =
+            channel_lengths.iter().copied().max().unwrap_or_default();
+        if channel_count == 0 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "ADS channel configuration characteristics were empty",
+            )
+            .into());
+        }
+        if channel_lengths.iter().copied().any(|len| len != channel_count) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "ADS channel configuration characteristics had mismatched lengths",
+            )
+            .into());
+        }
+
+        for i in 0..channel_count {
             let channel = icd::ChannelConfig {
                 power_down: power_down[i] != 0,
                 gain: gain[i].into(),

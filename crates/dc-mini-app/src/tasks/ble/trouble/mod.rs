@@ -103,6 +103,7 @@ async fn app_task<'values>(
     loop {
         match advertise("dc-mini", peripheral, server).await {
             Ok(conn) => {
+                sync_characteristics(server, app_context).await;
                 let gatt = gatt_server_task(
                     server,
                     &conn,
@@ -122,6 +123,51 @@ async fn app_task<'values>(
             }
         }
     }
+}
+
+async fn sync_characteristics(
+    server: &Server<'_>,
+    app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+) {
+    let (
+        device_info,
+        current_profile,
+        ads_config,
+        mic_config,
+        recording_status,
+    ) = {
+        let mut app_ctx = app_context.lock().await;
+        (
+            app_ctx.device_info.clone(),
+            app_ctx.profile_manager.get_current_profile().await,
+            app_ctx
+                .profile_manager
+                .get_ads_config()
+                .await
+                .cloned()
+                .unwrap_or_default(),
+            app_ctx
+                .profile_manager
+                .get_mic_config()
+                .await
+                .cloned()
+                .unwrap_or_default(),
+            app_ctx.state.recording_status,
+        )
+    };
+
+    update_device_info_characteristics(
+        server,
+        device_info.hardware_revision.as_str(),
+        device_info.software_revision.as_str(),
+        device_info.manufacturer_name.as_str(),
+    )
+    .await;
+    update_profile_characteristics(server, current_profile).await;
+    update_session_characteristics(server, &[], recording_status).await;
+    update_battery_characteristics(server, 100).await;
+    update_ads_characteristics(server, &ads_config).await;
+    update_mic_characteristics(server, &mic_config).await;
 }
 
 #[embassy_executor::task]

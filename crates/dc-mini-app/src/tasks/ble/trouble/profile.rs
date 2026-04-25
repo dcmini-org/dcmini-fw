@@ -44,10 +44,13 @@ impl<'d> Server<'d> {
     pub async fn handle_profile_read_event(
         &self,
         handle: u16,
-        _app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+        app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
     ) {
         if handle == self.profile.current_profile.handle {
-            // Profile reads are handled by the characteristic directly
+            let app_ctx = app_context.lock().await;
+            let current_profile =
+                app_ctx.profile_manager.get_current_profile().await;
+            update_profile_characteristics(self, current_profile).await;
         }
     }
 
@@ -100,6 +103,10 @@ impl<'d> Server<'d> {
                             );
                         }
                     }
+                    let current_profile =
+                        app_ctx.profile_manager.get_current_profile().await;
+                    update_profile_characteristics(self, current_profile)
+                        .await;
                 }
             }
         }

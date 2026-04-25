@@ -1,6 +1,7 @@
 use super::{gatt::Server, ATT_MTU};
-use crate::prelude::info;
+use crate::prelude::{info, unwrap};
 use crate::tasks::ble::mic_stream::{self, MicStreamNotifier};
+use dc_mini_icd::MicConfig;
 use heapless::Vec;
 use trouble_host::prelude::*;
 
@@ -59,4 +60,12 @@ pub async fn mic_stream_notify<P: PacketPool>(
     info!("Mic ATT mtu = {}, max notify value = {}", att_mtu, mtu);
 
     mic_stream::mic_stream_notify(&notifier, mtu).await
+}
+
+pub async fn update_mic_characteristics(
+    server: &Server<'_>,
+    config: &MicConfig,
+) {
+    unwrap!(server.set(&server.mic.gain_db, &config.gain_db));
+    unwrap!(server.set(&server.mic.sample_rate, &(config.sample_rate as u8),));
 }

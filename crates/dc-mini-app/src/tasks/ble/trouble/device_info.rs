@@ -23,13 +23,20 @@ impl<'d> Server<'d> {
     pub async fn handle_device_info_read_event(
         &self,
         handle: u16,
-        _app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
+        app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
     ) {
         if handle == self.device_info.hardware_revision.handle
             || handle == self.device_info.software_revision.handle
             || handle == self.device_info.manufacturer_name.handle
         {
-            // Device info reads are handled by the characteristics directly
+            let app_ctx = app_context.lock().await;
+            update_device_info_characteristics(
+                self,
+                app_ctx.device_info.hardware_revision.as_str(),
+                app_ctx.device_info.software_revision.as_str(),
+                app_ctx.device_info.manufacturer_name.as_str(),
+            )
+            .await;
         }
     }
 }

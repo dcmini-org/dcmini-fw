@@ -29,12 +29,22 @@ impl<'d> Server<'d> {
         handle: u16,
         app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
     ) {
-        let _app_ctx = app_context.lock().await;
+        let app_ctx = app_context.lock().await;
 
         if handle == self.session.recording_id.handle {
-            // No need to handle read for recording_id as it's handled by the characteristic
+            update_session_characteristics(
+                self,
+                &[],
+                app_ctx.state.recording_status,
+            )
+            .await;
         } else if handle == self.session.recording_status.handle {
-            // No need to handle read for recording_status as it's handled by the characteristic
+            update_session_characteristics(
+                self,
+                &[],
+                app_ctx.state.recording_status,
+            )
+            .await;
         }
     }
 

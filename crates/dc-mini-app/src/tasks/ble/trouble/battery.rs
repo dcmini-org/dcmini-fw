@@ -19,7 +19,7 @@ impl<'d> Server<'d> {
         _app_context: &'static Mutex<CriticalSectionRawMutex, AppContext>,
     ) {
         if handle == self.battery.battery_level.handle {
-            // Battery level reads are handled by the characteristic directly
+            update_battery_characteristics(self, 100).await;
         }
     }
 }
