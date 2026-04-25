@@ -122,6 +122,12 @@ async fn main(spawner: Spawner) {
             software_revision: heapless::String::try_from(FW_VERSION).unwrap(),
             manufacturer_name: heapless::String::try_from(MANUFACTURER)
                 .unwrap(),
+            capabilities: Some(DeviceCapabilities {
+                imu_present: false,
+                apds_present: false,
+                mic_present: true,
+                ppg_present: false,
+            }),
         },
         high_prio_spawner,
         medium_prio_spawner,
@@ -270,11 +276,30 @@ async fn main(spawner: Spawner) {
     pofena = npm1300.is_power_failure_detection_enabled().await.unwrap();
     info!("Power failure detection enabled?: {:?}", pofena);
 
+    let imu_present = probe_imu_presence(i2c_bus_manager, imu_resources).await;
+    let apds_present = probe_apds_presence(i2c_bus_manager).await;
+    let capabilities = DeviceCapabilities {
+        imu_present,
+        apds_present,
+        mic_present: true,
+        ppg_present: false,
+    };
+    info!("Detected optional peripherals: {:?}", capabilities);
+    {
+        let mut context = app_context.lock().await;
+        context.device_info.capabilities = Some(capabilities);
+    }
+
     let ads_manager =
         AdsManager::new(spi3_bus_resources, ads_resources, app_context);
-    let imu_manager =
-        ImuManager::new(i2c_bus_manager, imu_resources, app_context);
-    let apds_manager = ApdsManager::new(i2c_bus_manager, app_context);
+    let imu_manager = ImuManager::new(
+        imu_present,
+        i2c_bus_manager,
+        imu_resources,
+        app_context,
+    );
+    let apds_manager =
+        ApdsManager::new(apds_present, i2c_bus_manager, app_context);
     let haptic_manager = HapticManager::new(i2c_bus_manager, app_context);
     let mic_manager = MicManager::new(mic_resources, app_context);
     let session_manager = SessionManager::new(app_context, sd_card_resources);
@@ -336,7 +361,9 @@ async fn main(spawner: Spawner) {
 
     {
         let app_ctx = app_context.lock().await;
-        app_ctx.event_sender.send(ImuEvent::StartStream.into()).await;
+        if app_ctx.capabilities().imu_present {
+            app_ctx.event_sender.send(ImuEvent::StartStream.into()).await;
+        }
     }
 
     loop {

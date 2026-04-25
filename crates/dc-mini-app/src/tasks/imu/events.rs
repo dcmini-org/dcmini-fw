@@ -36,6 +36,7 @@ impl TryFrom<u8> for ImuEvent {
 
 #[derive(Clone)]
 pub struct ImuManager {
+    available: bool,
     bus_manager: &'static I2cBusManager,
     imu: &'static Mutex<CriticalSectionRawMutex, ImuResources>,
     app: &'static Mutex<CriticalSectionRawMutex, AppContext>,
@@ -43,17 +44,21 @@ pub struct ImuManager {
 
 impl ImuManager {
     pub fn new(
+        available: bool,
         bus_manager: &'static I2cBusManager,
         imu: &'static Mutex<CriticalSectionRawMutex, ImuResources>,
         app: &'static Mutex<CriticalSectionRawMutex, AppContext>,
     ) -> Self {
-        Self { bus_manager, imu, app }
+        Self { available, bus_manager, imu, app }
     }
 
     pub async fn handle_event(&self, event: ImuEvent) {
         info!("Received event {:?}", event);
         match event {
             ImuEvent::ConfigChanged => {
+                if !self.available {
+                    return;
+                }
                 // Handle configuration changes
                 if IMU_MEAS.load(Ordering::SeqCst) {
                     // We are streaming and need to update the active IMU config.
@@ -66,6 +71,9 @@ impl ImuManager {
                 }
             }
             ImuEvent::StopStream => {
+                if !self.available {
+                    return;
+                }
                 if !IMU_MEAS.load(Ordering::SeqCst) {
                     info!("Tried to stop IMU when it was already stopped.")
                 } else {
@@ -74,6 +82,12 @@ impl ImuManager {
                 }
             }
             ImuEvent::StartStream => {
+                if !self.available {
+                    warn!(
+                        "Ignoring IMU start request because no IMU is present"
+                    );
+                    return;
+                }
                 if IMU_MEAS.load(Ordering::SeqCst) {
                     info!("Tried to start IMU stream while already running.");
                 } else {

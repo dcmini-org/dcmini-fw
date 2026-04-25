@@ -128,6 +128,59 @@ impl DeviceInfoPanel {
                             .monospace(),
                     );
                 });
+
+                if let Some(capabilities) = info.capabilities {
+                    ui.separator();
+                    ui.label("Detected Optional Peripherals:");
+
+                    ui.horizontal(|ui| {
+                        ui.label("IMU:");
+                        ui.label(
+                            RichText::new(if capabilities.imu_present {
+                                "present"
+                            } else {
+                                "absent"
+                            })
+                            .monospace(),
+                        );
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Ambient Light:");
+                        ui.label(
+                            RichText::new(if capabilities.apds_present {
+                                "present"
+                            } else {
+                                "absent"
+                            })
+                            .monospace(),
+                        );
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Microphone:");
+                        ui.label(
+                            RichText::new(if capabilities.mic_present {
+                                "present"
+                            } else {
+                                "absent"
+                            })
+                            .monospace(),
+                        );
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("PPG:");
+                        ui.label(
+                            RichText::new(if capabilities.ppg_present {
+                                "present"
+                            } else {
+                                "absent"
+                            })
+                            .monospace(),
+                        );
+                    });
+                }
             } else {
                 ui.label("Device information unavailable");
             }

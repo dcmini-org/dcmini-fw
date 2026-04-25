@@ -5,7 +5,7 @@ mod tasks; // Tasks module is private
 
 pub use config::*;
 pub use events::*;
-use tasks::*;
+pub use tasks::*;
 
 use crate::prelude::*;
 use embassy_sync::signal::Signal;

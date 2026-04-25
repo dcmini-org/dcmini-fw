@@ -16,22 +16,27 @@ pub enum ApdsEvent {
 
 #[derive(Clone)]
 pub struct ApdsManager {
+    available: bool,
     bus_manager: &'static I2cBusManager,
     app: &'static Mutex<CriticalSectionRawMutex, AppContext>,
 }
 
 impl ApdsManager {
     pub fn new(
+        available: bool,
         bus_manager: &'static I2cBusManager,
         app: &'static Mutex<CriticalSectionRawMutex, AppContext>,
     ) -> Self {
-        Self { bus_manager, app }
+        Self { available, bus_manager, app }
     }
 
     pub async fn handle_event(&self, event: ApdsEvent) {
         info!("Received event {:?}", event);
         match event {
             ApdsEvent::ConfigChanged => {
+                if !self.available {
+                    return;
+                }
                 if APDS_MEAS.load(Ordering::SeqCst) {
                     let mut app_ctx = self.app.lock().await;
                     if let Some(apds_config) = app_ctx
@@ -45,6 +50,9 @@ impl ApdsManager {
                 }
             }
             ApdsEvent::StopStream => {
+                if !self.available {
+                    return;
+                }
                 if !APDS_MEAS.load(Ordering::SeqCst) {
                     info!("Tried to stop APDS when it was already stopped.")
                 } else {
@@ -53,6 +61,12 @@ impl ApdsManager {
                 }
             }
             ApdsEvent::StartStream => {
+                if !self.available {
+                    warn!(
+                        "Ignoring APDS start request because no APDS sensor is present"
+                    );
+                    return;
+                }
                 if APDS_MEAS.load(Ordering::SeqCst) {
                     info!("Tried to start APDS stream while already running.");
                 } else {

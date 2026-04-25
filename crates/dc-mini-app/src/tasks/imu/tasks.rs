@@ -7,6 +7,34 @@ use embassy_futures::select::{select, Either};
 use embassy_sync::mutex::Mutex;
 use portable_atomic::Ordering;
 
+pub async fn probe_imu_presence(
+    bus_manager: &'static I2cBusManager,
+    imu: &'static Mutex<CriticalSectionRawMutex, ImuResources>,
+) -> bool {
+    let handle = match bus_manager.acquire().await {
+        Ok(handle) => handle,
+        Err(_e) => {
+            error!("Failed to acquire I2C bus while probing IMU");
+            return false;
+        }
+    };
+
+    let mut imu_resources = imu.lock().await;
+    let device = I2cDevice::new(handle.bus());
+    let mut imu = imu_resources.configure_with_device(device).await;
+
+    match imu.init().await {
+        Ok(()) => {
+            info!("IMU detected");
+            true
+        }
+        Err(e) => {
+            warn!("IMU not detected, disabling IMU subsystem: {:?}", e);
+            false
+        }
+    }
+}
+
 #[embassy_executor::task]
 pub async fn imu_task(
     bus_manager: &'static I2cBusManager,
@@ -23,13 +51,22 @@ pub async fn imu_task(
     let mut imu = imu_resources.configure_with_device(device).await;
 
     // Initialize IMU
+    let mut initialized = false;
     for i in 0..5 {
         if imu.init().await.is_ok() {
+            initialized = true;
             break;
         } else {
             info!("Retry connection attempt {:?} to IMU...", i);
             Timer::after_millis(1000).await;
         }
+    }
+
+    if !initialized {
+        warn!("IMU init failed, stopping IMU task");
+        IMU_MEAS_SIG.reset();
+        IMU_MEAS.store(false, Ordering::SeqCst);
+        return;
     }
 
     // Apply all configuration settings

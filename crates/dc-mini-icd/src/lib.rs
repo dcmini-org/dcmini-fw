@@ -83,6 +83,16 @@ pub struct DeviceInfo {
     pub hardware_revision: heapless::String<32>,
     pub software_revision: heapless::String<32>,
     pub manufacturer_name: heapless::String<32>,
+    pub capabilities: Option<DeviceCapabilities>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Schema, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct DeviceCapabilities {
+    pub imu_present: bool,
+    pub apds_present: bool,
+    pub mic_present: bool,
+    pub ppg_present: bool,
 }
 
 // Profile Service types

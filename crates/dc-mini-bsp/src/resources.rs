@@ -1,9 +1,9 @@
+#[cfg(not(feature = "sr6"))]
+use crate::board::PmicBusResources;
 use crate::board::{
     AdsResources, ExternalFlashResources, HapticResources, ImuResources,
     MicResources, SdCardResources, Spi3BusResources, Twim1BusResources,
 };
-#[cfg(not(feature = "sr6"))]
-use crate::board::PmicBusResources;
 use ads1299::{Ads1299, AdsFrontend};
 use bus_manager::BusFactory;
 use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;

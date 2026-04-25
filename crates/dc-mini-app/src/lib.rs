@@ -15,7 +15,7 @@ mod util;
 compile_error!("You must enable exactly one of the following features: `trouble`, `critical-section`");
 
 use core::ptr::addr_of_mut;
-use dc_mini_icd::DeviceInfo;
+use dc_mini_icd::{DeviceCapabilities, DeviceInfo};
 use embassy_executor::{InterruptExecutor, SendSpawner};
 use embassy_nrf::interrupt;
 use embassy_nrf::interrupt::{InterruptExt, Priority};
@@ -72,6 +72,15 @@ pub struct AppContext {
 }
 
 impl AppContext {
+    pub fn capabilities(&self) -> DeviceCapabilities {
+        self.device_info.capabilities.unwrap_or(DeviceCapabilities {
+            imu_present: true,
+            apds_present: true,
+            mic_present: true,
+            ppg_present: false,
+        })
+    }
+
     pub async fn save_ads_config(&mut self, config: prelude::AdsConfig) {
         match self.profile_manager.set_ads_config(config).await {
             Ok(_) => {
@@ -87,9 +96,11 @@ impl AppContext {
     pub async fn save_imu_config(&mut self, config: prelude::ImuConfig) {
         match self.profile_manager.set_imu_config(config).await {
             Ok(_) => {
-                self.event_sender
-                    .send(prelude::ImuEvent::ConfigChanged.into())
-                    .await;
+                if self.capabilities().imu_present {
+                    self.event_sender
+                        .send(prelude::ImuEvent::ConfigChanged.into())
+                        .await;
+                }
             }
             Err(e) => {
                 prelude::warn!("Failed to save IMU config: {:?}", e);
@@ -99,9 +110,11 @@ impl AppContext {
     pub async fn save_apds_config(&mut self, config: prelude::ApdsConfig) {
         match self.profile_manager.set_apds_config(config).await {
             Ok(_) => {
-                self.event_sender
-                    .send(prelude::ApdsEvent::ConfigChanged.into())
-                    .await;
+                if self.capabilities().apds_present {
+                    self.event_sender
+                        .send(prelude::ApdsEvent::ConfigChanged.into())
+                        .await;
+                }
             }
             Err(e) => {
                 prelude::warn!("Failed to save APDS config: {:?}", e);

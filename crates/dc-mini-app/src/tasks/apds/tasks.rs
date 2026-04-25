@@ -6,6 +6,29 @@ use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
 use embassy_futures::select::{select, Either};
 use portable_atomic::Ordering;
 
+pub async fn probe_apds_presence(bus_manager: &'static I2cBusManager) -> bool {
+    let handle = match bus_manager.acquire().await {
+        Ok(handle) => handle,
+        Err(_e) => {
+            error!("Failed to acquire I2C bus while probing APDS");
+            return false;
+        }
+    };
+    let mut sensor = Apds9253::new(I2cDevice::new(handle.bus()));
+
+    match sensor.init_async().await {
+        Ok(()) => {
+            let _ = sensor.enable_async(false).await;
+            info!("APDS detected");
+            true
+        }
+        Err(e) => {
+            warn!("APDS not detected, disabling APDS subsystem: {:?}", e);
+            false
+        }
+    }
+}
+
 #[embassy_executor::task]
 pub async fn apds_task(
     bus_manager: &'static I2cBusManager,
@@ -18,13 +41,22 @@ pub async fn apds_task(
     let mut sensor = Apds9253::new(I2cDevice::new(handle.bus()));
 
     // Initialize sensor with retry loop
+    let mut initialized = false;
     for i in 0..5 {
         if sensor.init_async().await.is_ok() {
+            initialized = true;
             break;
         } else {
             info!("Retry connection attempt {:?} to APDS...", i);
             Timer::after_millis(1000).await;
         }
+    }
+
+    if !initialized {
+        warn!("APDS init failed, stopping APDS task");
+        APDS_MEAS_SIG.reset();
+        APDS_MEAS.store(false, Ordering::SeqCst);
+        return;
     }
 
     // Apply all configuration settings

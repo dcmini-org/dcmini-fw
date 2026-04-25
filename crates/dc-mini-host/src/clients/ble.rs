@@ -288,6 +288,7 @@ impl BleClient {
             hardware_revision: hw_rev,
             software_revision: sw_rev,
             manufacturer_name: mfr_name,
+            capabilities: None,
         })
     }
 

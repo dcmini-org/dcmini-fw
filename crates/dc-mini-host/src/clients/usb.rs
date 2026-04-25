@@ -15,8 +15,8 @@ use postcard_rpc::{
     host_client::{HostClient, HostErr},
     standard_icd::{WireError, ERROR_PATH},
 };
-use std::fmt;
 use std::convert::Infallible;
+use std::fmt;
 
 pub struct UsbClient {
     pub client: HostClient<WireError>,
