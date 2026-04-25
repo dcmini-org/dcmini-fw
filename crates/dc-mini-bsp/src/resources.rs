@@ -2,6 +2,8 @@ use crate::board::{
     AdsResources, ExternalFlashResources, HapticResources, ImuResources,
     MicResources, SdCardResources, Spi3BusResources, Twim1BusResources,
 };
+#[cfg(not(feature = "sr6"))]
+use crate::board::PmicBusResources;
 use ads1299::{Ads1299, AdsFrontend};
 use bus_manager::BusFactory;
 use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
@@ -102,6 +104,11 @@ bind_interrupts!(struct SpiIrq {
 
 bind_interrupts!(struct TwimIrqs {
     TWISPI1 => twim::InterruptHandler<peripherals::TWISPI1>;
+});
+
+#[cfg(not(feature = "sr6"))]
+bind_interrupts!(struct PmicTwimIrqs {
+    TWISPI0 => twim::InterruptHandler<peripherals::TWISPI0>;
 });
 
 bind_interrupts!(struct PdmIrqs {
@@ -240,6 +247,33 @@ impl Twim1BusResources {
             config,
             RAM_BUFFER.take(),
         ))
+    }
+}
+
+#[cfg(not(feature = "sr6"))]
+impl PmicBusResources {
+    pub fn get_bus<'a>(&'a mut self) -> twim::Twim<'a> {
+        let mut config = twim::Config::default();
+        // nRF52840 marks P1.13/P1.14 as unsuitable for high-speed interfaces.
+        // TWIM on this chip only exposes 100/250/400 kHz, so use the slowest
+        // supported hardware setting for the PMIC's dedicated bus.
+        config.frequency = twim::Frequency::K100;
+        // Enable internal pull-ups. the dedicated PMIC bus does not
+        // have board-level pull-ups, there's no space for them
+        config.sda_pullup = true;
+        config.scl_pullup = true;
+        interrupt::TWISPI0.set_priority(interrupt::Priority::P3);
+        static RAM_BUFFER: static_cell::ConstStaticCell<[u8; 32]> =
+            static_cell::ConstStaticCell::new([0; 32]);
+
+        twim::Twim::new(
+            self.twim.reborrow(),
+            PmicTwimIrqs,
+            self.sda.reborrow(),
+            self.scl.reborrow(),
+            config,
+            RAM_BUFFER.take(),
+        )
     }
 }
 

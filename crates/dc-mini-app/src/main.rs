@@ -157,14 +157,19 @@ async fn main(spawner: Spawner) {
         NtcThermistorType, VsysThreshold, NPM1300,
     };
 
-    // Acquire bus handle - configures bus if needed
+    #[cfg(feature = "sr6")]
+    // Acquire shared bus handle - configures the bus if needed.
     let handle = i2c_bus_manager.acquire().await.unwrap();
+    #[cfg(feature = "sr6")]
     let mut npm1300 = NPM1300::new(
         embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice::new(
             handle.bus(),
         ),
         embassy_time::Delay,
     );
+    #[cfg(not(feature = "sr6"))]
+    let mut npm1300 =
+        NPM1300::new(board.pmic_bus_resources.get_bus(), embassy_time::Delay);
 
     info!("Created nPM1300 driver!");
     Timer::after_millis(200).await;

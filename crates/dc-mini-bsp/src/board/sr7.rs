@@ -1,9 +1,9 @@
 use embassy_nrf::interrupt::Priority;
 use embassy_nrf::peripherals::{
     self, I2S, NVMC, P0_00, P0_02, P0_03, P0_11, P0_12, P0_27, P0_30, P0_31,
-    P1_01, P1_02, P1_03, P1_04, P1_05, P1_06, P1_07, P1_09, P1_11, P1_12, PDM,
-    PWM0, PWM1, PWM2, PWM3, QDEC, RNG, RTC2, SAADC, TIMER0, TIMER1, TIMER2,
-    TIMER3, TIMER4, TWISPI0, UARTE0, UARTE1, WDT,
+    P1_01, P1_02, P1_03, P1_04, P1_05, P1_06, P1_07, P1_09, P1_11, P1_12,
+    P1_13, P1_14, PDM, PWM0, PWM1, PWM2, PWM3, QDEC, RNG, RTC2, SAADC, TIMER0,
+    TIMER1, TIMER2, TIMER3, TIMER4, UARTE0, UARTE1, WDT,
 };
 use embassy_nrf::Peri;
 
@@ -27,6 +27,12 @@ pub struct Twim1BusResources {
     pub twim: Peri<'static, peripherals::TWISPI1>,
     pub sda: Peri<'static, peripherals::P0_04>,
     pub scl: Peri<'static, peripherals::P0_06>,
+}
+
+pub struct PmicBusResources {
+    pub twim: Peri<'static, peripherals::TWISPI0>,
+    pub sda: Peri<'static, P1_14>,
+    pub scl: Peri<'static, P1_13>,
 }
 
 pub struct AdsResources {
@@ -131,6 +137,8 @@ pub struct DCMini {
     pub sd_card_resources: SdCardResources,
     /// Peripherals for I2C bus.
     pub twim1_bus_resources: Twim1BusResources,
+    /// Dedicated low-speed I2C bus for the PMIC.
+    pub pmic_bus_resources: PmicBusResources,
     /// Peripherals for the Imu.
     pub imu_resources: ImuResources,
     /// Real-Time Clock 2.
@@ -147,8 +155,6 @@ pub struct DCMini {
     pub uarte0: Peri<'static, UARTE0>,
     /// UART (Universal Asynchronous Receiver-Transmitter) 1.
     pub uarte1: Peri<'static, UARTE1>,
-    /// Two-Wire Interface/SPI 0.
-    pub twispi0: Peri<'static, TWISPI0>,
     /// Successive Approximation Analog-to-Digital Converter.
     pub saadc: Peri<'static, SAADC>,
     /// Pulse-Width Modulation 0.
@@ -218,7 +224,6 @@ impl DCMini {
             qdec: p.QDEC,
             uarte0: p.UARTE0,
             uarte1: p.UARTE1,
-            twispi0: p.TWISPI0,
             saadc: p.SAADC,
             pwm0: p.PWM0,
             pwm1: p.PWM1,
@@ -265,6 +270,11 @@ impl DCMini {
                 twim: p.TWISPI1,
                 sda: p.P0_04,
                 scl: p.P0_06,
+            },
+            pmic_bus_resources: PmicBusResources {
+                twim: p.TWISPI0,
+                sda: p.P1_14,
+                scl: p.P1_13,
             },
             imu_resources: ImuResources { irq: p.P0_01, sync: p.P0_08 },
             #[cfg(feature = "trouble")]
