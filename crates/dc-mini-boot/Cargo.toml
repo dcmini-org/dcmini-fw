@@ -25,7 +25,9 @@ alloc = []
 critical-section = []
 demo = []
 # Hardware revision of board.
+latest = ["sr7"]
 sr6 = ["dc-mini-bsp/sr6"]
+sr7 = ["dc-mini-bsp/sr7"]
 
 [dependencies]
 embassy-boot-nrf = { workspace = true }

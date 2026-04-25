@@ -24,7 +24,9 @@ defmt = [
 ]
 trouble = ["nrf-sdc", "nrf-mpsl"]
 usb = []
+latest = ["sr7"]
 sr6 = []
+sr7 = []
 
 [dependencies]
 bus-manager = { workspace = true }

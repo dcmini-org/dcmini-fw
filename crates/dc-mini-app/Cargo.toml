@@ -55,7 +55,9 @@ critical-section = ["cortex-m/critical-section-single-core"]
 demo = []
 
 # Hardware revision of board.
+latest = ["sr7"]
 sr6 = ["dc-mini-bsp/sr6"]
+sr7 = ["dc-mini-bsp/sr7"]
 
 [dependencies]
 audio-codec-algorithms = { workspace = true }

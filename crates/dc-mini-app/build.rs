@@ -13,19 +13,21 @@ use std::{env, fs::File, io::Write, path::PathBuf};
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 enum HwVersion {
     SR6,
+    SR7,
 }
 
 impl HwVersion {
     fn as_str(self) -> &'static str {
         match self {
             Self::SR6 => "sr6",
+            Self::SR7 => "sr7",
         }
     }
 }
 
 impl Default for HwVersion {
     fn default() -> Self {
-        Self::SR6
+        Self::SR7
     }
 }
 
@@ -34,7 +36,10 @@ fn linker_data() -> &'static [u8] {
 }
 
 fn main() {
-    let hw_features = [(cfg!(feature = "sr6"), HwVersion::SR6)];
+    let hw_features = [
+        (cfg!(feature = "sr6"), HwVersion::SR6),
+        (cfg!(feature = "sr7"), HwVersion::SR7),
+    ];
 
     let enabled_hw: Vec<HwVersion> = hw_features
         .into_iter()

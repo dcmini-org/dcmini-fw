@@ -8,32 +8,38 @@ enforced by a compile-time constant check in `board/mod.rs`.
 
 ## Feature system
 
-Each board revision has a corresponding feature in `Cargo.toml` (e.g. `sr6 = []`).
-Dependent crates re-export the feature so it propagates:
+Each concrete board revision has a corresponding feature in `Cargo.toml`
+(e.g. `sr7 = []`). The `latest` feature is an alias to the most recent
+concrete revision. Dependent crates re-export the features so they propagate:
 
 ```toml
 # dc-mini-app/Cargo.toml
+latest = ["sr7"]
 sr6 = ["dc-mini-bsp/sr6"]
+sr7 = ["dc-mini-bsp/sr7"]
 ```
 
 `board/mod.rs` uses `cfg_if!` to select the correct module:
 
 ```rust
 cfg_if::cfg_if! {
-    if #[cfg(feature = "sr6")] {
+    if #[cfg(feature = "sr7")] {
+        pub mod sr7;
+        pub use sr7::*;
+    } else if #[cfg(feature = "sr6")] {
         pub mod sr6;
         pub use sr6::*;
     } else {
         // Default fallback
-        pub mod sr6;
-        pub use sr6::*;
+        pub mod sr7;
+        pub use sr7::*;
     }
 }
 ```
 
 ## What each board file must export
 
-Every board file (e.g. `sr6.rs`) must define and export:
+Every board file (e.g. `sr7.rs`) must define and export:
 
 ### Resource structs
 
@@ -90,3 +96,5 @@ impl DCMini {
 6. If the new board has different power control behavior, sensor support, or
    pin mappings, add appropriate `#[cfg(feature = "sr7")]` gates in the app
    crate where needed.
+7. If the new board becomes the current default revision, repoint the `latest`
+   feature alias to it instead of creating a separate `latest.rs` board file.
